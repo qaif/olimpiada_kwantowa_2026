@@ -1,0 +1,113 @@
+{% extends "teacher_panel/base.html" %}
+{% load i18n web_extras %}
+{% comment %}
+  „Start” panelu nauczyciela (UX-PANEL-02 § 4): kafle z liczbami i jedną czynnością każdy. Liczby
+  pochodzą z tego samego serwisu, co „Postęp klasy” (``teacher_panel.services.start_summary``), więc
+  kafel „bez pracy: 3” i filtr „bez pracy” w tabeli nie mogą się rozjechać.
+
+  Kafle formalności (zaświadczenie, zgoda rodzica) rysują się wyłącznie przy fladze konkursu
+  ``supervisor_class_details`` – bez niej serwis tych danych w ogóle nie czyta (D5).
+{% endcomment %}
+{% block title %}{% translate "Panel nauczyciela" %}{% endblock %}
+{% block panel_content %}
+<div class="page-head">
+  <span class="eyebrow">{% translate "Panel nauczyciela" %}</span>
+  <h1>{% blocktranslate trimmed with name=supervisor.user.first_name %}Dzień dobry, {{ name }}{% endblocktranslate %}</h1>
+  <p class="lead">{% blocktranslate trimmed with email=supervisor.user.email %}
+    Widzisz uczniów, którzy wskazali Twój adres ({{ email }}) w swoim profilu albo przyjęli Twoje
+    zaproszenie. Każdy z nich może to w każdej chwili cofnąć.
+  {% endblocktranslate %}</p>
+</div>
+
+<section class="pp-tiles" aria-labelledby="tp-tiles-title">
+  <h2 class="visually-hidden" id="tp-tiles-title">{% translate "Na skróty" %}</h2>
+  <ul class="pp-tiles__grid">
+    <li class="pp-tile">
+      <h3 class="pp-tile__title"><svg class="pp-icon" aria-hidden="true" focusable="false"><use href="#tp-i-users"></use></svg>{% translate "Uczniowie" %}</h3>
+      <p class="tp-figure"><span class="tp-figure__value">{{ summary.active }}</span> <span class="tp-figure__label">{% translate "z kontem w serwisie" %}</span></p>
+      <p class="pp-tile__meta">{% blocktranslate trimmed with counter=summary.invited %}Zaproszeni, jeszcze bez konta: {{ counter }}{% endblocktranslate %}</p>
+      <p class="pp-tile__actions">
+        <a class="btn btn--small btn--secondary" href="{% url 'web:supervisor-students' %}">{% translate "Moi uczniowie" %}</a>
+        <a class="btn btn--small btn--secondary" href="{% url 'web:supervisor-import' %}">{% translate "Zaproś z listy" %}</a>
+      </p>
+    </li>
+
+    {% if summary.deadline %}
+      <li class="pp-tile pp-tile--deadline">
+        <h3 class="pp-tile__title"><svg class="pp-icon" aria-hidden="true" focusable="false"><use href="#pp-i-clock"></use></svg>{% translate "Najbliższy termin" %}</h3>
+        <p class="pp-tile__lead">{{ summary.deadline.stage.display_name }}</p>
+        <p class="pp-tile__value">{{ summary.deadline.at|local_time }}</p>
+        <p class="pp-tile__meta">{% if summary.deadline.kind == "deadline" %}{% translate "termin oddania prac" %}{% else %}{% translate "start etapu" %}{% endif %}</p>
+        <p class="pp-tile__actions"><a class="btn btn--small btn--secondary" href="{% url 'web:supervisor-progress' %}">{% translate "Postęp klasy" %}</a></p>
+      </li>
+    {% endif %}
+
+    <li class="pp-tile{% if summary.missing_work %} pp-tile--attention{% endif %}">
+      <h3 class="pp-tile__title"><svg class="pp-icon" aria-hidden="true" focusable="false"><use href="#pp-i-task"></use></svg>{% translate "Bez pracy w otwartym etapie" %}</h3>
+      <p class="tp-figure"><span class="tp-figure__value">{{ summary.missing_work }}</span> <span class="tp-figure__label">{% translate "do przypomnienia" %}</span></p>
+      <p class="pp-tile__meta">{% translate "Zapisani do etapu, który teraz przyjmuje prace, i jeszcze niczego w nim nie oddali." %}</p>
+      {% if summary.missing_work %}
+        <p class="pp-tile__actions"><a class="btn btn--small btn--secondary" href="{% url 'web:supervisor-progress' %}?praca=missing">{% translate "Pokaż ich" %}</a></p>
+      {% endif %}
+    </li>
+
+    {% if summary.progress.show_certificate %}
+      <li class="pp-tile{% if summary.certificate_missing %} pp-tile--attention{% endif %}">
+        <h3 class="pp-tile__title"><svg class="pp-icon" aria-hidden="true" focusable="false"><use href="#pp-i-file"></use></svg>{% translate "Bez zaświadczenia o statusie ucznia" %}</h3>
+        <p class="tp-figure"><span class="tp-figure__value">{{ summary.certificate_missing }}</span> <span class="tp-figure__label">{% translate "brak albo odrzucone" %}</span></p>
+        {% if summary.certificate_pending %}<p class="pp-tile__meta">{% blocktranslate trimmed with counter=summary.certificate_pending %}Czeka na weryfikację organizatora: {{ counter }}.{% endblocktranslate %}</p>{% endif %}
+        {% if summary.certificate_missing %}
+          <p class="pp-tile__actions"><a class="btn btn--small btn--secondary" href="{% url 'web:supervisor-progress' %}?zaswiadczenie=MISSING">{% translate "Pokaż ich" %}</a></p>
+        {% endif %}
+      </li>
+    {% endif %}
+
+    {% if summary.progress.show_guardian %}
+      <li class="pp-tile{% if summary.guardian_missing %} pp-tile--attention{% endif %}">
+        <h3 class="pp-tile__title"><svg class="pp-icon" aria-hidden="true" focusable="false"><use href="#pp-i-shield"></use></svg>{% translate "Bez zgody rodzica" %}</h3>
+        <p class="tp-figure"><span class="tp-figure__value">{{ summary.guardian_missing }}</span> <span class="tp-figure__label">{% translate "wśród niepełnoletnich" %}</span></p>
+        <p class="pp-tile__meta">{% translate "Zgodę składa rodzic albo opiekun prawny przez link, który uczeń wysyła z panelu." %}</p>
+        {% if summary.guardian_missing %}
+          <p class="pp-tile__actions"><a class="btn btn--small btn--secondary" href="{% url 'web:supervisor-progress' %}?zgoda=missing">{% translate "Pokaż ich" %}</a></p>
+        {% endif %}
+      </li>
+    {% endif %}
+
+    {% if summary.workshop %}
+      <li class="pp-tile">
+        <h3 class="pp-tile__title"><svg class="pp-icon" aria-hidden="true" focusable="false"><use href="#pp-i-calendar"></use></svg>{% translate "Najbliższy warsztat" %}</h3>
+        <p class="pp-tile__lead">{{ summary.workshop.topic|default:_("Warsztaty online") }}</p>
+        <p class="pp-tile__value">{{ summary.workshop.date_value|date:"j E Y" }}{% if summary.workshop.time %}, {{ summary.workshop.time }}{% endif %}</p>
+        <p class="pp-tile__meta">{% translate "Link do spotkania organizator podaje w ogłoszeniu." %}</p>
+        {% if summary.workshops_url %}
+          <p class="pp-tile__actions"><a class="btn btn--small btn--secondary" href="{{ summary.workshops_url }}">{% translate "Harmonogram warsztatów" %}</a></p>
+        {% endif %}
+      </li>
+    {% endif %}
+
+    <li class="pp-tile{% if edition and not confirmed %} pp-tile--attention{% endif %}">
+      <h3 class="pp-tile__title"><svg class="pp-icon" aria-hidden="true" focusable="false"><use href="#tp-i-school"></use></svg>{% translate "Udział szkoły" %}</h3>
+      {% if not edition %}
+        <p class="pp-tile__meta">{% translate "Nie ma teraz bieżącej edycji olimpiady." %}</p>
+      {% elif confirmed %}
+        <p class="pp-tile__lead"><span class="badge badge--ok">{% translate "potwierdzony" %}</span></p>
+        <p class="pp-tile__meta">{% blocktranslate trimmed with edition=edition.year_label %}Edycja {{ edition }}.{% endblocktranslate %}</p>
+      {% else %}
+        <p class="pp-tile__lead"><span class="badge badge--warn">{% translate "niepotwierdzony" %}</span></p>
+        <p class="pp-tile__meta">{% translate "Bez potwierdzenia nie wystawimy Ci zaświadczenia dla opiekuna." %}</p>
+      {% endif %}
+      <p class="pp-tile__actions"><a class="btn btn--small btn--secondary" href="{% url 'web:supervisor-school' %}">{% translate "Szkoła" %}</a></p>
+    </li>
+  </ul>
+</section>
+
+{% if not summary.progress.rows %}
+  <div class="card">
+    <p class="empty"><span class="empty__title">{% translate "Nikt jeszcze nie wskazał Twojego adresu" %}</span>
+      {% blocktranslate trimmed with email=supervisor.user.email %}
+        Zaproś uczniów z listy klasowej albo podaj im adres {{ email }} – wpisują go w swoim profilu
+        („Edytuj dane” → „Adres e-mail opiekuna szkolnego”).
+      {% endblocktranslate %}</p>
+  </div>
+{% endif %}
+{% endblock %}

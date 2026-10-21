@@ -84,7 +84,8 @@ def login(context, base: str, email: str, password: str, *, prefix: str = "", se
 
 @pytest.fixture(scope="session")
 def contexts(browser, base, data):
-    """Konteksty ról: ``anon``, ``participant``, ``coordinator``, ``reviewer``, ``leader``, ``student``."""
+    """Konteksty ról: ``anon``, ``participant``, ``coordinator``, ``reviewer``, ``leader``, ``student``,
+    ``teacher``."""
     made: dict = {}
 
     def get(role: str):
@@ -100,6 +101,7 @@ def contexts(browser, base, data):
             "coordinator": ("koordynator@example.com", ""),
             "reviewer": ("recenzent1@example.com", ""),
             "leader": (data["iqo"]["leader_email"], iqo),
+            "teacher": (data["teacher_email"], ""),
             "student": (data["iqo"]["student_email"], iqo),
         }
         if role in accounts:

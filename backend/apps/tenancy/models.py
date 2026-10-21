@@ -291,6 +291,14 @@ FEATURE_DEFAULTS: dict[str, bool] = {
     # zaczyna widzieć wyniki uczniów przez kolejne edycje – organizator włącza to świadomie, razem
     # z wierszem rejestru czynności, który flaga dokłada (``apps.accounts.processing_register``).
     "school_statistics": False,
+    # --- formalności uczniów w panelu nauczyciela (UX-PANEL-02) ------------------------------------
+    # Nauczyciel widzi w „Postępie klasy”, na „Starcie” i w eksporcie klasy stan zaświadczenia
+    # o statusie ucznia, zgodę rodzica (u niepełnoletnich) i liczbę obecności na warsztatach
+    # (``apps.teacher_panel.services``). Wyłączona znaczy, że tych kolumn, kafli i filtrów nie ma,
+    # a serwis tych danych nie czyta. Domyślnie wyłączona, bo uczniowi obiecano, że nauczyciel jego
+    # zgód nie zobaczy – zapalenie zmienia razem informację dla ucznia (strona zgody, list, opis pola
+    # w profilu) i rejestr czynności (``apps.teacher_panel.register``), więc jest decyzją organizatora.
+    "supervisor_class_details": False,
     # --- okna czasowe etapu (TZ-01, 4.10.2026) -----------------------------------------------------
     # Etap zdalny rozłożony na kilka startów według stref czasowych krajów (``apps.time_windows``).
     # Wyłączona znaczy, że żadna bramka okien nie pyta bazy, ekranu „Okna czasowe” nie ma (404),

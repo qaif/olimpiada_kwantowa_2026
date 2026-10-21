@@ -55,7 +55,6 @@ from apps.accounts.supervisors import (
     normalize_supervisor_email,
     register_supervisor,
     registration_enabled_for_request,
-    student_rows,
     students_of,
 )
 from apps.competitions.services import current_edition
@@ -70,11 +69,11 @@ from apps.web.throttle import ThrottledFormMixin, user_throttle_keys
 
 from .public import ServiceFormView, remember_registration
 
-DASHBOARD_TEMPLATE = "web/supervisor/dashboard.html"
+DASHBOARD_TEMPLATE = "teacher_panel/start.html"
 REGISTER_TEMPLATE = "web/supervisor/register.html"
 STUDENTS_TEMPLATE = "web/supervisor/students.html"
 # Import ma po dwa szablony strony na ekran: treść jest jedna (fragmenty ``_import_*.html``),
-# ale rama inna – opiekun dostaje zwykłą stronę serwisu, koordynator swój panel z menu bocznym.
+# ale rama inna – opiekun dostaje panel nauczyciela (UX-PANEL-02), koordynator swój panel z menu bocznym.
 # Jeden szablon „warunkowo rozszerzający” dwie ramy jest niewykonalny, bo obie mają inne nazwy
 # bloków (``content`` kontra ``panel_content``), a udawanie jednej z nich rozjechałoby panel.
 IMPORT_TEMPLATE = "web/supervisor/import.html"
@@ -121,31 +120,31 @@ class RegisterSupervisorView(ThrottledFormMixin, ServiceFormView):
 
 
 class SupervisorDashboardView(SupervisorRequiredMixin, TemplateView):
-    """``/supervisor/`` – uczniowie, którzy wskazali ten adres, i stan ich prac.
+    """``/supervisor/`` – „Start” panelu nauczyciela: kafle z liczbami i jedną czynnością (UX-PANEL-02 § 4).
 
-    Punktów przed ogłoszeniem wyników etapu tu nie ma: wiersz niesie ścieżkę statusu, a liczbę
-    dopiero wtedy, gdy jest publiczna. Reguła stoi w serwisie (``student_rows``), żeby ekran
-    nie mógł jej obejść przez dopisanie kolumny.
+    Adres i nazwa zostają (przekierowanie po zalogowaniu, pasek konta), treść jest nowa: lista uczniów
+    ze stanem prac przeszła do „Postępu klasy” (``/supervisor/progress/``), a udział szkoły
+    i zaświadczenia – na ekran „Szkoła” (``/supervisor/school/``). Liczby kafli liczy ten sam serwis,
+    co tabelę (``apps.teacher_panel.services.start_summary``), więc i ta sama reguła: punktów przed
+    ogłoszeniem wyników ani treści prac nie ma w żadnym z nich.
     """
 
     template_name = DASHBOARD_TEMPLATE
 
     def get_context_data(self, **kwargs):
+        from apps.teacher_panel.services import start_summary
+
         context = super().get_context_data(**kwargs)
         supervisor = self.supervisor
-        edition = current_edition(self.competition)
+        summary = start_summary(supervisor, self.competition)
+        edition = summary.progress.edition
         context.update(
             {
                 "supervisor": supervisor,
                 "edition": edition,
-                "rows": student_rows(supervisor, edition),
+                "summary": summary,
+                "rows": summary.progress.rows,
                 "confirmed": has_confirmed(supervisor, edition),
-                "certificates": list(
-                    Certificate.objects.for_competition(self.competition)
-                    .filter(supervisor=supervisor)
-                    .select_related("edition")
-                    .order_by("-issued_at", "-id")
-                ),
             }
         )
         return context
@@ -154,10 +153,11 @@ class SupervisorDashboardView(SupervisorRequiredMixin, TemplateView):
 class ConfirmParticipationView(ActionViewMixin, SupervisorRequiredMixin, View):
     """POST „Potwierdzam udział szkoły” – i to samo kliknięcie oświadczenie wycofuje."""
 
-    success_url = "/supervisor/"
+    success_url = "/supervisor/school/"
 
     def get_success_url(self, *args, **kwargs) -> str:
-        return reverse("web:supervisor")
+        # Wraca na ekran „Szkoła”, gdzie stoi przycisk (UX-PANEL-02 D3).
+        return reverse("web:supervisor-school")
 
     def perform(self, request) -> str:
         result = confirm_participation(

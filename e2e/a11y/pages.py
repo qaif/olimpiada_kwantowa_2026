@@ -67,6 +67,11 @@ SCREENS: tuple[Screen, ...] = (
     Screen("oki-coordinator-chat", "/coordinator/chat/", "coordinator"),
     Screen("oki-coordinator-chat-thread", "/coordinator/chat/{main[conversation]}/", "coordinator"),
     Screen("oki-coordinator-2fa-policy", "/coordinator/security/2fa/", "coordinator"),
+    # Panel nauczyciela (UX-PANEL-02): Start, postęp klasy z tabelą i filtrami, konta uczniów, szkoła.
+    Screen("oki-teacher-start", "/supervisor/", "teacher"),
+    Screen("oki-teacher-progress", "/supervisor/progress/", "teacher"),
+    Screen("oki-teacher-students", "/supervisor/students/", "teacher"),
+    Screen("oki-teacher-school", "/supervisor/school/", "teacher"),
     Screen("oki-reviewer", "/review/", "reviewer"),
     Screen("oki-reviewer-detail", "/review/{main[review]}/", "reviewer"),
     # --- IQO, motyw IQO Quantum --------------------------------------------------------------------
@@ -96,6 +101,7 @@ SCREENS: tuple[Screen, ...] = (
     # --- Tryb wysokiego kontrastu ---------------------------------------------------------------------
     Screen("hc-oki-home", "/", action="high-contrast"),
     Screen("hc-oki-login", "/login/", action="high-contrast"),
+    Screen("hc-oki-teacher-progress", "/supervisor/progress/", "teacher", action="high-contrast"),
     Screen("hc-iqo-home", "/iqo/", action="high-contrast"),
     Screen("hc-iqo-login", "/iqo/login/", action="high-contrast"),
 )

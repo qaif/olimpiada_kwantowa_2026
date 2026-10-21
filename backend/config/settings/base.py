@@ -189,6 +189,7 @@ INSTALLED_APPS = [
     "apps.integrations",
     # Statystyki szkół i opiekunów szkolnych (STAT-01, flaga ``school_statistics``) – bez modeli, sam odczyt.
     "apps.school_stats",
+    "apps.teacher_panel",  # panel nauczyciela: menu, Start, postęp klasy, eksport (UX-PANEL-02), bez modeli
     # Przegląd tłumaczeń interfejsu przez rodzimych użytkowników języka (zadanie L10N-01). Przed
     # ``apps.web``, który montuje jej adresy; w ``ready()`` wkłada nakładkę poprawek do gettext.
     "apps.translation_review",

@@ -1,0 +1,290 @@
+# UX-PANEL-02 – napisy aplikacji teacher_panel (ru). Źródło (msgid) po polsku; poza angielskim
+# tłumaczenie maszynowe – do przeglądu native speakera (I18N-01 § 8).
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada teacher_panel\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-21 12:00+0200\n"
+"PO-Revision-Date: 2026-10-21 12:00+0200\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: ru\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
+
+msgid "Postęp klasy"
+msgstr "Успехи класса"
+
+msgid "Materiały i warsztaty"
+msgstr "Материалы и семинары"
+
+msgid "Plakaty do powieszenia w szkole"
+msgstr "Плакаты для школы"
+
+msgid "Kalendarz konkursu (.ics)"
+msgstr "Календарь олимпиады (.ics)"
+
+msgid "Udział szkoły i zaświadczenia"
+msgstr "Участие школы и справки"
+
+msgid "Statystyki szkoły"
+msgstr "Статистика школы"
+
+msgid "aktywne"
+msgstr "активна"
+
+msgid "zaproszony – bez konta"
+msgstr "приглашён – без аккаунта"
+
+msgid "nic nie oddano"
+msgstr "ничего не сдано"
+
+msgid "jest"
+msgstr "есть"
+
+msgid "pełnoletni"
+msgstr "совершеннолетний"
+
+msgid "czeka na weryfikację"
+msgstr "ожидает проверки"
+
+msgid "zaakceptowane"
+msgstr "принята"
+
+msgid "niezakwalifikowany"
+msgstr "не прошёл"
+
+msgid "Zgoda rodzica"
+msgstr "Согласие родителя"
+
+msgid "zapis"
+msgstr "запись"
+
+msgid "oddane prace"
+msgstr "сданные работы"
+
+msgid "ostatnie oddanie"
+msgstr "последняя сдача"
+
+msgid "stan"
+msgstr "состояние"
+
+msgid "punkty"
+msgstr "баллы"
+
+msgid "kwalifikacja"
+msgstr "квалификация"
+
+msgid "Warsztaty (obecności)"
+msgstr "Семинары (посещения)"
+
+msgid "tak"
+msgstr "да"
+
+msgid "nazwisko: A–Z"
+msgstr "фамилия: А–Я"
+
+msgid "nazwisko: Z–A"
+msgstr "фамилия: Я–А"
+
+msgid "klasa: rosnąco"
+msgstr "класс: по возрастанию"
+
+msgid "klasa: malejąco"
+msgstr "класс: по убыванию"
+
+msgid "konto: najpierw bez konta"
+msgstr "аккаунт: сначала без аккаунта"
+
+msgid "najwięcej oddanych prac"
+msgstr "больше всего сданных работ"
+
+msgid "najmniej oddanych prac"
+msgstr "меньше всего сданных работ"
+
+msgid "Menu nauczyciela"
+msgstr "Меню учителя"
+
+msgid "Panel nauczyciela"
+msgstr "Кабинет учителя"
+
+msgid "z kontem w serwisie"
+msgstr "с аккаунтом"
+
+msgid "Zaproś z listy"
+msgstr "Пригласить по списку"
+
+msgid "termin oddania prac"
+msgstr "срок сдачи работ"
+
+msgid "start etapu"
+msgstr "начало этапа"
+
+msgid "Bez pracy w otwartym etapie"
+msgstr "Нет работы в открытом этапе"
+
+msgid "do przypomnienia"
+msgstr "напомнить"
+
+msgid "Zapisani do etapu, który teraz przyjmuje prace, i jeszcze niczego w nim nie oddali."
+msgstr "Записаны на этап, который сейчас принимает работы, и ещё ничего в нём не сдали."
+
+msgid "Pokaż ich"
+msgstr "Показать"
+
+msgid "Bez zaświadczenia o statusie ucznia"
+msgstr "Без справки о статусе учащегося"
+
+msgid "brak albo odrzucone"
+msgstr "нет или отклонена"
+
+msgid "Bez zgody rodzica"
+msgstr "Без согласия родителя"
+
+msgid "wśród niepełnoletnich"
+msgstr "среди несовершеннолетних"
+
+msgid "Zgodę składa rodzic albo opiekun prawny przez link, który uczeń wysyła z panelu."
+msgstr "Родитель или законный представитель даёт согласие по ссылке, которую ученик отправляет из своего кабинета."
+
+msgid "Harmonogram warsztatów"
+msgstr "Расписание семинаров"
+
+msgid "Udział szkoły"
+msgstr "Участие школы"
+
+msgid "Nie ma teraz bieżącej edycji olimpiady."
+msgstr "Сейчас нет текущего выпуска олимпиады."
+
+msgid "potwierdzony"
+msgstr "подтверждено"
+
+msgid "niepotwierdzony"
+msgstr "не подтверждено"
+
+msgid "Bez potwierdzenia nie wystawimy Ci zaświadczenia dla opiekuna."
+msgstr "Без подтверждения мы не сможем выдать вам справку руководителя."
+
+msgid "Nikt jeszcze nie wskazał Twojego adresu"
+msgstr "Ваш адрес ещё никто не указал"
+
+#, python-format
+msgid "Dzień dobry, %(name)s"
+msgstr "Здравствуйте, %(name)s"
+
+#, python-format
+msgid "Widzisz uczniów, którzy wskazali Twój adres (%(email)s) w swoim profilu albo przyjęli Twoje zaproszenie. Każdy z nich może to w każdej chwili cofnąć."
+msgstr "Вы видите учеников, которые указали ваш адрес (%(email)s) в профиле или приняли ваше приглашение. Любой из них может в любой момент это отменить."
+
+#, python-format
+msgid "Zaproszeni, jeszcze bez konta: %(counter)s"
+msgstr "Приглашены, ещё без аккаунта: %(counter)s"
+
+#, python-format
+msgid "Czeka na weryfikację organizatora: %(counter)s."
+msgstr "Ожидают проверки организатором: %(counter)s."
+
+#, python-format
+msgid "Edycja %(edition)s."
+msgstr "Выпуск %(edition)s."
+
+#, python-format
+msgid "Zaproś uczniów z listy klasowej albo podaj im adres %(email)s – wpisują go w swoim profilu („Edytuj dane” → „Adres e-mail opiekuna szkolnego”)."
+msgstr "Пригласите учеников по списку класса или сообщите им адрес %(email)s — они вписывают его в профиле («Изменить данные» → «Адрес e-mail школьного руководителя»)."
+
+msgid "Zapisy do etapów i stan prac Twoich uczniów w bieżącej edycji. Punkty i kwalifikacja pojawiają się wyłącznie przy etapach z ogłoszonymi wynikami – to te same liczby, które widać w tabeli publicznej."
+msgstr "Записи на этапы и состояние работ ваших учеников в текущем выпуске. Баллы и прохождение показываются только для этапов с опубликованными результатами — это те же числа, что и в публичной таблице."
+
+msgid "Nie widzisz treści prac, komentarzy recenzentów ani punktów przed ogłoszeniem wyników."
+msgstr "Вы не видите содержания работ, комментариев проверяющих и баллов до объявления результатов."
+
+msgid "Filtry i sortowanie"
+msgstr "Фильтры и сортировка"
+
+msgid "Zaświadczenie"
+msgstr "Справка"
+
+msgid "Sortuj"
+msgstr "Сортировать"
+
+msgid "tylko bez pracy w otwartym etapie"
+msgstr "только без работы в открытом этапе"
+
+msgid "tylko bez zgody rodzica"
+msgstr "только без согласия родителя"
+
+msgid "Pobierz XLSX"
+msgstr "Скачать XLSX"
+
+msgid "Postęp klasy – uczniowie i etapy"
+msgstr "Успехи класса — ученики и этапы"
+
+msgid "przyjmuje prace"
+msgstr "принимает работы"
+
+msgid "bez pracy w otwartym etapie"
+msgstr "нет работы в открытом этапе"
+
+msgid "niezapisany"
+msgstr "не записан"
+
+msgid "Nikt nie pasuje do filtrów"
+msgstr "Никто не подходит под фильтры"
+
+#, python-format
+msgid "Uczniów na liście: %(shown)s z %(total)s."
+msgstr "Учеников в списке: %(shown)s из %(total)s."
+
+#, python-format
+msgid "oddane %(done)s z %(total)s"
+msgstr "сдано %(done)s из %(total)s"
+
+#, python-format
+msgid "ostatnio %(day)s"
+msgstr "последний раз %(day)s"
+
+#, python-format
+msgid "%(count)s z %(total)s"
+msgstr "%(count)s из %(total)s"
+
+msgid "Udział szkoły jest potwierdzony. Na tej podstawie organizator wystawia zaświadczenia dla opiekunów."
+msgstr "Участие школы подтверждено. На этом основании организатор выдаёт справки руководителям."
+
+msgid "Potwierdzenie jest oświadczeniem o Tobie, a nie o uczniach: nie warunkuje niczyjego startu, ale bez niego nie wystawimy Ci zaświadczenia dla opiekuna."
+msgstr "Подтверждение — это заявление о вас, а не об учениках: от него не зависит ничьё участие, но без него мы не сможем выдать вам справку руководителя."
+
+msgid "Wycofaj potwierdzenie"
+msgstr "Отозвать подтверждение"
+
+msgid "Potwierdzam udział szkoły"
+msgstr "Подтверждаю участие школы"
+
+msgid "Nie ma teraz bieżącej edycji olimpiady – nie ma czego potwierdzać."
+msgstr "Текущего выпуска олимпиады нет — подтверждать нечего."
+
+msgid "Moje zaświadczenia"
+msgstr "Мои справки"
+
+msgid "Nie masz jeszcze żadnego zaświadczenia. Wystawia je organizator po zakończeniu edycji."
+msgstr "У вас пока нет справок. Организатор выдаёт их после окончания выпуска."
+
+msgid "Dla szkoły"
+msgstr "Для школы"
+
+#, python-format
+msgid "Udział szkoły w edycji %(edition)s"
+msgstr "Участие школы в выпуске %(edition)s"
+
+msgid "czy masz zaakceptowane zaświadczenie o statusie ucznia i – jeśli jesteś niepełnoletni – zgodę rodzica, oraz na ilu warsztatach odnotowano Twoją obecność (organizator włączył tę informację dla nauczycieli);"
+msgstr "принята ли ваша справка о статусе учащегося и — если вы несовершеннолетний — есть ли согласие родителя, а также на скольких семинарах отмечено ваше присутствие (организатор включил эту информацию для учителей);"
+
+msgid "Nauczyciel nie zobaczy Twoich prac, komentarzy recenzentów, punktów przed ogłoszeniem wyników, Twoich danych kontaktowych ani treści zgód i zaświadczenia."
+msgstr "Учитель не увидит ваших работ, комментариев проверяющих, баллов до объявления результатов, ваших контактных данных, а также содержания согласий и справки."
+
+msgid "W tym konkursie opiekun widzi też, czy masz zaakceptowane zaświadczenie o statusie ucznia i (jeśli jesteś niepełnoletni) zgodę rodzica, oraz na ilu warsztatach byłeś."
+msgstr "В этой олимпиаде руководитель также видит, принята ли ваша справка о статусе учащегося и (если вы несовершеннолетний) есть ли согласие родителя, а также на скольких семинарах вы были."
+
+msgid "Opcjonalnie. Opiekun z kontem w serwisie zobaczy Twój kod, imię, nazwisko, to, na jakim etapie procedury są Twoje prace, czy masz zaakceptowane zaświadczenie o statusie ucznia i zgodę rodzica oraz na ilu warsztatach byłeś – nigdy punktów przed ogłoszeniem wyników ani samych prac. Puste pole znaczy „nie mam opiekuna”."
+msgstr "Необязательно. Руководитель с аккаунтом увидит ваш код, имя, фамилию, на каком этапе процедуры ваши работы, принята ли справка о статусе учащегося и есть ли согласие родителя, а также на скольких семинарах вы были — но никогда не баллы до объявления результатов и не сами работы. Пустое поле означает «у меня нет руководителя»."

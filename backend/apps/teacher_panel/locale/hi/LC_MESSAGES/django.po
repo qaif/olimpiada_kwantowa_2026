@@ -1,0 +1,290 @@
+# UX-PANEL-02 – napisy aplikacji teacher_panel (hi). Źródło (msgid) po polsku; poza angielskim
+# tłumaczenie maszynowe – do przeglądu native speakera (I18N-01 § 8).
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada teacher_panel\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-21 12:00+0200\n"
+"PO-Revision-Date: 2026-10-21 12:00+0200\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: hi\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Postęp klasy"
+msgstr "कक्षा की प्रगति"
+
+msgid "Materiały i warsztaty"
+msgstr "सामग्री और कार्यशालाएँ"
+
+msgid "Plakaty do powieszenia w szkole"
+msgstr "स्कूल में लगाने के लिए पोस्टर"
+
+msgid "Kalendarz konkursu (.ics)"
+msgstr "प्रतियोगिता कैलेंडर (.ics)"
+
+msgid "Udział szkoły i zaświadczenia"
+msgstr "स्कूल की भागीदारी और प्रमाणपत्र"
+
+msgid "Statystyki szkoły"
+msgstr "स्कूल के आँकड़े"
+
+msgid "aktywne"
+msgstr "सक्रिय"
+
+msgid "zaproszony – bez konta"
+msgstr "आमंत्रित – अभी खाता नहीं"
+
+msgid "nic nie oddano"
+msgstr "कुछ जमा नहीं किया"
+
+msgid "jest"
+msgstr "दी गई"
+
+msgid "pełnoletni"
+msgstr "वयस्क"
+
+msgid "czeka na weryfikację"
+msgstr "सत्यापन की प्रतीक्षा"
+
+msgid "zaakceptowane"
+msgstr "स्वीकृत"
+
+msgid "niezakwalifikowany"
+msgstr "अर्हता नहीं मिली"
+
+msgid "Zgoda rodzica"
+msgstr "अभिभावक की सहमति"
+
+msgid "zapis"
+msgstr "पंजीकृत"
+
+msgid "oddane prace"
+msgstr "जमा किए गए उत्तर"
+
+msgid "ostatnie oddanie"
+msgstr "अंतिम जमा"
+
+msgid "stan"
+msgstr "स्थिति"
+
+msgid "punkty"
+msgstr "अंक"
+
+msgid "kwalifikacja"
+msgstr "अर्हता"
+
+msgid "Warsztaty (obecności)"
+msgstr "कार्यशालाएँ (उपस्थिति)"
+
+msgid "tak"
+msgstr "हाँ"
+
+msgid "nazwisko: A–Z"
+msgstr "उपनाम: A–Z"
+
+msgid "nazwisko: Z–A"
+msgstr "उपनाम: Z–A"
+
+msgid "klasa: rosnąco"
+msgstr "कक्षा: आरोही"
+
+msgid "klasa: malejąco"
+msgstr "कक्षा: अवरोही"
+
+msgid "konto: najpierw bez konta"
+msgstr "खाता: पहले बिना खाते वाले"
+
+msgid "najwięcej oddanych prac"
+msgstr "सबसे अधिक जमा"
+
+msgid "najmniej oddanych prac"
+msgstr "सबसे कम जमा"
+
+msgid "Menu nauczyciela"
+msgstr "शिक्षक मेनू"
+
+msgid "Panel nauczyciela"
+msgstr "शिक्षक पैनल"
+
+msgid "z kontem w serwisie"
+msgstr "खाते के साथ"
+
+msgid "Zaproś z listy"
+msgstr "सूची से आमंत्रित करें"
+
+msgid "termin oddania prac"
+msgstr "जमा करने की अंतिम तिथि"
+
+msgid "start etapu"
+msgstr "चरण की शुरुआत"
+
+msgid "Bez pracy w otwartym etapie"
+msgstr "खुले चरण में कोई उत्तर नहीं"
+
+msgid "do przypomnienia"
+msgstr "याद दिलाना है"
+
+msgid "Zapisani do etapu, który teraz przyjmuje prace, i jeszcze niczego w nim nie oddali."
+msgstr "ऐसे चरण में पंजीकृत जो अभी उत्तर स्वीकार कर रहा है, और अब तक कुछ जमा नहीं किया।"
+
+msgid "Pokaż ich"
+msgstr "उन्हें दिखाएँ"
+
+msgid "Bez zaświadczenia o statusie ucznia"
+msgstr "छात्र स्थिति प्रमाणपत्र नहीं"
+
+msgid "brak albo odrzucone"
+msgstr "नहीं है या अस्वीकृत"
+
+msgid "Bez zgody rodzica"
+msgstr "अभिभावक की सहमति नहीं"
+
+msgid "wśród niepełnoletnich"
+msgstr "नाबालिगों में"
+
+msgid "Zgodę składa rodzic albo opiekun prawny przez link, który uczeń wysyła z panelu."
+msgstr "माता-पिता या कानूनी अभिभावक उस लिंक से सहमति देते हैं जिसे छात्र अपने पैनल से भेजता है।"
+
+msgid "Harmonogram warsztatów"
+msgstr "कार्यशालाओं का कार्यक्रम"
+
+msgid "Udział szkoły"
+msgstr "स्कूल की भागीदारी"
+
+msgid "Nie ma teraz bieżącej edycji olimpiady."
+msgstr "अभी ओलंपियाड का कोई चालू संस्करण नहीं है।"
+
+msgid "potwierdzony"
+msgstr "पुष्टि हो गई"
+
+msgid "niepotwierdzony"
+msgstr "पुष्टि नहीं"
+
+msgid "Bez potwierdzenia nie wystawimy Ci zaświadczenia dla opiekuna."
+msgstr "पुष्टि के बिना हम आपको पर्यवेक्षक प्रमाणपत्र जारी नहीं कर सकते।"
+
+msgid "Nikt jeszcze nie wskazał Twojego adresu"
+msgstr "अभी तक किसी ने आपका पता नहीं दिया है"
+
+#, python-format
+msgid "Dzień dobry, %(name)s"
+msgstr "नमस्ते, %(name)s"
+
+#, python-format
+msgid "Widzisz uczniów, którzy wskazali Twój adres (%(email)s) w swoim profilu albo przyjęli Twoje zaproszenie. Każdy z nich może to w każdej chwili cofnąć."
+msgstr "आप उन छात्रों को देखते हैं जिन्होंने अपनी प्रोफ़ाइल में आपका पता (%(email)s) दिया है या आपका आमंत्रण स्वीकार किया है। उनमें से कोई भी इसे कभी भी वापस ले सकता है।"
+
+#, python-format
+msgid "Zaproszeni, jeszcze bez konta: %(counter)s"
+msgstr "आमंत्रित, अभी खाता नहीं: %(counter)s"
+
+#, python-format
+msgid "Czeka na weryfikację organizatora: %(counter)s."
+msgstr "आयोजक के सत्यापन की प्रतीक्षा: %(counter)s।"
+
+#, python-format
+msgid "Edycja %(edition)s."
+msgstr "संस्करण %(edition)s।"
+
+#, python-format
+msgid "Zaproś uczniów z listy klasowej albo podaj im adres %(email)s – wpisują go w swoim profilu („Edytuj dane” → „Adres e-mail opiekuna szkolnego”)."
+msgstr "कक्षा की सूची से छात्रों को आमंत्रित करें या उन्हें पता %(email)s दें – वे इसे अपनी प्रोफ़ाइल में दर्ज करते हैं (“विवरण संपादित करें” → “स्कूल पर्यवेक्षक का ई-मेल पता”)।"
+
+msgid "Zapisy do etapów i stan prac Twoich uczniów w bieżącej edycji. Punkty i kwalifikacja pojawiają się wyłącznie przy etapach z ogłoszonymi wynikami – to te same liczby, które widać w tabeli publicznej."
+msgstr "वर्तमान संस्करण में आपके छात्रों के चरण पंजीकरण और उनके उत्तरों की स्थिति। अंक और अर्हता केवल उन चरणों के लिए दिखते हैं जिनके परिणाम घोषित हो चुके हैं – वही संख्याएँ जो सार्वजनिक तालिका में हैं।"
+
+msgid "Nie widzisz treści prac, komentarzy recenzentów ani punktów przed ogłoszeniem wyników."
+msgstr "आप उत्तरों की सामग्री, समीक्षकों की टिप्पणियाँ या परिणाम घोषित होने से पहले के अंक नहीं देखते।"
+
+msgid "Filtry i sortowanie"
+msgstr "फ़िल्टर और क्रम"
+
+msgid "Zaświadczenie"
+msgstr "प्रमाणपत्र"
+
+msgid "Sortuj"
+msgstr "क्रमबद्ध करें"
+
+msgid "tylko bez pracy w otwartym etapie"
+msgstr "केवल खुले चरण में बिना उत्तर वाले"
+
+msgid "tylko bez zgody rodzica"
+msgstr "केवल बिना अभिभावक सहमति वाले"
+
+msgid "Pobierz XLSX"
+msgstr "XLSX डाउनलोड करें"
+
+msgid "Postęp klasy – uczniowie i etapy"
+msgstr "कक्षा की प्रगति – छात्र और चरण"
+
+msgid "przyjmuje prace"
+msgstr "उत्तर स्वीकार कर रहा है"
+
+msgid "bez pracy w otwartym etapie"
+msgstr "खुले चरण में कोई उत्तर नहीं"
+
+msgid "niezapisany"
+msgstr "पंजीकृत नहीं"
+
+msgid "Nikt nie pasuje do filtrów"
+msgstr "कोई भी फ़िल्टर से मेल नहीं खाता"
+
+#, python-format
+msgid "Uczniów na liście: %(shown)s z %(total)s."
+msgstr "सूची में छात्र: %(total)s में से %(shown)s।"
+
+#, python-format
+msgid "oddane %(done)s z %(total)s"
+msgstr "%(total)s में से %(done)s जमा"
+
+#, python-format
+msgid "ostatnio %(day)s"
+msgstr "अंतिम बार %(day)s"
+
+#, python-format
+msgid "%(count)s z %(total)s"
+msgstr "%(total)s में से %(count)s"
+
+msgid "Udział szkoły jest potwierdzony. Na tej podstawie organizator wystawia zaświadczenia dla opiekunów."
+msgstr "स्कूल की भागीदारी की पुष्टि हो गई है। इसी आधार पर आयोजक पर्यवेक्षकों के प्रमाणपत्र जारी करता है।"
+
+msgid "Potwierdzenie jest oświadczeniem o Tobie, a nie o uczniach: nie warunkuje niczyjego startu, ale bez niego nie wystawimy Ci zaświadczenia dla opiekuna."
+msgstr "पुष्टि आपके बारे में एक घोषणा है, छात्रों के बारे में नहीं: इस पर किसी की भागीदारी निर्भर नहीं है, पर इसके बिना हम आपको पर्यवेक्षक प्रमाणपत्र जारी नहीं कर सकते।"
+
+msgid "Wycofaj potwierdzenie"
+msgstr "पुष्टि वापस लें"
+
+msgid "Potwierdzam udział szkoły"
+msgstr "मैं स्कूल की भागीदारी की पुष्टि करता/करती हूँ"
+
+msgid "Nie ma teraz bieżącej edycji olimpiady – nie ma czego potwierdzać."
+msgstr "अभी ओलंपियाड का कोई चालू संस्करण नहीं है – पुष्टि करने को कुछ नहीं है।"
+
+msgid "Moje zaświadczenia"
+msgstr "मेरे प्रमाणपत्र"
+
+msgid "Nie masz jeszcze żadnego zaświadczenia. Wystawia je organizator po zakończeniu edycji."
+msgstr "आपके पास अभी कोई प्रमाणपत्र नहीं है। आयोजक इन्हें संस्करण समाप्त होने के बाद जारी करता है।"
+
+msgid "Dla szkoły"
+msgstr "स्कूल के लिए"
+
+#, python-format
+msgid "Udział szkoły w edycji %(edition)s"
+msgstr "संस्करण %(edition)s में स्कूल की भागीदारी"
+
+msgid "czy masz zaakceptowane zaświadczenie o statusie ucznia i – jeśli jesteś niepełnoletni – zgodę rodzica, oraz na ilu warsztatach odnotowano Twoją obecność (organizator włączył tę informację dla nauczycieli);"
+msgstr "क्या आपका छात्र स्थिति प्रमाणपत्र स्वीकृत है और – यदि आप नाबालिग हैं – क्या अभिभावक की सहमति है, तथा कितनी कार्यशालाओं में आपकी उपस्थिति दर्ज हुई (आयोजक ने शिक्षकों के लिए यह जानकारी चालू की है);"
+
+msgid "Nauczyciel nie zobaczy Twoich prac, komentarzy recenzentów, punktów przed ogłoszeniem wyników, Twoich danych kontaktowych ani treści zgód i zaświadczenia."
+msgstr "शिक्षक आपके उत्तर, समीक्षकों की टिप्पणियाँ, परिणाम से पहले के अंक, आपकी संपर्क जानकारी या सहमतियों और प्रमाणपत्र की सामग्री नहीं देखेंगे।"
+
+msgid "W tym konkursie opiekun widzi też, czy masz zaakceptowane zaświadczenie o statusie ucznia i (jeśli jesteś niepełnoletni) zgodę rodzica, oraz na ilu warsztatach byłeś."
+msgstr "इस प्रतियोगिता में पर्यवेक्षक यह भी देखता है कि आपका छात्र स्थिति प्रमाणपत्र स्वीकृत है या नहीं और (यदि आप नाबालिग हैं) अभिभावक की सहमति है या नहीं, तथा आप कितनी कार्यशालाओं में शामिल हुए।"
+
+msgid "Opcjonalnie. Opiekun z kontem w serwisie zobaczy Twój kod, imię, nazwisko, to, na jakim etapie procedury są Twoje prace, czy masz zaakceptowane zaświadczenie o statusie ucznia i zgodę rodzica oraz na ilu warsztatach byłeś – nigdy punktów przed ogłoszeniem wyników ani samych prac. Puste pole znaczy „nie mam opiekuna”."
+msgstr "वैकल्पिक। खाते वाला पर्यवेक्षक आपका कोड, नाम, उपनाम, आपके उत्तर प्रक्रिया के किस चरण में हैं, छात्र स्थिति प्रमाणपत्र और अभिभावक की सहमति है या नहीं, तथा आप कितनी कार्यशालाओं में गए – यह देखेगा; परिणाम से पहले के अंक या स्वयं उत्तर कभी नहीं। खाली फ़ील्ड का अर्थ है “मेरा कोई पर्यवेक्षक नहीं”।"

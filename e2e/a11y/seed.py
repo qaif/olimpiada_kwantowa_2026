@@ -226,6 +226,24 @@ with competition_context(main):
         f"{default_token_generator.make_token(reset_user)}/"
     )
 
+    # Nauczyciel (opiekun szkolny, UX-PANEL-02) z trzema uczniami: panel „Start”, „Postęp klasy”,
+    # „Moi uczniowie”, „Szkoła”. Uprawnienie powstaje od ucznia (adres nauczyciela w profilu).
+    from apps.accounts.models import GROUP_SUPERVISOR, SchoolSupervisor
+    from apps.accounts.services import grant_role
+
+    teacher_user = verified(
+        User.objects.create_user(
+            email="nauczyciel@example.com", password=PASSWORD, first_name="Teresa", last_name="Nauczycielska"
+        )
+    )
+    SchoolSupervisor.objects.create(user=teacher_user, competition=main, school="LO nr 1")
+    grant_role(teacher_user, GROUP_SUPERVISOR, competition=main)
+    Participant.objects.filter(
+        competition=main,
+        user__email__in=["uczestnik1@example.com", "uczestnik2@example.com", "uczestnik3@example.com"],
+    ).update(supervisor_email=teacher_user.email)
+    fixture["teacher_email"] = teacher_user.email
+
 # Dokumenty w stopce (RODO, cookies) i deklaracja dostępności – te same ścieżki, co na produkcji.
 call_command("seed_legacy_content", verbosity=0)
 call_command("seed_accessibility_statement", "kwantowa", publish=True, verbosity=0)

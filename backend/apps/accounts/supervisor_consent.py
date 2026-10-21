@@ -241,6 +241,8 @@ def request_consent(
         competition,
     )
     who = requester(requested)
+    from apps.teacher_panel.flags import details_enabled as class_details_enabled
+
     # Prośbę składa nauczyciel albo koordynator importem – w **swoim** żądaniu. List czyta uczeń,
     # więc temat, treść i podpis powstają w języku ucznia (``language_for``).
     with language_for(participant.user, competition):
@@ -251,6 +253,8 @@ def request_consent(
             "supervisor_school": who["school"],
             "competition_name": _competition_label(competition),
             "via_coordinator": via == VIA_COORDINATOR,
+            # Zakres wglądu poszerzony flagą konkursu (UX-PANEL-02 D5) – list mówi o tym wprost.
+            "class_details": class_details_enabled(competition),
             "link": link,
             "days": SUPERVISOR_CONSENT_DAYS,
             "signature": branding.signature(competition, fallback=_("Olimpiada Kwantowa")),

@@ -382,79 +382,8 @@ def students_of(supervisor: SchoolSupervisor) -> list[Participant]:
     )
 
 
-def _least_advanced(tracks: list) -> object | None:
-    """Ścieżka, która zaszła najdalej **najmniej** – czyli stan całego etapu, a nie jednej pracy.
-
-    Uczestnik oddaje w etapie kilka zadań i każde ma własną ścieżkę. Opiekun pyta jednak
-    o etap („czy Kasia ma już wszystko oddane”), więc wiersz podpisujemy tym zadaniem, które
-    jest najdalej w tyle: jedna praca w ocenie i dwie ocenione znaczą „w ocenie”, a nie
-    „ocenione”. Pokazanie najdalszej ścieżki sugerowałoby, że sprawa jest zamknięta.
-    """
-    if not tracks:
-        return None
-    return min(tracks, key=lambda track: sum(1 for step in track.steps if step.state == "done"))
-
-
-def student_rows(supervisor: SchoolSupervisor, edition) -> list[dict]:
-    """Wiersze panelu: uczeń, jego wpisy do etapów edycji i ścieżka statusu każdego z nich.
-
-    Wszystko czytamy hurtem (wpisy, zgłoszenia, publikacje), bo lista opiekuna liczy zwykle
-    kilkunastu uczniów razy trzy etapy – pętla z zapytaniem w środku dawałaby tu kilkadziesiąt
-    zapytań na jedno wejście na stronę.
-
-    Punkty trafiają do wiersza **wyłącznie** dla etapu z ogłoszonymi wynikami i są wtedy tą samą
-    liczbą, którą każdy widzi w publicznej tabeli. Przed publikacją klucz ma wartość ``None``,
-    a nie zero – zero wyglądałoby jak wynik.
-    """
-    from apps.competitions.models import StageEntry
-    from apps.results.models import ResultsPublication
-    from apps.submissions.models import Submission, SubmissionStatus
-    from apps.submissions.status_track import status_track
-
-    participants = students_of(supervisor)
-    if not participants or edition is None:
-        return [{"participant": participant, "stages": []} for participant in participants]
-
-    entries = list(
-        StageEntry.objects.filter(participant__in=participants, stage__edition=edition)
-        .select_related("stage")
-        .order_by("stage__opens_at", "stage_id")
-    )
-    publications = {
-        publication.stage_id: publication
-        for publication in ResultsPublication.objects.live().filter(stage__edition=edition)
-    }
-    submissions = (
-        Submission.objects.filter(entry__in=entries)
-        .exclude(status=SubmissionStatus.REJECTED_INFECTED)
-        .order_by("entry_id", "problem_id", "-version")
-    )
-    latest: dict[int, dict[int, Submission]] = {}
-    for submission in submissions:
-        latest.setdefault(submission.entry_id, {}).setdefault(submission.problem_id, submission)
-
-    by_participant: dict[int, list[dict]] = {}
-    for entry in entries:
-        stage = entry.stage
-        publication = publications.get(stage.pk)
-        tracks = [
-            status_track(submission=submission, stage=stage, publication=publication)
-            for submission in latest.get(entry.pk, {}).values()
-        ]
-        track = _least_advanced(tracks) or status_track(submission=None, stage=stage, publication=publication)
-        by_participant.setdefault(entry.participant_id, []).append(
-            {
-                "stage": stage,
-                "entry": entry,
-                "track": track,
-                "published": publication is not None,
-                "total_points": entry.total_points if publication is not None else None,
-            }
-        )
-    return [
-        {"participant": participant, "stages": by_participant.get(participant.pk, [])}
-        for participant in participants
-    ]
+# Wiersze panelu (uczniowie × etapy, stan prac, punkty po ogłoszeniu) liczy od UX-PANEL-02
+# ``apps.teacher_panel.services.class_progress`` – na tej samej liście ``students_of``.
 
 
 # --- oświadczenie o udziale szkoły ------------------------------------------------------------

@@ -593,5 +593,5 @@ def test_supervisor_dashboard_lists_students_of_this_competition_only(
     stranger = ParticipantFactory(competition=other_competition, supervisor_email=user.email)
 
     assert students_of(supervisor) == [mine]
-    content = logged_in(client_for, competition, user).get("/supervisor/").content.decode()
+    content = logged_in(client_for, competition, user).get("/supervisor/progress/").content.decode()
     assert stranger.public_code not in content

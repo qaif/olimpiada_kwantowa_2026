@@ -1,0 +1,290 @@
+# UX-PANEL-02 – napisy aplikacji teacher_panel (zh_Hans). Źródło (msgid) po polsku; poza angielskim
+# tłumaczenie maszynowe – do przeglądu native speakera (I18N-01 § 8).
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada teacher_panel\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-21 12:00+0200\n"
+"PO-Revision-Date: 2026-10-21 12:00+0200\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: zh_Hans\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "Postęp klasy"
+msgstr "班级进度"
+
+msgid "Materiały i warsztaty"
+msgstr "资料与讲座"
+
+msgid "Plakaty do powieszenia w szkole"
+msgstr "可在学校张贴的海报"
+
+msgid "Kalendarz konkursu (.ics)"
+msgstr "竞赛日历（.ics）"
+
+msgid "Udział szkoły i zaświadczenia"
+msgstr "学校参赛与证明"
+
+msgid "Statystyki szkoły"
+msgstr "学校统计"
+
+msgid "aktywne"
+msgstr "已激活"
+
+msgid "zaproszony – bez konta"
+msgstr "已邀请——尚无账户"
+
+msgid "nic nie oddano"
+msgstr "尚未提交"
+
+msgid "jest"
+msgstr "已提供"
+
+msgid "pełnoletni"
+msgstr "已成年"
+
+msgid "czeka na weryfikację"
+msgstr "等待审核"
+
+msgid "zaakceptowane"
+msgstr "已通过"
+
+msgid "niezakwalifikowany"
+msgstr "未晋级"
+
+msgid "Zgoda rodzica"
+msgstr "家长同意"
+
+msgid "zapis"
+msgstr "报名"
+
+msgid "oddane prace"
+msgstr "已提交答卷"
+
+msgid "ostatnie oddanie"
+msgstr "最近提交"
+
+msgid "stan"
+msgstr "状态"
+
+msgid "punkty"
+msgstr "分数"
+
+msgid "kwalifikacja"
+msgstr "晋级"
+
+msgid "Warsztaty (obecności)"
+msgstr "讲座（出勤）"
+
+msgid "tak"
+msgstr "是"
+
+msgid "nazwisko: A–Z"
+msgstr "姓氏：A–Z"
+
+msgid "nazwisko: Z–A"
+msgstr "姓氏：Z–A"
+
+msgid "klasa: rosnąco"
+msgstr "年级：升序"
+
+msgid "klasa: malejąco"
+msgstr "年级：降序"
+
+msgid "konto: najpierw bez konta"
+msgstr "账户：无账户者优先"
+
+msgid "najwięcej oddanych prac"
+msgstr "提交最多"
+
+msgid "najmniej oddanych prac"
+msgstr "提交最少"
+
+msgid "Menu nauczyciela"
+msgstr "教师菜单"
+
+msgid "Panel nauczyciela"
+msgstr "教师面板"
+
+msgid "z kontem w serwisie"
+msgstr "已有账户"
+
+msgid "Zaproś z listy"
+msgstr "从名单邀请"
+
+msgid "termin oddania prac"
+msgstr "提交截止时间"
+
+msgid "start etapu"
+msgstr "阶段开始"
+
+msgid "Bez pracy w otwartym etapie"
+msgstr "开放阶段尚未提交"
+
+msgid "do przypomnienia"
+msgstr "需提醒"
+
+msgid "Zapisani do etapu, który teraz przyjmuje prace, i jeszcze niczego w nim nie oddali."
+msgstr "已报名当前正在接收答卷的阶段，但尚未提交任何内容。"
+
+msgid "Pokaż ich"
+msgstr "查看名单"
+
+msgid "Bez zaświadczenia o statusie ucznia"
+msgstr "缺少在校生证明"
+
+msgid "brak albo odrzucone"
+msgstr "缺失或被退回"
+
+msgid "Bez zgody rodzica"
+msgstr "缺少家长同意"
+
+msgid "wśród niepełnoletnich"
+msgstr "未成年人中"
+
+msgid "Zgodę składa rodzic albo opiekun prawny przez link, który uczeń wysyła z panelu."
+msgstr "由家长或法定监护人通过学生在面板中发送的链接表示同意。"
+
+msgid "Harmonogram warsztatów"
+msgstr "讲座日程"
+
+msgid "Udział szkoły"
+msgstr "学校参赛"
+
+msgid "Nie ma teraz bieżącej edycji olimpiady."
+msgstr "目前没有正在进行的竞赛届次。"
+
+msgid "potwierdzony"
+msgstr "已确认"
+
+msgid "niepotwierdzony"
+msgstr "未确认"
+
+msgid "Bez potwierdzenia nie wystawimy Ci zaświadczenia dla opiekuna."
+msgstr "未确认则无法为你开具指导教师证明。"
+
+msgid "Nikt jeszcze nie wskazał Twojego adresu"
+msgstr "还没有学生填写你的邮箱"
+
+#, python-format
+msgid "Dzień dobry, %(name)s"
+msgstr "你好，%(name)s"
+
+#, python-format
+msgid "Widzisz uczniów, którzy wskazali Twój adres (%(email)s) w swoim profilu albo przyjęli Twoje zaproszenie. Każdy z nich może to w każdej chwili cofnąć."
+msgstr "你能看到在个人资料中填写了你的邮箱（%(email)s）或接受了你邀请的学生。每位学生都可以随时撤回。"
+
+#, python-format
+msgid "Zaproszeni, jeszcze bez konta: %(counter)s"
+msgstr "已邀请但尚无账户：%(counter)s"
+
+#, python-format
+msgid "Czeka na weryfikację organizatora: %(counter)s."
+msgstr "等待主办方审核：%(counter)s。"
+
+#, python-format
+msgid "Edycja %(edition)s."
+msgstr "第 %(edition)s 届。"
+
+#, python-format
+msgid "Zaproś uczniów z listy klasowej albo podaj im adres %(email)s – wpisują go w swoim profilu („Edytuj dane” → „Adres e-mail opiekuna szkolnego”)."
+msgstr "从班级名单邀请学生，或把邮箱 %(email)s 告诉他们——学生在个人资料中填写（“编辑资料”→“学校指导教师邮箱”）。"
+
+msgid "Zapisy do etapów i stan prac Twoich uczniów w bieżącej edycji. Punkty i kwalifikacja pojawiają się wyłącznie przy etapach z ogłoszonymi wynikami – to te same liczby, które widać w tabeli publicznej."
+msgstr "你的学生在本届中的阶段报名和答卷状态。分数和晋级情况只在已公布成绩的阶段显示——与公开成绩表中的数字相同。"
+
+msgid "Nie widzisz treści prac, komentarzy recenzentów ani punktów przed ogłoszeniem wyników."
+msgstr "你看不到答卷内容、评审意见，也看不到成绩公布前的分数。"
+
+msgid "Filtry i sortowanie"
+msgstr "筛选与排序"
+
+msgid "Zaświadczenie"
+msgstr "证明"
+
+msgid "Sortuj"
+msgstr "排序"
+
+msgid "tylko bez pracy w otwartym etapie"
+msgstr "仅显示开放阶段未提交者"
+
+msgid "tylko bez zgody rodzica"
+msgstr "仅显示缺少家长同意者"
+
+msgid "Pobierz XLSX"
+msgstr "下载 XLSX"
+
+msgid "Postęp klasy – uczniowie i etapy"
+msgstr "班级进度——学生与阶段"
+
+msgid "przyjmuje prace"
+msgstr "正在接收答卷"
+
+msgid "bez pracy w otwartym etapie"
+msgstr "开放阶段未提交"
+
+msgid "niezapisany"
+msgstr "未报名"
+
+msgid "Nikt nie pasuje do filtrów"
+msgstr "没有符合筛选条件的学生"
+
+#, python-format
+msgid "Uczniów na liście: %(shown)s z %(total)s."
+msgstr "列出的学生：%(shown)s / %(total)s。"
+
+#, python-format
+msgid "oddane %(done)s z %(total)s"
+msgstr "已交 %(done)s / %(total)s"
+
+#, python-format
+msgid "ostatnio %(day)s"
+msgstr "最近 %(day)s"
+
+#, python-format
+msgid "%(count)s z %(total)s"
+msgstr "%(count)s / %(total)s"
+
+msgid "Udział szkoły jest potwierdzony. Na tej podstawie organizator wystawia zaświadczenia dla opiekunów."
+msgstr "学校参赛已确认。主办方据此开具指导教师证明。"
+
+msgid "Potwierdzenie jest oświadczeniem o Tobie, a nie o uczniach: nie warunkuje niczyjego startu, ale bez niego nie wystawimy Ci zaświadczenia dla opiekuna."
+msgstr "确认是关于你本人的声明，而非关于学生：它不影响任何学生参赛，但没有它我们无法为你开具指导教师证明。"
+
+msgid "Wycofaj potwierdzenie"
+msgstr "撤回确认"
+
+msgid "Potwierdzam udział szkoły"
+msgstr "我确认学校参赛"
+
+msgid "Nie ma teraz bieżącej edycji olimpiady – nie ma czego potwierdzać."
+msgstr "目前没有正在进行的届次——无需确认。"
+
+msgid "Moje zaświadczenia"
+msgstr "我的证明"
+
+msgid "Nie masz jeszcze żadnego zaświadczenia. Wystawia je organizator po zakończeniu edycji."
+msgstr "你还没有任何证明。主办方会在本届结束后开具。"
+
+msgid "Dla szkoły"
+msgstr "学校专区"
+
+#, python-format
+msgid "Udział szkoły w edycji %(edition)s"
+msgstr "学校参加第 %(edition)s 届"
+
+msgid "czy masz zaakceptowane zaświadczenie o statusie ucznia i – jeśli jesteś niepełnoletni – zgodę rodzica, oraz na ilu warsztatach odnotowano Twoją obecność (organizator włączył tę informację dla nauczycieli);"
+msgstr "你的在校生证明是否已通过、（若未成年）是否已有家长同意，以及你在多少场讲座中被记录出勤（主办方已向教师开放此信息）；"
+
+msgid "Nauczyciel nie zobaczy Twoich prac, komentarzy recenzentów, punktów przed ogłoszeniem wyników, Twoich danych kontaktowych ani treści zgód i zaświadczenia."
+msgstr "教师看不到你的答卷、评审意见、成绩公布前的分数、你的联系方式，也看不到同意书和证明的内容。"
+
+msgid "W tym konkursie opiekun widzi też, czy masz zaakceptowane zaświadczenie o statusie ucznia i (jeśli jesteś niepełnoletni) zgodę rodzica, oraz na ilu warsztatach byłeś."
+msgstr "在本竞赛中，指导教师还能看到你的在校生证明是否已通过、（若未成年）是否有家长同意，以及你参加了多少场讲座。"
+
+msgid "Opcjonalnie. Opiekun z kontem w serwisie zobaczy Twój kod, imię, nazwisko, to, na jakim etapie procedury są Twoje prace, czy masz zaakceptowane zaświadczenie o statusie ucznia i zgodę rodzica oraz na ilu warsztatach byłeś – nigdy punktów przed ogłoszeniem wyników ani samych prac. Puste pole znaczy „nie mam opiekuna”."
+msgstr "可选。拥有账户的指导教师将看到你的编号、姓名、答卷所处的流程阶段、在校生证明和家长同意是否齐全，以及你参加了多少场讲座——但绝不会看到成绩公布前的分数或答卷本身。留空表示“我没有指导教师”。"

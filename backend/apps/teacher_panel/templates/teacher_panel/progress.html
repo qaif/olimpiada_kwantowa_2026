@@ -1,0 +1,136 @@
+{% extends "teacher_panel/base.html" %}
+{% load i18n web_extras %}
+{% comment %}
+  „Postęp klasy” (UX-PANEL-02 § 5). Wiersze i kolumny liczy ``teacher_panel.services.class_progress``
+  na ``students_of`` – szablon niczego nie rozstrzyga: punkty i decyzja są w komórce wyłącznie przy
+  etapie z ogłoszonymi wynikami (``column.published``), a kolumny formalności wyłącznie przy fladze
+  ``supervisor_class_details`` (``progress.show_*``). Eksport bierze ten sam filtr i sortowanie.
+
+  Filtry i sortowanie to zwykły formularz GET (bez JS). Tabela przewija się we własnej ramce
+  (``.scroll``) – przy kilku etapach jest szersza niż telefon, a strona nie może przewijać się w bok.
+{% endcomment %}
+{% block title %}{% translate "Postęp klasy" %}{% endblock %}
+{% block panel_content %}
+<div class="page-head">
+  <span class="eyebrow">{% translate "Uczniowie" %}</span>
+  <h1>{% translate "Postęp klasy" %}</h1>
+  <p class="lead">{% translate "Zapisy do etapów i stan prac Twoich uczniów w bieżącej edycji. Punkty i kwalifikacja pojawiają się wyłącznie przy etapach z ogłoszonymi wynikami – to te same liczby, które widać w tabeli publicznej." %}</p>
+  <p class="hint">{% translate "Nie widzisz treści prac, komentarzy recenzentów ani punktów przed ogłoszeniem wyników." %}</p>
+</div>
+
+<form method="get" class="tp-filters" aria-labelledby="tp-filters-title">
+  <h2 class="visually-hidden" id="tp-filters-title">{% translate "Filtry i sortowanie" %}</h2>
+  {% if progress.grades %}
+    <p class="tp-filters__field">
+      <label for="tp-grade">{% translate "Klasa" %}</label>
+      <select id="tp-grade" name="klasa">
+        <option value="">{% translate "wszystkie" %}</option>
+        {% for grade in progress.grades %}<option value="{{ grade }}"{% if filters.grade == grade %} selected{% endif %}>{{ grade }}</option>{% endfor %}
+      </select>
+    </p>
+  {% endif %}
+  <p class="tp-filters__field">
+    <label for="tp-account">{% translate "Konto" %}</label>
+    <select id="tp-account" name="konto">
+      <option value="">{% translate "wszystkie" %}</option>
+      {% for value, label in account_choices %}<option value="{{ value }}"{% if filters.account == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select>
+  </p>
+  {% if progress.show_certificate %}
+    <p class="tp-filters__field">
+      <label for="tp-certificate">{% translate "Zaświadczenie" %}</label>
+      <select id="tp-certificate" name="zaswiadczenie">
+        <option value="">{% translate "wszystkie" %}</option>
+        {% for value, label in certificate_choices %}<option value="{{ value }}"{% if filters.certificate == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+    </p>
+  {% endif %}
+  <p class="tp-filters__field">
+    <label for="tp-sort">{% translate "Sortuj" %}</label>
+    <select id="tp-sort" name="sort">
+      {% for value, label in sort_choices %}<option value="{{ value }}"{% if filters.sort_param == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select>
+  </p>
+  <p class="tp-filters__check">
+    <input type="checkbox" id="tp-work" name="praca" value="missing"{% if filters.work %} checked{% endif %}>
+    <label for="tp-work">{% translate "tylko bez pracy w otwartym etapie" %}</label>
+  </p>
+  {% if progress.show_guardian %}
+    <p class="tp-filters__check">
+      <input type="checkbox" id="tp-guardian" name="zgoda" value="missing"{% if filters.guardian %} checked{% endif %}>
+      <label for="tp-guardian">{% translate "tylko bez zgody rodzica" %}</label>
+    </p>
+  {% endif %}
+  <p class="tp-filters__actions">
+    <button type="submit" class="btn btn--small btn--primary">{% translate "Pokaż" %}</button>
+    {% if filters.active %}<a class="btn btn--small btn--secondary" href="{{ request.path }}">{% translate "Wyczyść filtry" %}</a>{% endif %}
+  </p>
+</form>
+
+<div class="tp-toolbar">
+  <p class="tp-toolbar__count" role="status">{% blocktranslate trimmed with shown=rows|length total=progress.rows|length %}
+    Uczniów na liście: {{ shown }} z {{ total }}.
+  {% endblocktranslate %}</p>
+  {% if rows %}
+    <p class="tp-toolbar__actions">
+      <a class="btn btn--small btn--secondary" href="{{ export_csv }}" download><svg class="pp-icon" aria-hidden="true" focusable="false"><use href="#tp-i-download"></use></svg>{% translate "Pobierz CSV" %}</a>
+      <a class="btn btn--small btn--secondary" href="{{ export_xlsx }}" download><svg class="pp-icon" aria-hidden="true" focusable="false"><use href="#tp-i-download"></use></svg>{% translate "Pobierz XLSX" %}</a>
+    </p>
+  {% endif %}
+</div>
+
+{% if rows %}
+  <div class="scroll tp-progress" role="region" aria-labelledby="tp-progress-caption" tabindex="0">
+    <table class="table tp-table">
+      <caption class="visually-hidden" id="tp-progress-caption">{% translate "Postęp klasy – uczniowie i etapy" %}</caption>
+      <thead>
+        <tr>
+          <th scope="col"{% if filters.sort == "name" %} aria-sort="{% if filters.descending %}descending{% else %}ascending{% endif %}"{% endif %}>{% translate "Uczeń" %}</th>
+          <th scope="col"{% if filters.sort == "grade" %} aria-sort="{% if filters.descending %}descending{% else %}ascending{% endif %}"{% endif %}>{% translate "Klasa" %}</th>
+          <th scope="col"{% if filters.sort == "account" %} aria-sort="{% if filters.descending %}descending{% else %}ascending{% endif %}"{% endif %}>{% translate "Konto" %}</th>
+          {% if progress.show_guardian %}<th scope="col">{% translate "Zgoda rodzica" %}</th>{% endif %}
+          {% if progress.show_certificate %}<th scope="col">{% translate "Zaświadczenie" %}</th>{% endif %}
+          {% for column in progress.columns %}
+            <th scope="col">{{ column.stage.display_name }}
+              {% if column.published %}<span class="tp-col-note">{% translate "wyniki ogłoszone" %}</span>{% elif column.open_now %}<span class="tp-col-note">{% translate "przyjmuje prace" %}</span>{% endif %}</th>
+          {% endfor %}
+          {% if progress.show_workshops %}<th scope="col">{% translate "Warsztaty" %}</th>{% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr{% if row.missing_work %} class="tp-row--attention"{% endif %}>
+            <th scope="row"><span class="tp-name">{{ row.name }}</span> <span class="code-chip">{{ row.participant.public_code }}</span>
+              {% if row.missing_work %}<span class="tp-flag">{% translate "bez pracy w otwartym etapie" %}</span>{% endif %}</th>
+            <td>{{ row.grade|default:"—" }}</td>
+            <td><span class="badge badge--{{ row.account_tone }}">{{ row.account_label }}</span></td>
+            {% if progress.show_guardian %}<td>{% if row.guardian == "missing" %}<span class="badge badge--warn">{{ row.guardian_label }}</span>{% else %}{{ row.guardian_label }}{% endif %}</td>{% endif %}
+            {% if progress.show_certificate %}<td><span class="badge badge--{{ row.certificate_tone }}">{{ row.certificate_label }}</span></td>{% endif %}
+            {% for cell in row.cells %}
+              <td class="tp-cell">
+                {% if not cell.entered %}
+                  <span aria-hidden="true">—</span><span class="visually-hidden">{% translate "niezapisany" %}</span>
+                {% else %}
+                  <span class="tp-step tp-step--{{ cell.step }}">{{ cell.step_label }}</span>
+                  {% if not cell.interview %}<span class="tp-cell__meta">{% blocktranslate trimmed with done=cell.submitted total=cell.total %}oddane {{ done }} z {{ total }}{% endblocktranslate %}</span>{% endif %}
+                  {% if cell.last_at %}<span class="tp-cell__meta">{% blocktranslate trimmed with day=cell.last_at|date:"j.m.Y" %}ostatnio {{ day }}{% endblocktranslate %}</span>{% endif %}
+                  {% if cell.points is not None %}
+                    <span class="tp-cell__result">{% translate "Suma punktów" %}: <strong>{{ cell.points|points }}</strong>{% if cell.decision_label %} · {{ cell.decision_label }}{% endif %}</span>
+                  {% endif %}
+                {% endif %}
+              </td>
+            {% endfor %}
+            {% if progress.show_workshops %}<td>{% blocktranslate trimmed with count=row.workshops total=progress.workshops_total %}{{ count }} z {{ total }}{% endblocktranslate %}</td>{% endif %}
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% elif progress.rows %}
+  <p class="empty"><span class="empty__title">{% translate "Nikt nie pasuje do filtrów" %}</span>
+    <a href="{{ request.path }}">{% translate "Wyczyść filtry" %}</a></p>
+{% else %}
+  <p class="empty"><span class="empty__title">{% translate "Nikt jeszcze nie wskazał Twojego adresu" %}</span>
+    <a href="{% url 'web:supervisor-import' %}">{% translate "Zaproś uczniów z listy" %}</a></p>
+{% endif %}
+{% endblock %}

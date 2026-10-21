@@ -1,0 +1,290 @@
+# UX-PANEL-02 – napisy aplikacji teacher_panel (id). Źródło (msgid) po polsku; poza angielskim
+# tłumaczenie maszynowe – do przeglądu native speakera (I18N-01 § 8).
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada teacher_panel\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-21 12:00+0200\n"
+"PO-Revision-Date: 2026-10-21 12:00+0200\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: id\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "Postęp klasy"
+msgstr "Kemajuan kelas"
+
+msgid "Materiały i warsztaty"
+msgstr "Materi dan lokakarya"
+
+msgid "Plakaty do powieszenia w szkole"
+msgstr "Poster untuk sekolah"
+
+msgid "Kalendarz konkursu (.ics)"
+msgstr "Kalender kompetisi (.ics)"
+
+msgid "Udział szkoły i zaświadczenia"
+msgstr "Partisipasi sekolah dan sertifikat"
+
+msgid "Statystyki szkoły"
+msgstr "Statistik sekolah"
+
+msgid "aktywne"
+msgstr "aktif"
+
+msgid "zaproszony – bez konta"
+msgstr "diundang – belum punya akun"
+
+msgid "nic nie oddano"
+msgstr "belum ada yang dikirim"
+
+msgid "jest"
+msgstr "ada"
+
+msgid "pełnoletni"
+msgstr "dewasa"
+
+msgid "czeka na weryfikację"
+msgstr "menunggu verifikasi"
+
+msgid "zaakceptowane"
+msgstr "diterima"
+
+msgid "niezakwalifikowany"
+msgstr "tidak lolos"
+
+msgid "Zgoda rodzica"
+msgstr "Persetujuan orang tua"
+
+msgid "zapis"
+msgstr "terdaftar"
+
+msgid "oddane prace"
+msgstr "jawaban dikirim"
+
+msgid "ostatnie oddanie"
+msgstr "pengiriman terakhir"
+
+msgid "stan"
+msgstr "status"
+
+msgid "punkty"
+msgstr "poin"
+
+msgid "kwalifikacja"
+msgstr "kelolosan"
+
+msgid "Warsztaty (obecności)"
+msgstr "Lokakarya (kehadiran)"
+
+msgid "tak"
+msgstr "ya"
+
+msgid "nazwisko: A–Z"
+msgstr "nama belakang: A–Z"
+
+msgid "nazwisko: Z–A"
+msgstr "nama belakang: Z–A"
+
+msgid "klasa: rosnąco"
+msgstr "kelas: naik"
+
+msgid "klasa: malejąco"
+msgstr "kelas: turun"
+
+msgid "konto: najpierw bez konta"
+msgstr "akun: yang belum punya akun dulu"
+
+msgid "najwięcej oddanych prac"
+msgstr "paling banyak dikirim"
+
+msgid "najmniej oddanych prac"
+msgstr "paling sedikit dikirim"
+
+msgid "Menu nauczyciela"
+msgstr "Menu guru"
+
+msgid "Panel nauczyciela"
+msgstr "Panel guru"
+
+msgid "z kontem w serwisie"
+msgstr "punya akun"
+
+msgid "Zaproś z listy"
+msgstr "Undang dari daftar"
+
+msgid "termin oddania prac"
+msgstr "batas pengiriman"
+
+msgid "start etapu"
+msgstr "tahap dimulai"
+
+msgid "Bez pracy w otwartym etapie"
+msgstr "Belum mengirim di tahap terbuka"
+
+msgid "do przypomnienia"
+msgstr "perlu diingatkan"
+
+msgid "Zapisani do etapu, który teraz przyjmuje prace, i jeszcze niczego w nim nie oddali."
+msgstr "Terdaftar di tahap yang sedang menerima jawaban, tetapi belum mengirim apa pun."
+
+msgid "Pokaż ich"
+msgstr "Tampilkan"
+
+msgid "Bez zaświadczenia o statusie ucznia"
+msgstr "Tanpa surat keterangan status pelajar"
+
+msgid "brak albo odrzucone"
+msgstr "belum ada atau ditolak"
+
+msgid "Bez zgody rodzica"
+msgstr "Tanpa persetujuan orang tua"
+
+msgid "wśród niepełnoletnich"
+msgstr "di antara yang di bawah umur"
+
+msgid "Zgodę składa rodzic albo opiekun prawny przez link, który uczeń wysyła z panelu."
+msgstr "Orang tua atau wali sah memberi persetujuan melalui tautan yang dikirim siswa dari panelnya."
+
+msgid "Harmonogram warsztatów"
+msgstr "Jadwal lokakarya"
+
+msgid "Udział szkoły"
+msgstr "Partisipasi sekolah"
+
+msgid "Nie ma teraz bieżącej edycji olimpiady."
+msgstr "Saat ini tidak ada edisi olimpiade yang berjalan."
+
+msgid "potwierdzony"
+msgstr "dikonfirmasi"
+
+msgid "niepotwierdzony"
+msgstr "belum dikonfirmasi"
+
+msgid "Bez potwierdzenia nie wystawimy Ci zaświadczenia dla opiekuna."
+msgstr "Tanpa konfirmasi kami tidak dapat menerbitkan sertifikat pembimbing Anda."
+
+msgid "Nikt jeszcze nie wskazał Twojego adresu"
+msgstr "Belum ada yang mencantumkan alamat Anda"
+
+#, python-format
+msgid "Dzień dobry, %(name)s"
+msgstr "Halo, %(name)s"
+
+#, python-format
+msgid "Widzisz uczniów, którzy wskazali Twój adres (%(email)s) w swoim profilu albo przyjęli Twoje zaproszenie. Każdy z nich może to w każdej chwili cofnąć."
+msgstr "Anda melihat siswa yang mencantumkan alamat Anda (%(email)s) di profil mereka atau menerima undangan Anda. Masing-masing dapat menariknya kapan saja."
+
+#, python-format
+msgid "Zaproszeni, jeszcze bez konta: %(counter)s"
+msgstr "Diundang, belum punya akun: %(counter)s"
+
+#, python-format
+msgid "Czeka na weryfikację organizatora: %(counter)s."
+msgstr "Menunggu verifikasi penyelenggara: %(counter)s."
+
+#, python-format
+msgid "Edycja %(edition)s."
+msgstr "Edisi %(edition)s."
+
+#, python-format
+msgid "Zaproś uczniów z listy klasowej albo podaj im adres %(email)s – wpisują go w swoim profilu („Edytuj dane” → „Adres e-mail opiekuna szkolnego”)."
+msgstr "Undang siswa dari daftar kelas atau berikan alamat %(email)s – mereka mengisinya di profil („Ubah data” → „Alamat e-mail pembimbing sekolah”)."
+
+msgid "Zapisy do etapów i stan prac Twoich uczniów w bieżącej edycji. Punkty i kwalifikacja pojawiają się wyłącznie przy etapach z ogłoszonymi wynikami – to te same liczby, które widać w tabeli publicznej."
+msgstr "Pendaftaran tahap dan status jawaban siswa Anda di edisi saat ini. Poin dan kelolosan hanya muncul pada tahap yang hasilnya sudah diumumkan – angka yang sama dengan tabel publik."
+
+msgid "Nie widzisz treści prac, komentarzy recenzentów ani punktów przed ogłoszeniem wyników."
+msgstr "Anda tidak melihat isi jawaban, komentar penilai, maupun poin sebelum hasil diumumkan."
+
+msgid "Filtry i sortowanie"
+msgstr "Filter dan urutan"
+
+msgid "Zaświadczenie"
+msgstr "Surat keterangan"
+
+msgid "Sortuj"
+msgstr "Urutkan"
+
+msgid "tylko bez pracy w otwartym etapie"
+msgstr "hanya yang belum mengirim di tahap terbuka"
+
+msgid "tylko bez zgody rodzica"
+msgstr "hanya tanpa persetujuan orang tua"
+
+msgid "Pobierz XLSX"
+msgstr "Unduh XLSX"
+
+msgid "Postęp klasy – uczniowie i etapy"
+msgstr "Kemajuan kelas – siswa dan tahap"
+
+msgid "przyjmuje prace"
+msgstr "menerima jawaban"
+
+msgid "bez pracy w otwartym etapie"
+msgstr "belum mengirim di tahap terbuka"
+
+msgid "niezapisany"
+msgstr "tidak terdaftar"
+
+msgid "Nikt nie pasuje do filtrów"
+msgstr "Tidak ada yang cocok dengan filter"
+
+#, python-format
+msgid "Uczniów na liście: %(shown)s z %(total)s."
+msgstr "Siswa dalam daftar: %(shown)s dari %(total)s."
+
+#, python-format
+msgid "oddane %(done)s z %(total)s"
+msgstr "dikirim %(done)s dari %(total)s"
+
+#, python-format
+msgid "ostatnio %(day)s"
+msgstr "terakhir %(day)s"
+
+#, python-format
+msgid "%(count)s z %(total)s"
+msgstr "%(count)s dari %(total)s"
+
+msgid "Udział szkoły jest potwierdzony. Na tej podstawie organizator wystawia zaświadczenia dla opiekunów."
+msgstr "Partisipasi sekolah telah dikonfirmasi. Atas dasar ini penyelenggara menerbitkan sertifikat pembimbing."
+
+msgid "Potwierdzenie jest oświadczeniem o Tobie, a nie o uczniach: nie warunkuje niczyjego startu, ale bez niego nie wystawimy Ci zaświadczenia dla opiekuna."
+msgstr "Konfirmasi adalah pernyataan tentang Anda, bukan tentang siswa: tidak menentukan keikutsertaan siapa pun, tetapi tanpanya kami tidak dapat menerbitkan sertifikat pembimbing Anda."
+
+msgid "Wycofaj potwierdzenie"
+msgstr "Tarik konfirmasi"
+
+msgid "Potwierdzam udział szkoły"
+msgstr "Saya mengonfirmasi partisipasi sekolah"
+
+msgid "Nie ma teraz bieżącej edycji olimpiady – nie ma czego potwierdzać."
+msgstr "Tidak ada edisi olimpiade yang berjalan – tidak ada yang perlu dikonfirmasi."
+
+msgid "Moje zaświadczenia"
+msgstr "Sertifikat saya"
+
+msgid "Nie masz jeszcze żadnego zaświadczenia. Wystawia je organizator po zakończeniu edycji."
+msgstr "Anda belum memiliki sertifikat. Penyelenggara menerbitkannya setelah edisi berakhir."
+
+msgid "Dla szkoły"
+msgstr "Untuk sekolah"
+
+#, python-format
+msgid "Udział szkoły w edycji %(edition)s"
+msgstr "Partisipasi sekolah di edisi %(edition)s"
+
+msgid "czy masz zaakceptowane zaświadczenie o statusie ucznia i – jeśli jesteś niepełnoletni – zgodę rodzica, oraz na ilu warsztatach odnotowano Twoją obecność (organizator włączył tę informację dla nauczycieli);"
+msgstr "apakah surat keterangan status pelajar Anda diterima dan – jika Anda di bawah umur – apakah ada persetujuan orang tua, serta di berapa lokakarya kehadiran Anda tercatat (penyelenggara mengaktifkan informasi ini untuk guru);"
+
+msgid "Nauczyciel nie zobaczy Twoich prac, komentarzy recenzentów, punktów przed ogłoszeniem wyników, Twoich danych kontaktowych ani treści zgód i zaświadczenia."
+msgstr "Guru tidak akan melihat jawaban Anda, komentar penilai, poin sebelum hasil diumumkan, data kontak Anda, maupun isi persetujuan dan surat keterangan."
+
+msgid "W tym konkursie opiekun widzi też, czy masz zaakceptowane zaświadczenie o statusie ucznia i (jeśli jesteś niepełnoletni) zgodę rodzica, oraz na ilu warsztatach byłeś."
+msgstr "Dalam kompetisi ini pembimbing juga melihat apakah surat keterangan status pelajar Anda diterima dan (jika Anda di bawah umur) apakah ada persetujuan orang tua, serta berapa lokakarya yang Anda ikuti."
+
+msgid "Opcjonalnie. Opiekun z kontem w serwisie zobaczy Twój kod, imię, nazwisko, to, na jakim etapie procedury są Twoje prace, czy masz zaakceptowane zaświadczenie o statusie ucznia i zgodę rodzica oraz na ilu warsztatach byłeś – nigdy punktów przed ogłoszeniem wyników ani samych prac. Puste pole znaczy „nie mam opiekuna”."
+msgstr "Opsional. Pembimbing yang punya akun akan melihat kode, nama depan, nama belakang Anda, tahap prosedur jawaban Anda, apakah surat keterangan status pelajar dan persetujuan orang tua sudah ada, serta berapa lokakarya yang Anda ikuti – tidak pernah poin sebelum hasil diumumkan maupun jawabannya sendiri. Kolom kosong berarti „saya tidak punya pembimbing”."

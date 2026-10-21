@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "teacher_panel/base.html" %}
 {% load static i18n web_extras %}
 {% comment %}
   Statystyki opiekuna szkolnego (STAT-01). Wszystkie reguły – kto jest na liście, kiedy wolno
@@ -8,12 +8,14 @@
 
   Bez JavaScriptu: wybór edycji jedzie zwykłym formularzem GET, wykres jest SVG rysowanym po stronie
   serwera (``_chart.html``), a każda liczba z wykresu stoi też w tabeli.
+
+  Rama panelu nauczyciela z menu (``teacher_panel/base.html``, UX-PANEL-02).
 {% endcomment %}
 {% block title %}{% translate "Statystyki uczniów i szkoły" %}{% endblock %}
-{% block head %}
+{% block panel_head %}
   <link rel="stylesheet" href="{% static 'css/school-stats.css' %}">
 {% endblock %}
-{% block content %}
+{% block panel_content %}
 <div class="page-head">
   <span class="eyebrow">{% translate "Panel opiekuna szkolnego" %}</span>
   <h1>{% translate "Statystyki uczniów i szkoły" %}</h1>
@@ -22,7 +24,7 @@
     Dane szkoły, województwa i całej olimpiady są zbiorcze. Grupy, z których dałoby się odczytać wynik konkretnej osoby (mniej niż {{ k }} uczestników poza Twoimi uczniami), są ukryte.
   {% endblocktranslate %}</p>
   <div class="actions">
-    <a class="btn btn--secondary" href="{% url 'web:supervisor' %}">{% translate "Wróć do listy uczniów" %}</a>
+    <a class="btn btn--secondary" href="{% url 'web:supervisor-progress' %}">{% translate "Wróć do listy uczniów" %}</a>
     {% if report_available %}
       <a class="btn btn--primary" href="{% url 'web:supervisor-statistics-report' %}?edition={{ edition.pk }}">{% translate "Raport szkoły (PDF)" %}</a>
     {% endif %}

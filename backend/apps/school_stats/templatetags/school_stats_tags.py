@@ -1,8 +1,8 @@
 """Znaczniki szablonów statystyk szkół.
 
-``school_stats_link`` stoi na pulpicie opiekuna (``web/supervisor/dashboard.html``) jako jedna
-linijka: pulpit nie musi wiedzieć o fladze ani o adresie, a przy wyłączonej fladze znacznik nie
-wypisuje niczego – strona jest wtedy co do bajtu taka jak przed STAT-01. Odczyt flagi nie dotyka
+``school_stats_link`` stoi na ekranie „Szkoła” panelu nauczyciela (``teacher_panel/school.html``;
+do UX-PANEL-02 – na pulpicie opiekuna) jako jedna linijka: ekran nie musi wiedzieć o fladze ani
+o adresie, a przy wyłączonej fladze znacznik nie wypisuje niczego. Odczyt flagi nie dotyka
 bazy (to pole wiersza konkursu, który ``CompetitionMiddleware`` ma już w pamięci).
 """
 

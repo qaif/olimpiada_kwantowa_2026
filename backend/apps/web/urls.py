@@ -22,6 +22,7 @@ from apps.problem_translations.urls import urlpatterns as translation_urlpattern
 # Statystyki szkół (STAT-01) – widoki mieszkają w nowej aplikacji, montaż jak u pozostałych wydań.
 from apps.school_stats.urls import urlpatterns as school_stats_urlpatterns
 from apps.staff_mfa.urls import urlpatterns as staff_mfa_urlpatterns  # SEC-01: 2FA personelu
+from apps.teacher_panel.urls import urlpatterns as teacher_panel_urlpatterns  # UX-PANEL-02
 
 # Wzorce ekranów wydań E–K stoją w osobnych modułach, bo powstały równolegle (T11, T13, T20, T23,
 # T27, T34, T42), a ten plik ma w etapie 2 **jednego** właściciela na wydanie
@@ -358,6 +359,8 @@ urlpatterns = [
         supervisor.ResendInvitationView.as_view(),
         name="supervisor-resend-invitation",
     ),
+    # Panel nauczyciela (UX-PANEL-02): postęp klasy z eksportem i ekran „Szkoła”.
+    *teacher_panel_urlpatterns,
     # Publiczna weryfikacja dokumentu po kodzie z papieru. Adres jest po polsku i krótki, bo
     # bywa przepisywany z dyplomu ręcznie; nie wydaje danych osobowych bez zgody na publikację.
     path("dyplomy/<str:code>/", certificates.CertificateVerifyView.as_view(), name="certificate-verify"),

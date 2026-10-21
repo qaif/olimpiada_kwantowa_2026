@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% load static teacher_panel %}
+{% comment %}
+  Rama panelu nauczyciela (UX-PANEL-02): menu po lewej (desktop) albo rozwijane „Menu nauczyciela”
+  nad treścią (telefon) i kolumna treści – ten sam układ i te same klasy (``pp…``), co rama panelu
+  uczestnika, więc arkusz ``participant_panel/panel.css`` obsługuje obie bez zmian (D1). Własne
+  dodatki (tabela postępu, filtry, kafle z liczbą) są w ``teacher_panel/teacher.css``.
+
+  Ekrany wypełniają ``panel_content`` i – gdy potrzebują arkusza – ``panel_head`` (osobny blok, bo
+  nadpisanie ``head`` bez ``block.super`` zabrałoby ramie jej arkusze).
+{% endcomment %}
+{% block head %}{{ block.super }}
+  <link rel="stylesheet" href="{% static 'participant_panel/panel.css' %}">
+  <link rel="stylesheet" href="{% static 'teacher_panel/teacher.css' %}">
+  {% block panel_head %}{% endblock %}
+{% endblock %}
+{% block content %}
+<div class="pp tp">
+  {% teacher_nav %}
+  <div class="pp__main">
+    {% block panel_content %}{% endblock %}
+  </div>
+</div>
+{% endblock %}

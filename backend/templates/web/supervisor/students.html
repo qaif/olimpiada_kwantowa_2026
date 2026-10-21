@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "teacher_panel/base.html" %}
 {% load i18n static web_extras %}
 {% comment %}
   Lista uczniów opiekuna widziana od strony **kont**, a nie prac: kto przyjął zaproszenie, kto
@@ -9,10 +9,12 @@
   Przy koncie aktywnym nie miałby czego wysłać, a przy koncie założonym samodzielnie przez ucznia
   nie ma żadnego zaproszenia – serwis odmówiłby obu (``bulk_registration.resend_invitation``),
   więc ekran ich po prostu nie pokazuje.
+
+  Rama panelu nauczyciela z menu (``teacher_panel/base.html``, UX-PANEL-02).
 {% endcomment %}
 {% block title %}{% translate "Moi uczniowie – konta" %}{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'css/coordinator-tools.css' %}">{% endblock %}
-{% block content %}
+{% block panel_head %}<link rel="stylesheet" href="{% static 'css/coordinator-tools.css' %}">{% endblock %}
+{% block panel_content %}
 <div class="page-head">
   <span class="eyebrow"><a href="{% url 'web:supervisor' %}">{% translate "Panel opiekuna szkolnego" %}</a></span>
   <h1>{% translate "Konta moich uczniów" %}</h1>
@@ -22,7 +24,7 @@
   {% endblocktranslate %}</p>
   <div class="actions">
     <a class="btn btn--primary" href="{% url 'web:supervisor-import' %}">{% translate "Zaproś uczniów z listy" %}</a>
-    <a class="btn btn--secondary" href="{% url 'web:supervisor' %}">{% translate "Stan prac" %}</a>
+    <a class="btn btn--secondary" href="{% url 'web:supervisor-progress' %}">{% translate "Postęp klasy" %}</a>
   </div>
 </div>
 

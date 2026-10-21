@@ -1,0 +1,290 @@
+# UX-PANEL-02 – napisy aplikacji teacher_panel (es). Źródło (msgid) po polsku; poza angielskim
+# tłumaczenie maszynowe – do przeglądu native speakera (I18N-01 § 8).
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada teacher_panel\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-21 12:00+0200\n"
+"PO-Revision-Date: 2026-10-21 12:00+0200\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: es\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Postęp klasy"
+msgstr "Progreso de la clase"
+
+msgid "Materiały i warsztaty"
+msgstr "Materiales y talleres"
+
+msgid "Plakaty do powieszenia w szkole"
+msgstr "Carteles para tu centro"
+
+msgid "Kalendarz konkursu (.ics)"
+msgstr "Calendario del concurso (.ics)"
+
+msgid "Udział szkoły i zaświadczenia"
+msgstr "Participación del centro y certificados"
+
+msgid "Statystyki szkoły"
+msgstr "Estadísticas del centro"
+
+msgid "aktywne"
+msgstr "activa"
+
+msgid "zaproszony – bez konta"
+msgstr "invitado: aún sin cuenta"
+
+msgid "nic nie oddano"
+msgstr "nada entregado"
+
+msgid "jest"
+msgstr "otorgado"
+
+msgid "pełnoletni"
+msgstr "mayor de edad"
+
+msgid "czeka na weryfikację"
+msgstr "pendiente de revisión"
+
+msgid "zaakceptowane"
+msgstr "aceptado"
+
+msgid "niezakwalifikowany"
+msgstr "no clasificado"
+
+msgid "Zgoda rodzica"
+msgstr "Consentimiento parental"
+
+msgid "zapis"
+msgstr "inscripción"
+
+msgid "oddane prace"
+msgstr "trabajos entregados"
+
+msgid "ostatnie oddanie"
+msgstr "última entrega"
+
+msgid "stan"
+msgstr "estado"
+
+msgid "punkty"
+msgstr "puntos"
+
+msgid "kwalifikacja"
+msgstr "clasificación"
+
+msgid "Warsztaty (obecności)"
+msgstr "Talleres (asistencia)"
+
+msgid "tak"
+msgstr "sí"
+
+msgid "nazwisko: A–Z"
+msgstr "apellido: A–Z"
+
+msgid "nazwisko: Z–A"
+msgstr "apellido: Z–A"
+
+msgid "klasa: rosnąco"
+msgstr "curso: ascendente"
+
+msgid "klasa: malejąco"
+msgstr "curso: descendente"
+
+msgid "konto: najpierw bez konta"
+msgstr "cuenta: primero sin cuenta"
+
+msgid "najwięcej oddanych prac"
+msgstr "más trabajos entregados"
+
+msgid "najmniej oddanych prac"
+msgstr "menos trabajos entregados"
+
+msgid "Menu nauczyciela"
+msgstr "Menú del profesor"
+
+msgid "Panel nauczyciela"
+msgstr "Panel del profesor"
+
+msgid "z kontem w serwisie"
+msgstr "con cuenta"
+
+msgid "Zaproś z listy"
+msgstr "Invitar desde una lista"
+
+msgid "termin oddania prac"
+msgstr "plazo de entrega"
+
+msgid "start etapu"
+msgstr "inicio de la fase"
+
+msgid "Bez pracy w otwartym etapie"
+msgstr "Sin trabajo en una fase abierta"
+
+msgid "do przypomnienia"
+msgstr "para recordar"
+
+msgid "Zapisani do etapu, który teraz przyjmuje prace, i jeszcze niczego w nim nie oddali."
+msgstr "Inscritos en una fase que ahora acepta trabajos y que todavía no han entregado nada en ella."
+
+msgid "Pokaż ich"
+msgstr "Mostrarlos"
+
+msgid "Bez zaświadczenia o statusie ucznia"
+msgstr "Sin certificado de condición de estudiante"
+
+msgid "brak albo odrzucone"
+msgstr "falta o rechazado"
+
+msgid "Bez zgody rodzica"
+msgstr "Sin consentimiento parental"
+
+msgid "wśród niepełnoletnich"
+msgstr "entre los menores"
+
+msgid "Zgodę składa rodzic albo opiekun prawny przez link, który uczeń wysyła z panelu."
+msgstr "El padre, la madre o el tutor legal da su consentimiento mediante un enlace que el alumno envía desde su panel."
+
+msgid "Harmonogram warsztatów"
+msgstr "Calendario de talleres"
+
+msgid "Udział szkoły"
+msgstr "Participación del centro"
+
+msgid "Nie ma teraz bieżącej edycji olimpiady."
+msgstr "Ahora no hay ninguna edición en curso de la olimpiada."
+
+msgid "potwierdzony"
+msgstr "confirmada"
+
+msgid "niepotwierdzony"
+msgstr "sin confirmar"
+
+msgid "Bez potwierdzenia nie wystawimy Ci zaświadczenia dla opiekuna."
+msgstr "Sin la confirmación no podremos emitir tu certificado de tutor."
+
+msgid "Nikt jeszcze nie wskazał Twojego adresu"
+msgstr "Nadie ha indicado todavía tu dirección"
+
+#, python-format
+msgid "Dzień dobry, %(name)s"
+msgstr "Hola, %(name)s"
+
+#, python-format
+msgid "Widzisz uczniów, którzy wskazali Twój adres (%(email)s) w swoim profilu albo przyjęli Twoje zaproszenie. Każdy z nich może to w każdej chwili cofnąć."
+msgstr "Ves a los alumnos que indicaron tu dirección (%(email)s) en su perfil o aceptaron tu invitación. Cualquiera de ellos puede retirarlo en cualquier momento."
+
+#, python-format
+msgid "Zaproszeni, jeszcze bez konta: %(counter)s"
+msgstr "Invitados, aún sin cuenta: %(counter)s"
+
+#, python-format
+msgid "Czeka na weryfikację organizatora: %(counter)s."
+msgstr "Pendientes de revisión del organizador: %(counter)s."
+
+#, python-format
+msgid "Edycja %(edition)s."
+msgstr "Edición %(edition)s."
+
+#, python-format
+msgid "Zaproś uczniów z listy klasowej albo podaj im adres %(email)s – wpisują go w swoim profilu („Edytuj dane” → „Adres e-mail opiekuna szkolnego”)."
+msgstr "Invita a los alumnos desde la lista de clase o dales la dirección %(email)s; la escriben en su perfil («Editar datos» → «Correo electrónico del tutor escolar»)."
+
+msgid "Zapisy do etapów i stan prac Twoich uczniów w bieżącej edycji. Punkty i kwalifikacja pojawiają się wyłącznie przy etapach z ogłoszonymi wynikami – to te same liczby, które widać w tabeli publicznej."
+msgstr "Inscripciones en las fases y estado de los trabajos de tus alumnos en la edición actual. Los puntos y la clasificación aparecen solo en las fases con resultados publicados: son las mismas cifras que en la tabla pública."
+
+msgid "Nie widzisz treści prac, komentarzy recenzentów ani punktów przed ogłoszeniem wyników."
+msgstr "No ves el contenido de los trabajos, los comentarios de los evaluadores ni los puntos antes de publicar los resultados."
+
+msgid "Filtry i sortowanie"
+msgstr "Filtros y orden"
+
+msgid "Zaświadczenie"
+msgstr "Certificado"
+
+msgid "Sortuj"
+msgstr "Ordenar"
+
+msgid "tylko bez pracy w otwartym etapie"
+msgstr "solo sin trabajo en una fase abierta"
+
+msgid "tylko bez zgody rodzica"
+msgstr "solo sin consentimiento parental"
+
+msgid "Pobierz XLSX"
+msgstr "Descargar XLSX"
+
+msgid "Postęp klasy – uczniowie i etapy"
+msgstr "Progreso de la clase: alumnos y fases"
+
+msgid "przyjmuje prace"
+msgstr "acepta trabajos"
+
+msgid "bez pracy w otwartym etapie"
+msgstr "sin trabajo en una fase abierta"
+
+msgid "niezapisany"
+msgstr "no inscrito"
+
+msgid "Nikt nie pasuje do filtrów"
+msgstr "Nadie coincide con los filtros"
+
+#, python-format
+msgid "Uczniów na liście: %(shown)s z %(total)s."
+msgstr "Alumnos en la lista: %(shown)s de %(total)s."
+
+#, python-format
+msgid "oddane %(done)s z %(total)s"
+msgstr "entregados %(done)s de %(total)s"
+
+#, python-format
+msgid "ostatnio %(day)s"
+msgstr "última vez %(day)s"
+
+#, python-format
+msgid "%(count)s z %(total)s"
+msgstr "%(count)s de %(total)s"
+
+msgid "Udział szkoły jest potwierdzony. Na tej podstawie organizator wystawia zaświadczenia dla opiekunów."
+msgstr "La participación del centro está confirmada. Con ella el organizador emite los certificados de tutor."
+
+msgid "Potwierdzenie jest oświadczeniem o Tobie, a nie o uczniach: nie warunkuje niczyjego startu, ale bez niego nie wystawimy Ci zaświadczenia dla opiekuna."
+msgstr "La confirmación es una declaración sobre ti, no sobre los alumnos: no condiciona la participación de nadie, pero sin ella no podremos emitir tu certificado de tutor."
+
+msgid "Wycofaj potwierdzenie"
+msgstr "Retirar la confirmación"
+
+msgid "Potwierdzam udział szkoły"
+msgstr "Confirmo la participación del centro"
+
+msgid "Nie ma teraz bieżącej edycji olimpiady – nie ma czego potwierdzać."
+msgstr "No hay ninguna edición en curso de la olimpiada: no hay nada que confirmar."
+
+msgid "Moje zaświadczenia"
+msgstr "Mis certificados"
+
+msgid "Nie masz jeszcze żadnego zaświadczenia. Wystawia je organizator po zakończeniu edycji."
+msgstr "Aún no tienes ningún certificado. El organizador los emite al terminar la edición."
+
+msgid "Dla szkoły"
+msgstr "Para el centro"
+
+#, python-format
+msgid "Udział szkoły w edycji %(edition)s"
+msgstr "Participación del centro en la edición %(edition)s"
+
+msgid "czy masz zaakceptowane zaświadczenie o statusie ucznia i – jeśli jesteś niepełnoletni – zgodę rodzica, oraz na ilu warsztatach odnotowano Twoją obecność (organizator włączył tę informację dla nauczycieli);"
+msgstr "si tu certificado de condición de estudiante está aceptado y, si eres menor, si tienes el consentimiento parental, y en cuántos talleres consta tu asistencia (el organizador ha activado esta información para los profesores);"
+
+msgid "Nauczyciel nie zobaczy Twoich prac, komentarzy recenzentów, punktów przed ogłoszeniem wyników, Twoich danych kontaktowych ani treści zgód i zaświadczenia."
+msgstr "El profesor no verá tus trabajos, los comentarios de los evaluadores, los puntos antes de publicar los resultados, tus datos de contacto ni el contenido de los consentimientos y del certificado."
+
+msgid "W tym konkursie opiekun widzi też, czy masz zaakceptowane zaświadczenie o statusie ucznia i (jeśli jesteś niepełnoletni) zgodę rodzica, oraz na ilu warsztatach byłeś."
+msgstr "En este concurso el tutor ve también si tu certificado de condición de estudiante está aceptado y (si eres menor) si tienes el consentimiento parental, y a cuántos talleres asististe."
+
+msgid "Opcjonalnie. Opiekun z kontem w serwisie zobaczy Twój kod, imię, nazwisko, to, na jakim etapie procedury są Twoje prace, czy masz zaakceptowane zaświadczenie o statusie ucznia i zgodę rodzica oraz na ilu warsztatach byłeś – nigdy punktów przed ogłoszeniem wyników ani samych prac. Puste pole znaczy „nie mam opiekuna”."
+msgstr "Opcional. El tutor con cuenta verá tu código, nombre, apellidos, en qué punto del procedimiento están tus trabajos, si tienes aceptado el certificado de condición de estudiante y el consentimiento parental y a cuántos talleres asististe; nunca los puntos antes de publicar los resultados ni los trabajos. Un campo vacío significa «no tengo tutor»."
