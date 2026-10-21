@@ -14,7 +14,7 @@ import pytest
 from apps.accounts.consents import is_minor
 from apps.coordinator_stats import domains
 from apps.coordinator_stats.broadcasts import HEADER, broadcast_id_from, headers_for, is_s3150, kind_of
-from apps.coordinator_stats.funnel import CHAIN, STEP_LABELS, SUBSTEPS, adult_cutoff
+from apps.coordinator_stats.funnel import CHAIN, STEP_LABELS, SUBSTEPS, Filters, _step_row, adult_cutoff
 from apps.coordinator_stats.models import BounceKind
 from apps.email_delivery.bounces import Bounce, original_headers, parse_dsn, process_maildir
 
@@ -109,6 +109,21 @@ def test_adult_cutoff_for_leap_day_births():
 def test_funnel_steps_have_labels():
     names = set(CHAIN) | {sub for subs in SUBSTEPS.values() for sub in subs}
     assert names == set(STEP_LABELS)
+
+
+def test_step_share_is_relative_to_registrations_only():
+    # Kroki niezależne (21.10.2026): odsetek „względem poprzedniego kroku” zniknął – przy zgodach
+    # 646 i 602 zalogowanych przekraczałby 100 %. Liczy się wyłącznie odsetek rejestracji.
+    row = _step_row("consents", 646, 700, sub=False)
+    assert "vs_previous" not in row
+    assert row["vs_registered"] == 92.3 and row["width"]
+    assert _step_row("enrolled_first", None, 700, sub=True)["vs_registered"] is None
+
+
+def test_filters_have_no_counting_mode():
+    # Tryb ścisły usunięty – w kluczu pamięci podręcznej nie ma już trybu.
+    assert not hasattr(Filters(), "mode")
+    assert Filters().cache_part() == '["", "", "", "", ""]'
 
 
 # --- nagłówek komunikatu --------------------------------------------------------------------------

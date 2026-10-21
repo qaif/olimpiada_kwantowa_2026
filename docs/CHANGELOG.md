@@ -32,6 +32,27 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
 - Migracja `notifications.0001_initial`; budżet zapytań `/me/` 44 → 46. Opis: `docs/tasks/UX-PANEL-01.md`,
   PODRĘCZNIK-UCZESTNIKA § 2, PODRĘCZNIK-ORGANIZATORA § 6.4c.
 
+## [Unreleased] – Lejek uczestnika: kroki liczone niezależnie (STATS-02a)
+
+- Decyzja organizatora z 21.10.2026: ekran `/coordinator/stats/funnel/` nie uwzględnia kolejności
+  kroków. Usunięty tryb „lejek ścisły” (był domyślny i pokazywał np. 0 zaakceptowanych zaświadczeń,
+  bo przed Etapem I nikt nie wysłał jeszcze pracy) – każdy krok liczy, kto spełnia jego warunek.
+- Zostaje wyłącznie odsetek względem rejestracji (ekran, słupki, podwiersze „w tym”, CSV); kolumna
+  „względem poprzedniego kroku” usunięta – przy krokach niezależnych przekraczała 100 %. W CSV
+  odsetek aktywacji z tabel „gdzie odpadają” ma osobną kolumnę.
+- Menu i adres bez zmian („Lejek uczestnika”); tabela to „Kroki aktywności”, opis mówi wprost, że
+  kroki są niezależne. Stary `?mode=strict` w zakładce jest pomijany. Nowa wersja klucza pamięci
+  podręcznej (wynik sprzed zmiany nie wraca). Opis: `docs/tasks/STATS-02.md`,
+  `PODRECZNIK-ORGANIZATORA.md` § 10c.1.
+
+## [Unreleased] – Pillow 13.0.0 (CVE-2026-112403 i sześć innych)
+
+- certifi 2026.7.22 → 2026.10.19 (GHSA-6q48-6c7w-9gw2, CRITICAL: pakiet zawierał skompromitowane główne CA emSign).
+
+- Pillow 12.3.0 → 13.0.0 w `backend/uv.lock` i `djcms/uv.lock` (21.10.2026: bramka Trivy i pip-audit zatrzymały
+  wszystkie PR-y na CVE-2026-112403 – CRITICAL – oraz CVE-2026-112397/112400/112404/112895/112896/112897; poprawki
+  wyłącznie w 13.0.0). Wagtail 8.0 i django CMS rozwiązują się z 13.0.0 bez zmiany ograniczeń.
+
 ## [Unreleased] – Edytor LaTeX (webTEX): kontekstowe autouzupełnianie
 
 - Podpowiedzi w edytorze LaTeX zależne od kontekstu: we wzorze symbole, litery greckie, operatory i

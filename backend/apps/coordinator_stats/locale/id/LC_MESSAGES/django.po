@@ -135,9 +135,6 @@ msgstr "Corong peserta"
 msgid "panel koordynatora"
 msgstr "panel koordinator"
 
-msgid "Ilu uczestników przechodzi kolejne kroki – od rejestracji, przez aktywację konta i zapis do etapu, do pierwszej pracy, zaświadczenia i warsztatów."
-msgstr "Berapa banyak peserta yang melewati setiap langkah – dari pendaftaran, aktivasi akun dan pendaftaran tahap hingga karya pertama, surat keterangan, dan lokakarya."
-
 msgid "Liczby dotyczą uczestników wybranej edycji: zapisanych do jej etapu albo zarejestrowanych w czasie jej trwania. Konta usunięte nie są liczone."
 msgstr "Angka ini mencakup peserta edisi yang dipilih: terdaftar di salah satu tahapnya atau mendaftar selama edisi berlangsung. Akun yang dihapus tidak dihitung."
 
@@ -159,29 +156,17 @@ msgstr "Tampilkan"
 msgid "Wyczyść filtry"
 msgstr "Hapus filter"
 
-msgid "Kroki lejka"
-msgstr "Langkah corong"
-
 msgid "Krok"
 msgstr "Langkah"
 
 msgid "Uczestnicy"
 msgstr "Peserta"
 
-msgid "względem poprzedniego kroku"
-msgstr "terhadap langkah sebelumnya"
-
 msgid "względem rejestracji"
 msgstr "terhadap pendaftaran"
 
 msgid "brak takiego etapu w tej edycji"
 msgstr "tidak ada tahap seperti itu di edisi ini"
-
-msgid "Lejek ścisły: krok liczy osoby, które przeszły także wszystkie poprzednie kroki. Wiersze „w tym” rozbijają zapis do etapu i liczą się względem kroku zgód."
-msgstr "Corong ketat: setiap langkah menghitung orang yang juga telah melewati semua langkah sebelumnya. Baris “termasuk” merinci pendaftaran tahap dan dihitung terhadap langkah persetujuan."
-
-msgid "Kroki niezależne: każdy krok liczy wszystkich, którzy spełniają jego warunek – także bez poprzednich kroków (np. obecni na warsztacie bez zaakceptowanego zaświadczenia)."
-msgstr "Langkah independen: setiap langkah menghitung semua yang memenuhi syaratnya – juga tanpa langkah sebelumnya (mis. hadir di lokakarya tanpa surat keterangan yang diterima)."
 
 msgid "Zgoda opiekuna jest wymagana od niepełnoletnich według tej samej reguły wieku, co przy rejestracji."
 msgstr "Persetujuan wali diperlukan dari peserta di bawah umur menurut aturan usia yang sama seperti saat pendaftaran."
@@ -250,17 +235,8 @@ msgstr "Pendaftaran dari"
 msgid "Rejestracja do"
 msgstr "Pendaftaran sampai"
 
-msgid "Sposób liczenia"
-msgstr "Cara penghitungan"
-
 msgid "Początek okresu rejestracji jest późniejszy niż jego koniec."
 msgstr "Awal periode pendaftaran lebih lambat dari akhirnya."
-
-msgid "lejek ścisły – krok wymaga wszystkich poprzednich"
-msgstr "corong ketat – setiap langkah memerlukan semua langkah sebelumnya"
-
-msgid "kroki niezależne"
-msgstr "langkah independen"
 
 msgid "Rejestracja (profil uczestnika)"
 msgstr "Pendaftaran (profil peserta)"
@@ -304,9 +280,6 @@ msgstr "tanpa provinsi"
 msgid "Filtry"
 msgstr "Filter"
 
-msgid "Lejek"
-msgstr "Corong"
-
 msgid "Sekcja"
 msgstr "Bagian"
 
@@ -316,8 +289,17 @@ msgstr "Butir"
 msgid "Liczba"
 msgstr "Jumlah"
 
-msgid "Odsetek względem poprzedniego kroku (%)"
-msgstr "Persentase terhadap langkah sebelumnya (%)"
-
 msgid "Odsetek względem rejestracji (%)"
 msgstr "Persentase terhadap pendaftaran (%)"
+
+msgid "Ilu uczestników spełnia każdy z warunków aktywności – rejestracja, aktywacja konta, logowanie, zgody, zapis do etapu, pierwsza praca, zaświadczenie i warsztaty. Każdy krok jest liczony osobno, bez kolejności: liczy wszystkich, którzy spełniają jego warunek, także bez pozostałych kroków."
+msgstr "Berapa banyak peserta yang memenuhi setiap syarat aktivitas – pendaftaran, aktivasi akun, masuk, persetujuan, pendaftaran tahap, karya pertama, surat keterangan, dan lokakarya. Setiap langkah dihitung terpisah, tanpa urutan: menghitung semua yang memenuhi syaratnya, juga tanpa langkah lainnya."
+
+msgid "Kroki aktywności"
+msgstr "Langkah aktivitas"
+
+msgid "Kroki są niezależne: liczba w wierszu nie zależy od wierszy powyżej (np. zaświadczenie może być zaakceptowane, zanim uczestnik wyśle pierwszą pracę). Odsetek i słupek – względem rejestracji; wiersze „w tym” rozbijają zapis do etapu."
+msgstr "Langkah-langkah ini independen: angka di suatu baris tidak bergantung pada baris di atasnya (mis. surat keterangan dapat diterima sebelum peserta mengirim karya pertama). Persentase dan batang – terhadap pendaftaran; baris “termasuk” merinci pendaftaran tahap."
+
+msgid "Odsetek aktywowanych kont w grupie (%)"
+msgstr "Persentase akun yang diaktifkan dalam kelompok (%)"

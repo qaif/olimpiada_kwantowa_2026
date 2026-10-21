@@ -135,9 +135,6 @@ msgstr "प्रतिभागी फ़नल"
 msgid "panel koordynatora"
 msgstr "समन्वयक पैनल"
 
-msgid "Ilu uczestników przechodzi kolejne kroki – od rejestracji, przez aktywację konta i zapis do etapu, do pierwszej pracy, zaświadczenia i warsztatów."
-msgstr "कितने प्रतिभागी हर चरण से गुज़रते हैं – पंजीकरण, खाता सक्रियण और चरण में नामांकन से लेकर पहले कार्य, प्रमाणपत्र और कार्यशालाओं तक।"
-
 msgid "Liczby dotyczą uczestników wybranej edycji: zapisanych do jej etapu albo zarejestrowanych w czasie jej trwania. Konta usunięte nie są liczone."
 msgstr "संख्याएँ चुने गए संस्करण के प्रतिभागियों की हैं: उसके किसी चरण में नामांकित या उसके दौरान पंजीकृत। हटाए गए खाते नहीं गिने जाते।"
 
@@ -159,29 +156,17 @@ msgstr "दिखाएँ"
 msgid "Wyczyść filtry"
 msgstr "फ़िल्टर साफ़ करें"
 
-msgid "Kroki lejka"
-msgstr "फ़नल के चरण"
-
 msgid "Krok"
 msgstr "चरण"
 
 msgid "Uczestnicy"
 msgstr "प्रतिभागी"
 
-msgid "względem poprzedniego kroku"
-msgstr "पिछले चरण के सापेक्ष"
-
 msgid "względem rejestracji"
 msgstr "पंजीकरण के सापेक्ष"
 
 msgid "brak takiego etapu w tej edycji"
 msgstr "इस संस्करण में ऐसा कोई चरण नहीं"
-
-msgid "Lejek ścisły: krok liczy osoby, które przeszły także wszystkie poprzednie kroki. Wiersze „w tym” rozbijają zapis do etapu i liczą się względem kroku zgód."
-msgstr "सख़्त फ़नल: कोई चरण उन्हीं लोगों को गिनता है जिन्होंने पिछले सभी चरण भी पार किए। “जिनमें” वाली पंक्तियाँ चरण नामांकन को विभाजित करती हैं और सहमति वाले चरण के सापेक्ष गिनी जाती हैं।"
-
-msgid "Kroki niezależne: każdy krok liczy wszystkich, którzy spełniają jego warunek – także bez poprzednich kroków (np. obecni na warsztacie bez zaakceptowanego zaświadczenia)."
-msgstr "स्वतंत्र चरण: हर चरण उन सभी को गिनता है जो उसकी शर्त पूरी करते हैं – पिछले चरणों के बिना भी (जैसे स्वीकृत प्रमाणपत्र के बिना कार्यशाला में उपस्थित)।"
 
 msgid "Zgoda opiekuna jest wymagana od niepełnoletnich według tej samej reguły wieku, co przy rejestracji."
 msgstr "नाबालिगों से अभिभावक की सहमति उसी आयु नियम के अनुसार आवश्यक है जो पंजीकरण में लागू है।"
@@ -250,17 +235,8 @@ msgstr "पंजीकरण से"
 msgid "Rejestracja do"
 msgstr "पंजीकरण तक"
 
-msgid "Sposób liczenia"
-msgstr "गणना का तरीका"
-
 msgid "Początek okresu rejestracji jest późniejszy niż jego koniec."
 msgstr "पंजीकरण अवधि की शुरुआत उसके अंत से बाद की है।"
-
-msgid "lejek ścisły – krok wymaga wszystkich poprzednich"
-msgstr "सख़्त फ़नल – हर चरण के लिए पिछले सभी आवश्यक"
-
-msgid "kroki niezależne"
-msgstr "स्वतंत्र चरण"
 
 msgid "Rejestracja (profil uczestnika)"
 msgstr "पंजीकरण (प्रतिभागी प्रोफ़ाइल)"
@@ -304,9 +280,6 @@ msgstr "कोई प्रांत नहीं"
 msgid "Filtry"
 msgstr "फ़िल्टर"
 
-msgid "Lejek"
-msgstr "फ़नल"
-
 msgid "Sekcja"
 msgstr "खंड"
 
@@ -316,8 +289,17 @@ msgstr "मद"
 msgid "Liczba"
 msgstr "संख्या"
 
-msgid "Odsetek względem poprzedniego kroku (%)"
-msgstr "पिछले चरण के सापेक्ष अनुपात (%)"
-
 msgid "Odsetek względem rejestracji (%)"
 msgstr "पंजीकरण के सापेक्ष अनुपात (%)"
+
+msgid "Ilu uczestników spełnia każdy z warunków aktywności – rejestracja, aktywacja konta, logowanie, zgody, zapis do etapu, pierwsza praca, zaświadczenie i warsztaty. Każdy krok jest liczony osobno, bez kolejności: liczy wszystkich, którzy spełniają jego warunek, także bez pozostałych kroków."
+msgstr "कितने प्रतिभागी हर गतिविधि-शर्त पूरी करते हैं – पंजीकरण, खाता सक्रियण, लॉगिन, सहमतियाँ, चरण में नामांकन, पहला कार्य, प्रमाणपत्र और कार्यशालाएँ। हर चरण अलग से गिना जाता है, किसी क्रम के बिना: वह उन सभी को गिनता है जो उसकी शर्त पूरी करते हैं, बाकी चरणों के बिना भी।"
+
+msgid "Kroki aktywności"
+msgstr "गतिविधि के चरण"
+
+msgid "Kroki są niezależne: liczba w wierszu nie zależy od wierszy powyżej (np. zaświadczenie może być zaakceptowane, zanim uczestnik wyśle pierwszą pracę). Odsetek i słupek – względem rejestracji; wiersze „w tym” rozbijają zapis do etapu."
+msgstr "चरण स्वतंत्र हैं: किसी पंक्ति की संख्या ऊपर की पंक्तियों पर निर्भर नहीं करती (जैसे प्रतिभागी के पहला कार्य भेजने से पहले भी प्रमाणपत्र स्वीकृत हो सकता है)। अनुपात और पट्टी – पंजीकरण के सापेक्ष; “जिनमें” वाली पंक्तियाँ चरण नामांकन को विभाजित करती हैं।"
+
+msgid "Odsetek aktywowanych kont w grupie (%)"
+msgstr "समूह में सक्रिय खातों का अनुपात (%)"

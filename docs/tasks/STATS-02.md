@@ -3,6 +3,17 @@
 Lista organizatora z 18.10.2026, punkty 11 i 12. Kod: aplikacja `apps.coordinator_stats` (bez flagi –
 ekrany zamówione dla Konkursu #1, jak „Przekazywanie rozwiązań”).
 
+> **Zmiana 21.10.2026 (STATS-02a, decyzja organizatora: „to ma nie uwzględniać kolejności kroków”).**
+> Tryb „lejek ścisły” usunięty – każdy krok liczy się niezależnie (kto spełnia dany warunek). Powód:
+> na produkcji krok „zaświadczenie zaakceptowane” pokazywał 0 (niezależnie 73), bo poprzedzająca go
+> „pierwsza wysłana praca” = 0 przed startem Etapu I. Odsetek „względem poprzedniego kroku” zniknął
+> (przy krokach niezależnych przekracza 100 %, np. zgody 646 przy 602 zalogowanych) – zostaje
+> wyłącznie % względem rejestracji (ekran, słupki, podwiersze, CSV). Stary adres z `?mode=strict`
+> działa (parametr pomijany). Nazwa „Lejek uczestnika” zostaje w menu i adresie (rozpoznawalność,
+> zakładki); tabela nazywa się „Kroki aktywności”, a opis mówi wprost, że kroki są niezależne.
+> Klucz pamięci podręcznej dostał wersję (`CACHE_VERSION`), więc wynik sprzed zmiany nie wraca.
+> Punkty 3, 6 i 7 poniżej opisują stan po zmianie.
+
 ## 1. Lejek uczestnika – `/coordinator/stats/funnel/`
 
 1. **Populacja** – profile uczestników **tego** konkursu bez kont po anonimizacji, które należą do
@@ -10,7 +21,7 @@ ekrany zamówione dla Konkursu #1, jak „Przekazywanie rozwiązań”).
    (`apps.accounts.messaging.current_edition_participants`): wpis do któregokolwiek etapu edycji
    **albo** konto założone od powstania edycji – dla edycji minionej dodatkowo przed powstaniem
    następnej (inaczej zeszłoroczny lejek rósłby o tegorocznych).
-2. **Kroki** (w tej kolejności):
+2. **Kroki** (kolejność wyświetlania – liczby od niej nie zależą):
    rejestracja (profil) → aktywacja (`User.email_verified_at`) → pierwsze logowanie
    (`User.last_login` niepuste) → zgody (RODO i regulamin, a dla niepełnoletniego – zgoda opiekuna;
    reguła wieku jak w `consents.is_minor`, przeliczona na warunek SQL i sprawdzona testem) → zapis do
@@ -18,21 +29,23 @@ ekrany zamówione dla Konkursu #1, jak „Przekazywanie rozwiązań”).
    zawodów w kolejności terminów) → pierwsza wysłana praca (zgłoszenie poza `REJECTED_INFECTED` albo
    zakończone podejście do testu online) → zaświadczenie o statusie ucznia zaakceptowane (wersja
    bieżąca w tej edycji) → obecność na ≥ 1 warsztacie (odhaczona w oknie edycji).
-3. **Tryb**: „ścisły” (domyślny – krok liczy osoby, które przeszły także wszystkie poprzednie; liczby
-   nie rosną w dół tabeli) albo „kroki niezależne” (każdy warunek osobno – np. obecni na warsztacie
-   bez zaakceptowanego zaświadczenia). Przy każdym kroku liczba, % względem poprzedniego kroku
-   i % względem rejestracji; słupek CSS (`stat-bar`, klasy szerokości `width_class`) bez JavaScriptu.
+3. **Liczenie**: każdy krok niezależnie – liczy wszystkich uczestników edycji spełniających jego
+   warunek, bez względu na pozostałe kroki (np. obecni na warsztacie bez zaakceptowanego
+   zaświadczenia, zaświadczenie bez wysłanej pracy). Do 21.10.2026 był też domyślny tryb „ścisły”
+   (krok wymagał wszystkich poprzednich) – usunięty, patrz adnotacja na górze. Przy każdym kroku
+   i podwierszu liczba i % względem rejestracji; słupek CSS (`stat-bar`, klasy szerokości
+   `width_class`, skala względem rejestracji) bez JavaScriptu.
 4. **Filtry** (GET): edycja; województwo albo region konkursu (flaga `custom_regions`); szkoła
    (lista szkół z uczestnikami – ta sama, co w komunikatach, `school_choices`); grupa domeny adresu
    (§ 3); okres rejestracji (`User.date_joined`, daty lokalne, obie granice włącznie).
 5. **„Gdzie odpadają”** – 10 województw i 10 szkół z **najniższą aktywacją** (aktywowani /
    zarejestrowani), wyłącznie grupy z co najmniej 5 rejestracjami (próg `K_ANONYMITY` ze STAT-01 –
    mniejsze grupy dają procenty bez znaczenia i zbliżają się do pojedynczych osób).
-6. **Eksport CSV** – te same agregaty: kroki z liczbami i procentami, opis filtrów, tabele „gdzie
-   odpadają”. Żadnej kolumny o osobie. Pobranie to wpis audytu `export.generated`.
+6. **Eksport CSV** – te same agregaty: kroki z liczbą i % względem rejestracji, opis filtrów, tabele
+   „gdzie odpadają” (% aktywowanych w grupie – osobna kolumna). Żadnej kolumny o osobie. Pobranie to wpis audytu `export.generated`.
 7. **Koszt** – stała liczba zapytań: jeden `aggregate` z `COUNT … FILTER` po warunkach (`Exists`
    zamiast złączeń – bez mnożenia wierszy), dwa grupowania „gdzie odpadają”, listy filtrów. Wynik
-   w pamięci podręcznej 5 minut (klucz: konkurs, edycja, filtry, tryb, dzień).
+   w pamięci podręcznej 5 minut (klucz: wersja, konkurs, edycja, filtry, język, dzień).
 
 ## 2. Raport wysyłki komunikatu – historia i `/coordinator/messages/<id>/report/`
 
@@ -89,7 +102,7 @@ organizatora wymienia je razem) – to rozbicie nic nie kosztuje, a pokazuje, il
 ## 5. Testy
 
 `apps/coordinator_stats/tests`: grupy domen (Python i SQL), reguła wieku w SQL vs `is_minor`, każdy
-krok lejka, oba tryby, filtry, izolacja konkursów i edycji, budżet zapytań niezależny od liczby
+krok lejka (liczony niezależnie), stary `?mode=strict`, filtry, izolacja konkursów i edycji, budżet zapytań niezależny od liczby
 uczestników, CSV bez danych osobowych; nagłówek i podpis, `original_headers` na DSN relaya, liczniki
 zakolejkowanych/pominiętych, powiązanie odbicia z komunikatem (DSN i odmowa relaya), S3150, raport
 i historia (404 dla cudzego komunikatu), retencja.
