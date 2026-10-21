@@ -103,6 +103,37 @@ Google/Facebooka) i **jest nieodwracalna**.
 
 ## 2. Panel — `/me/`
 
+**Menu panelu.** Każdy ekran panelu ma po lewej stronie menu (na telefonie – rozwijane **„Menu panelu”**
+nad treścią). Pozycja, na której jesteś, jest podświetlona. Menu ma pięć części:
+
+| Część | Pozycje |
+|---|---|
+| **Start** | Pulpit, **Powiadomienia** (dzwonek z liczbą nowych) |
+| **Zawody** | Zadania i moje prace, Wyniki, Reklamacje, Dyplomy, Archiwum zadań |
+| **Nauka** | Kalendarz, Materiały z warsztatów, Webinary, **Notatniki Qiskit**, **Edytor LaTeX (webTEX)** |
+| **Wiadomości** | Wiadomości (liczba nieprzeczytanych rozmów), Ogłoszenia (organizatora), Forum, Zgłoś problem |
+| **Konto** | Profil i dane, Zgody, Zaświadczenie o statusie ucznia, Hasło, Weryfikacja dwuetapowa |
+
+Pozycji funkcji, której organizator nie włączył (np. forum, notatniki, edytor LaTeX, webinary,
+zaświadczenie), w menu po prostu nie ma.
+
+**Powiadomienia** — `/me/notifications/`. Lista tego, co na Ciebie czeka: nowa wiadomość od organizatora
+albo innego uczestnika, nowe ogłoszenie organizatora, odpowiedź w obserwowanym wątku forum, decyzja
+moderatora, decyzja w sprawie zaświadczenia o statusie ucznia i reklamacji, ogłoszone wyniki etapu.
+Kliknięcie otwiera miejsce, którego powiadomienie dotyczy, i oznacza je jako przeczytane;
+**„Oznacz wszystkie jako przeczytane”** gasi dzwonek naraz. Otwarcie rozmowy w Wiadomościach gasi też
+powiadomienie o niej. Powiadomienie nie zawiera treści wiadomości ani wpisu – tylko informację, że coś
+jest i gdzie. Starsze niż 90 dni usuwamy automatycznie. Listy e-mail działają dalej jak dotąd.
+
+**Notatniki Qiskit** — `/me/notebooks/` i **Edytor LaTeX** — `/me/latex/`: lista zadań z etapów, do
+których jesteś zapisany i które już się zaczęły, z przyciskiem otwarcia (rozdziały 3a i 3b). To te same
+narzędzia, co przy karcie zadania.
+
+**Kafle „Start”** pod nagłówkiem „Co teraz”: najbliższy termin z odliczaniem, stan zaświadczenia
+o statusie ucznia (z przyciskiem przejścia do wgrania), najbliższy warsztat (data i godzina; link do
+spotkania organizator podaje w ogłoszeniu), materiały z warsztatów, „Co nowego” (powiadomienia
+i wiadomości) i skróty do notatników oraz edytora LaTeX.
+
 Nad wszystkim stoi nagłówek **„Co teraz”**: nazwa i stan bieżącego etapu, **jedna** rzecz do zrobienia,
 najbliższy termin z odliczaniem i znaczniki stanu konta (konto aktywne, zgody kompletne, opiekun
 potwierdził). „Na teraz nic nie musisz robić” jest **normalnym** stanem przez większą część roku.
@@ -117,8 +148,8 @@ nich przyciskiem „wstecz”:
 | **Reklamacje** | `/me/?tab=reklamacje` | formularz przy pracy podlegającej reklamacji i lista własnych zgłoszeń |
 | **Zgody** | `/me/?tab=zgody` | zgoda opiekuna, historia zgód, przełącznik publikacji nazwiska |
 
-Obok nich, w tym samym pasku, osobne ekrany: **Wiadomości** (z liczbą nieprzeczytanych rozmów –
-rozdział 8a), **Kalendarz**, **Archiwum**, **Dyplomy**, **Profil**.
+Osobne ekrany (**Wiadomości** – rozdział 8a, **Kalendarz**, **Archiwum**, **Dyplomy**, **Profil**) są
+w menu panelu.
 
 **Zapis do etapu.** Przycisk **„Zgłoś się do tego etapu”** (w treningu: „Zgłoś się do treningu”). Bez
 wpisu nie ma ani zadań, ani wysyłki. Jeśli organizator włączył **automatyczny zapis do treningu**, nowe
