@@ -53,6 +53,14 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
   wszystkie PR-y na CVE-2026-112403 – CRITICAL – oraz CVE-2026-112397/112400/112404/112895/112896/112897; poprawki
   wyłącznie w 13.0.0). Wagtail 8.0 i django CMS rozwiązują się z 13.0.0 bez zmiany ograniczeń.
 
+## [Unreleased] – Wdrożenie buduje i uruchamia edytor webTEX
+
+- `scripts/deploy.sh` przy profilu `latex` w `COMPOSE_PROFILES`: build obrazu `webtex` w kroku 4/8 (albo
+  `pull`, gdy w `.env` jest `WEBTEX_IMAGE`), `webtex` w `up -d` kroku 4b/8, ostrzeżenie (nie błąd), gdy po
+  90 s nie jest healthy, porządki zostawiają dwa tagi `olimpiada/webtex`. Dotąd edytor zostawał na obrazie
+  z ręcznego budowania (v0.51.2 – na v0.51.0). Bez profilu `latex` polecenia wdrożenia bez zmian
+  (`scripts/tests/deploy_djcms_test.sh`, część 12). `OPERACJE.md` § 55.1.
+
 ## [Unreleased] – Edytor LaTeX (webTEX): kontekstowe autouzupełnianie
 
 - Podpowiedzi w edytorze LaTeX zależne od kontekstu: we wzorze symbole, litery greckie, operatory i
