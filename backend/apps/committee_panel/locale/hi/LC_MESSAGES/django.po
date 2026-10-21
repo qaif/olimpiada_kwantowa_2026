@@ -247,7 +247,7 @@ msgid "wszystkie etapy"
 msgstr "सभी चरण"
 
 msgid "wszystkie zadania"
-msgstr "सभी कार्य"
+msgstr "सभी समस्याएँ"
 
 msgid "wszystkie rundy"
 msgstr "सभी दौर"

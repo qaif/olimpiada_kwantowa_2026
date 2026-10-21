@@ -247,7 +247,7 @@ msgid "wszystkie etapy"
 msgstr "all stages"
 
 msgid "wszystkie zadania"
-msgstr "all tasks"
+msgstr "all problems"
 
 msgid "wszystkie rundy"
 msgstr "all rounds"

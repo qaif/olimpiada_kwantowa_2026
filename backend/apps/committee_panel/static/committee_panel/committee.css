@@ -67,13 +67,12 @@
   min-width: 8rem;
 }
 
+/* Termin pod opisem, a nie obok: polska data z godziną („20 października 2026, 18:55”) nie mieści się
+   obok opisu w kaflu o szerokości 15 rem i ściskała opis do jednego słowa w wierszu. */
 .cp-dates > li {
+  flex-direction: column;
   align-items: flex-start;
-}
-
-.cp-dates time {
-  flex: 0 0 auto;
-  white-space: nowrap;
+  gap: 0;
 }
 
 /* --- filtr kolejki ``/review/`` --------------------------------------------------------------- */
