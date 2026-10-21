@@ -1,4 +1,4 @@
-"""Lejek uczestnika (STATS-02 § 1): każdy krok, oba tryby, filtry, izolacja, budżet zapytań, ekran i CSV."""
+"""Lejek uczestnika (STATS-02 § 1): każdy krok niezależnie, filtry, izolacja, budżet zapytań, ekran i CSV."""
 
 from __future__ import annotations
 
@@ -122,39 +122,44 @@ def counts(result) -> dict:
 # --- kroki ---------------------------------------------------------------------------------------
 
 
-def test_strict_funnel_counts_every_step(competition, edition, world):
+def test_each_step_is_counted_independently(competition, edition, world):
     result = funnel.compute(competition, edition, funnel.Filters())
 
     assert counts(result) == {
         "registered": 7,
         "activated": 6,
         "logged_in": 5,
-        "consents": 3,
+        # Zgody: wszyscy poza brakiem RODO i małoletnim bez zgody opiekuna – także bez aktywacji
+        # i bez logowania (krok nie zależy od poprzednich).
+        "consents": 5,
         "enrolled": 3,
         "enrolled_training": 1,
         "enrolled_first": 2,
         "submitted": 1,
         "student_status": 1,
-        "workshop": 1,
+        # Obecność bez zaakceptowanego zaświadczenia też się liczy.
+        "workshop": 2,
     }
     steps = {step["key"]: step for step in result.steps}
     assert steps["activated"]["vs_registered"] == 85.7
-    assert steps["logged_in"]["vs_previous"] == 83.3
-    assert steps["registered"]["vs_previous"] is None
-    # „w tym Etap I” liczy się względem kroku zgód, a nie względem „w tym trening”.
-    assert steps["enrolled_first"]["vs_previous"] == 66.7 and steps["enrolled_first"]["sub"] is True
+    assert steps["consents"]["vs_registered"] == 71.4
+    # Podwiersz „w tym Etap I” – też względem rejestracji; odsetka „względem poprzedniego” nie ma.
+    assert steps["enrolled_first"]["vs_registered"] == 28.6 and steps["enrolled_first"]["sub"] is True
+    assert all("vs_previous" not in step for step in result.steps)
     assert result.first_stage_name == "Etap I – eliminacje" and result.has_training
 
 
-def test_independent_mode_counts_each_condition_alone(competition, edition, world):
-    result = funnel.compute(competition, edition, funnel.Filters(mode=funnel.INDEPENDENT))
+def test_accepted_certificate_counts_before_anyone_sent_work(competition, edition, elim):
+    # Sytuacja z produkcji (21.10.2026): Etap I się nie zaczął, prac 0, a zaświadczenia są
+    # zaakceptowane – lejek ścisły pokazywał przy nich 0.
+    for _index in range(3):
+        profile = person(competition)
+        StageEntryFactory(stage=elim, participant=profile)
+        certificate(profile, edition)
 
-    got = counts(result)
-    # Zgody: wszyscy poza brakiem RODO i małoletnim bez zgody opiekuna – także ci bez aktywacji.
-    assert got["consents"] == 5
-    # Obecność bez zaakceptowanego zaświadczenia też się liczy.
-    assert got["workshop"] == 2
-    assert got["submitted"] == 1 and got["activated"] == 6
+    got = counts(funnel.compute(competition, edition, funnel.Filters()))
+
+    assert got["submitted"] == 0 and got["student_status"] == 3
 
 
 def test_minor_with_guardian_consent_and_adult_without_it_pass_consents(competition, edition, elim):
@@ -173,7 +178,7 @@ def test_infected_submission_is_not_a_sent_work_and_pending_certificate_is_not_a
     submit(entry, status=SubmissionStatus.REJECTED_INFECTED)
     certificate(profile, edition, status=CertificateStatus.PENDING)
 
-    got = counts(funnel.compute(competition, edition, funnel.Filters(mode=funnel.INDEPENDENT)))
+    got = counts(funnel.compute(competition, edition, funnel.Filters()))
 
     assert got["enrolled_first"] == 1 and got["submitted"] == 0 and got["student_status"] == 0
 
@@ -361,8 +366,23 @@ def test_screen_shows_steps_and_bars(coordinator_client, world):
     assert response.status_code == 200
     assert "Pierwsze logowanie" in html and "stat-bar__fill--w" in html
     assert "Etap I – eliminacje" in html
+    # Bez przełącznika trybu i bez kolumny „względem poprzedniego kroku”.
+    assert 'name="mode"' not in html and "względem poprzedniego" not in html
+    assert response.context["result"].steps[0]["vs_registered"] == 100.0
     # Ekran lejka nie pokazuje żadnej osoby.
     assert world["complete"].user.email not in html and world["complete"].public_code not in html
+
+
+def test_old_strict_mode_link_is_ignored(coordinator_client, world):
+    url = reverse("web:coordinator-stats-funnel")
+
+    response = coordinator_client.get(url, {"mode": "strict"})
+
+    assert response.status_code == 200
+    assert counts(response.context["result"]) == counts(coordinator_client.get(url).context["result"])
+    assert counts(response.context["result"])["workshop"] == 2  # niezależnie, nie ściśle
+    export = coordinator_client.get(reverse("web:coordinator-stats-funnel-export"), {"mode": "strict"})
+    assert export.status_code == 200
 
 
 def test_csv_has_aggregates_only_and_is_audited(coordinator_client, edition, world):
@@ -373,6 +393,9 @@ def test_csv_has_aggregates_only_and_is_audited(coordinator_client, edition, wor
 
     assert response.status_code == 200 and response["Content-Type"].startswith("text/csv")
     assert "Pierwsze logowanie" in body and "2026/2027" in body
+    assert "poprzedniego" not in body and "Sposób liczenia" not in body
+    header = body.splitlines()[0]
+    assert "Odsetek względem rejestracji (%)" in header
     for profile in world.values():
         assert profile.user.email not in body and profile.public_code not in body
     entry = AuditLog.objects.filter(action="export.generated").latest("id")
