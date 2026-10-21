@@ -178,10 +178,10 @@ check "plik z EXTRA_DOMAINS i przełącznikiem kończy się domkniętym blokiem"
 check "blok wieloznaczny stoi za blokami z EXTRA_DOMAINS" $?
 
 # Przypięcie polityki TLS nazw dosłownych z pliku źródłowego (www., domena główna, blok S3, meet.,
-# monitor.) – po jednym, zaraz za nagłówkiem bloku; EXTRA_DOMAINS i `*.` bez niego (skutek – § 19).
+# monitor., gitlab.) – po jednym, zaraz za nagłówkiem bloku; EXTRA_DOMAINS i `*.` bez niego (skutek – § 19).
 pinned="$(awk '/^[^ #].* \{$/ { head = $0 } $0 == "        key_type p256" { print head }' "$WORK/sub-extra.caddy" | tr '\n' '|')"
-[ "$pinned" = 'www.{$SITE_DOMAIN} {|{$SITE_DOMAIN} {|{$S3_PUBLIC_ADDRESS} {|meet.{$SITE_DOMAIN} {|monitor.{$SITE_DOMAIN} {|' ]
-check "PLATFORM_SUBDOMAINS=1: tls { key_type p256 } w www., domenie głównej, S3, meet., monitor. i nigdzie indziej (jest: $pinned)" $?
+[ "$pinned" = 'www.{$SITE_DOMAIN} {|{$SITE_DOMAIN} {|{$S3_PUBLIC_ADDRESS} {|meet.{$SITE_DOMAIN} {|monitor.{$SITE_DOMAIN} {|gitlab.{$SITE_DOMAIN} {|' ]
+check "PLATFORM_SUBDOMAINS=1: tls { key_type p256 } w www., domenie głównej, S3, meet., monitor., gitlab. i nigdzie indziej (jest: $pinned)" $?
 # Caddy 2.10 (DEP-02): nazwa pokryta przez `*.{$SITE_DOMAIN}` nie dostaje certyfikatu, o ile nie ma
 # `force_automate` – każde przypięcie ma go mieć, a bloki EXTRA_DOMAINS (bez przypięcia) też, bo
 # generator nie wie, która z nich jest subdomeną platformy. Działanie: § 19 (`certificates.automate`).
@@ -226,7 +226,7 @@ block_imports() {
 }
 [ "$(block_imports "$SRC" '{$SITE_DOMAIN} {')" = "1" ]
 check "blok {\$SITE_DOMAIN} importuje stronę prac technicznych" $?
-for head in 'meet.{$SITE_DOMAIN} {' 'monitor.{$SITE_DOMAIN} {' '{$S3_PUBLIC_ADDRESS} {' 'www.{$SITE_DOMAIN} {'; do
+for head in 'meet.{$SITE_DOMAIN} {' 'monitor.{$SITE_DOMAIN} {' 'gitlab.{$SITE_DOMAIN} {' '{$S3_PUBLIC_ADDRESS} {' 'www.{$SITE_DOMAIN} {'; do
   [ "$(block_imports "$SRC" "$head")" = "0" ]
   check "blok „$head” NIE importuje strony prac technicznych" $?
 done
@@ -445,7 +445,7 @@ section_of() {  # section_of <plik> <nagłówek bloku> – sekcja djcms z bloku 
   [ "$(grep -c '^    # <<< django CMS$' "$WORK/dj-both.caddy")" -eq 4 ]
 check "sekcja djcms w 4 blokach aplikacji (główna, 2 × EXTRA_DOMAINS, *.)" $?
 for head in 'www.{$SITE_DOMAIN} {' 'www.olimpiadafizyczna.pl {' 'meet.{$SITE_DOMAIN} {' 'monitor.{$SITE_DOMAIN} {' \
-            '{$S3_PUBLIC_ADDRESS} {' 'dj.{$SITE_DOMAIN} {'; do
+            'gitlab.{$SITE_DOMAIN} {' '{$S3_PUBLIC_ADDRESS} {' 'dj.{$SITE_DOMAIN} {'; do
   ! block_body "$WORK/dj-both.caddy" "$head" | grep -qE '>>> django CMS|@djcms_|djcms:8000'
   check "blok „$head” bez sekcji djcms" $?
 done
@@ -600,7 +600,7 @@ check "podsumowanie generatora wymienia listę adresów paneli" $?
 check "odmowa paneli w 4 blokach aplikacji (główna, 2 × EXTRA_DOMAINS, *.) z listą adresów" $?
 awk 'prev == "    import maintenance" && $0 ~ /^    # Panele administracyjne wyłącznie z ADMIN_ALLOWED_IPS/ { n++ } { prev = $0 } END { exit n != 4 }' "$WORK/adm.caddy"
 check "odmowa paneli zaraz po import maintenance w każdym z tych bloków" $?
-for head in 'www.{$SITE_DOMAIN} {' 'meet.{$SITE_DOMAIN} {' 'monitor.{$SITE_DOMAIN} {' '{$S3_PUBLIC_ADDRESS} {' 'dj.{$SITE_DOMAIN} {'; do
+for head in 'www.{$SITE_DOMAIN} {' 'meet.{$SITE_DOMAIN} {' 'monitor.{$SITE_DOMAIN} {' 'gitlab.{$SITE_DOMAIN} {' '{$S3_PUBLIC_ADDRESS} {' 'dj.{$SITE_DOMAIN} {'; do
   ! block_body "$WORK/adm.caddy" "$head" | grep -q 'admin_denied'
   check "blok „$head” bez odmowy paneli" $?
 done
@@ -731,7 +731,7 @@ PY
       check "caddy adapt ($f): w każdym bloku aplikacji media → /internal,/static → djcms → aplikacja → publiczne → web; dj. = odmowa + 302" $?
     done
 
-    # Polityki TLS przy PLATFORM_SUBDOMAINS=1: nazwy dosłowne (www., meet., monitor., s3., dj.,
+    # Polityki TLS przy PLATFORM_SUBDOMAINS=1: nazwy dosłowne (www., meet., monitor., gitlab., s3., dj.,
     # domena główna, EXTRA_DOMAINS) – zwykły certyfikat; on-demand (z `ask`) WYŁĄCZNIE nieznane
     # subdomeny z bloku `*.`. Caddy bierze PIERWSZĄ politykę, której `subjects` pasują do nazwy
     # (wzorzec `*.` = jedna etykieta, brak `subjects` = każda nazwa) – ten sam dobór sprawdza skrypt.
@@ -744,7 +744,7 @@ PY
       for variant in "$f" "$f-local"; do
         for s3 in example.org:9000 s3.example.org; do
           CADDY_S3="$s3" caddy_run "$WORK/$variant.caddy" adapt 2>/dev/null | grep '^{' >"$WORK/tls-$variant.json"
-          names="www.example.org meet.example.org monitor.example.org example.org olimpiadafizyczna.pl konkurs.example"
+          names="www.example.org meet.example.org monitor.example.org gitlab.example.org example.org olimpiadafizyczna.pl konkurs.example"
           [ "$s3" = s3.example.org ] && names="$names s3.example.org"
           [ "$f" = dj-both ] && names="$names dj.example.org"
           "$python_bin" - "$WORK/tls-$variant.json" "$names" <<'PY'

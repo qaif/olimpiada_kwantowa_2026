@@ -302,3 +302,20 @@ monitor.{$SITE_DOMAIN} {
         Referrer-Policy "same-origin"
     }
 }
+
+# GitLab CE (osobny projekt compose, deploy/gitlab/README.md). Kontener `gitlab` dołącza do sieci
+# `gitlab_front` (tylko Caddy i GitLab – NIE `edge`, której ufa aplikacja). Bez GitLaba na serwerze
+# blok tylko czeka na certyfikat albo oddaje 502 i nikomu nie przeszkadza, jak `monitor.`.
+# Bez `import maintenance`: przerwa w portalu nie dotyczy repozytoriów. Bez `request_body`: push
+# po HTTPS bywa większy niż MAX_UPLOAD_MB (limit wysyłki ustawia GitLab). Nagłówki bezpieczeństwa
+# (CSP, X-Frame-Options) wysyła sam GitLab – tu tylko HSTS.
+gitlab.{$SITE_DOMAIN} {
+    encode gzip zstd
+    reverse_proxy gitlab:80 {
+        header_up X-Forwarded-Proto {scheme}
+    }
+    header {
+        Strict-Transport-Security "max-age=31536000"
+        -Server
+    }
+}

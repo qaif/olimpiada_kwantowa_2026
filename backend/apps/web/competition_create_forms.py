@@ -77,6 +77,8 @@ RESERVED_LABELS = frozenset(
         # Śledzenie błędów – GlitchTip pod ``errors.<SITE_DOMAIN>`` (OPS-02, ERRORS_PROXY=1).
         "errors",
         "ftp",
+        # GitLab CE (``gitlab.<SITE_DOMAIN>``, deploy/gitlab) – blok Caddy'ego wygrywa z ``*.``.
+        "gitlab",
         "imap",
         "internal",
         # Laboratorium notatników kwantowych na osobnym hoście (``NOTEBOOK_LAB_HOST``, QC-02 § 1) –

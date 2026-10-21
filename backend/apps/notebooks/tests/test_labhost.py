@@ -499,7 +499,7 @@ def test_anonymous_same_site_rule_only_for_same_site_lab(settings, main_host):
 @pytest.mark.parametrize(
     "value",
     ["dj.example.org", "live.example.org", "meet.example.org", "monitor.example.org", "errors.example.org",
-     "s3.example.org", "media.example.org", "jitsi.example.org"],
+     "gitlab.example.org", "s3.example.org", "media.example.org", "jitsi.example.org"],
 )  # fmt: skip
 def test_lab_host_check_refuses_platform_service_hosts(settings, value):
     settings.SITE_DOMAIN = "example.org"

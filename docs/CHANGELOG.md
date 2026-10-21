@@ -12,6 +12,16 @@ podsekcją `### <tytuł>` wydania `## v<x.y.z> – <data tagu> – <opis tagu>`.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – GitLab CE pod gitlab.<domena>
+
+- Blok `gitlab.{$SITE_DOMAIN}` w `deploy/Caddyfile` (`reverse_proxy gitlab:80`, bez strony prac
+  technicznych i bez limitu treści) z przypięciem TLS przy `PLATFORM_SUBDOMAINS=1`
+  (`scripts/render_caddyfile.sh`).
+- Sieć `gitlab_front` (`internal`, `172.30.16.0/24`), z usług portalu wyłącznie `proxy`. GitLab z
+  osobnego projektu (`deploy/gitlab/`) dołącza do niej jako do sieci zewnętrznej, poza `edge`.
+- `gitlab` zarezerwowany jako slug konkursu i host infrastruktury (laboratorium notatników).
+- Instalacja, aktualizacja i ograniczenia: `deploy/gitlab/README.md`.
+
 ## [Unreleased] – pypdf 6.21.2 (GHSA-qfv9-64jg-mh7p, GHSA-9mx8-4j7g-633p)
 
 - pypdf 6.20.0 → 6.21.2 w `backend/uv.lock` (pip-audit 21.10.2026; poprawka od 6.20.1).
