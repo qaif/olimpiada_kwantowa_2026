@@ -1,0 +1,290 @@
+# UX-PANEL-02 – napisy aplikacji teacher_panel (en). Źródło (msgid) po polsku; poza angielskim
+# tłumaczenie maszynowe – do przeglądu native speakera (I18N-01 § 8).
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada teacher_panel\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-21 12:00+0200\n"
+"PO-Revision-Date: 2026-10-21 12:00+0200\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Postęp klasy"
+msgstr "Class progress"
+
+msgid "Materiały i warsztaty"
+msgstr "Materials and workshops"
+
+msgid "Plakaty do powieszenia w szkole"
+msgstr "Posters for your school"
+
+msgid "Kalendarz konkursu (.ics)"
+msgstr "Competition calendar (.ics)"
+
+msgid "Udział szkoły i zaświadczenia"
+msgstr "School participation and certificates"
+
+msgid "Statystyki szkoły"
+msgstr "School statistics"
+
+msgid "aktywne"
+msgstr "active"
+
+msgid "zaproszony – bez konta"
+msgstr "invited – no account yet"
+
+msgid "nic nie oddano"
+msgstr "nothing submitted"
+
+msgid "jest"
+msgstr "given"
+
+msgid "pełnoletni"
+msgstr "adult"
+
+msgid "czeka na weryfikację"
+msgstr "awaiting review"
+
+msgid "zaakceptowane"
+msgstr "accepted"
+
+msgid "niezakwalifikowany"
+msgstr "not qualified"
+
+msgid "Zgoda rodzica"
+msgstr "Parental consent"
+
+msgid "zapis"
+msgstr "entered"
+
+msgid "oddane prace"
+msgstr "work submitted"
+
+msgid "ostatnie oddanie"
+msgstr "last submission"
+
+msgid "stan"
+msgstr "status"
+
+msgid "punkty"
+msgstr "points"
+
+msgid "kwalifikacja"
+msgstr "qualification"
+
+msgid "Warsztaty (obecności)"
+msgstr "Workshops (attendance)"
+
+msgid "tak"
+msgstr "yes"
+
+msgid "nazwisko: A–Z"
+msgstr "surname: A–Z"
+
+msgid "nazwisko: Z–A"
+msgstr "surname: Z–A"
+
+msgid "klasa: rosnąco"
+msgstr "year: ascending"
+
+msgid "klasa: malejąco"
+msgstr "year: descending"
+
+msgid "konto: najpierw bez konta"
+msgstr "account: no account first"
+
+msgid "najwięcej oddanych prac"
+msgstr "most work submitted"
+
+msgid "najmniej oddanych prac"
+msgstr "least work submitted"
+
+msgid "Menu nauczyciela"
+msgstr "Teacher menu"
+
+msgid "Panel nauczyciela"
+msgstr "Teacher dashboard"
+
+msgid "z kontem w serwisie"
+msgstr "with an account"
+
+msgid "Zaproś z listy"
+msgstr "Invite from a list"
+
+msgid "termin oddania prac"
+msgstr "submission deadline"
+
+msgid "start etapu"
+msgstr "stage starts"
+
+msgid "Bez pracy w otwartym etapie"
+msgstr "No work in an open stage"
+
+msgid "do przypomnienia"
+msgstr "to remind"
+
+msgid "Zapisani do etapu, który teraz przyjmuje prace, i jeszcze niczego w nim nie oddali."
+msgstr "Entered in a stage that is accepting work now, and nothing submitted in it yet."
+
+msgid "Pokaż ich"
+msgstr "Show them"
+
+msgid "Bez zaświadczenia o statusie ucznia"
+msgstr "No student status certificate"
+
+msgid "brak albo odrzucone"
+msgstr "missing or rejected"
+
+msgid "Bez zgody rodzica"
+msgstr "No parental consent"
+
+msgid "wśród niepełnoletnich"
+msgstr "among minors"
+
+msgid "Zgodę składa rodzic albo opiekun prawny przez link, który uczeń wysyła z panelu."
+msgstr "A parent or legal guardian gives consent through a link the student sends from their dashboard."
+
+msgid "Harmonogram warsztatów"
+msgstr "Workshop schedule"
+
+msgid "Udział szkoły"
+msgstr "School participation"
+
+msgid "Nie ma teraz bieżącej edycji olimpiady."
+msgstr "There is no current edition of the olympiad right now."
+
+msgid "potwierdzony"
+msgstr "confirmed"
+
+msgid "niepotwierdzony"
+msgstr "not confirmed"
+
+msgid "Bez potwierdzenia nie wystawimy Ci zaświadczenia dla opiekuna."
+msgstr "Without the confirmation we cannot issue your supervisor certificate."
+
+msgid "Nikt jeszcze nie wskazał Twojego adresu"
+msgstr "No one has named your address yet"
+
+#, python-format
+msgid "Dzień dobry, %(name)s"
+msgstr "Hello, %(name)s"
+
+#, python-format
+msgid "Widzisz uczniów, którzy wskazali Twój adres (%(email)s) w swoim profilu albo przyjęli Twoje zaproszenie. Każdy z nich może to w każdej chwili cofnąć."
+msgstr "You see the students who entered your address (%(email)s) in their profile or accepted your invitation. Each of them can withdraw this at any time."
+
+#, python-format
+msgid "Zaproszeni, jeszcze bez konta: %(counter)s"
+msgstr "Invited, no account yet: %(counter)s"
+
+#, python-format
+msgid "Czeka na weryfikację organizatora: %(counter)s."
+msgstr "Awaiting the organiser’s review: %(counter)s."
+
+#, python-format
+msgid "Edycja %(edition)s."
+msgstr "Edition %(edition)s."
+
+#, python-format
+msgid "Zaproś uczniów z listy klasowej albo podaj im adres %(email)s – wpisują go w swoim profilu („Edytuj dane” → „Adres e-mail opiekuna szkolnego”)."
+msgstr "Invite students from your class list or give them the address %(email)s – they enter it in their profile (“Edit details” → “School supervisor’s e-mail address”)."
+
+msgid "Zapisy do etapów i stan prac Twoich uczniów w bieżącej edycji. Punkty i kwalifikacja pojawiają się wyłącznie przy etapach z ogłoszonymi wynikami – to te same liczby, które widać w tabeli publicznej."
+msgstr "Stage entries and the status of your students’ work in the current edition. Points and qualification appear only for stages with published results – the same numbers as in the public table."
+
+msgid "Nie widzisz treści prac, komentarzy recenzentów ani punktów przed ogłoszeniem wyników."
+msgstr "You do not see the content of the work, reviewers’ comments or points before results are published."
+
+msgid "Filtry i sortowanie"
+msgstr "Filters and sorting"
+
+msgid "Zaświadczenie"
+msgstr "Certificate"
+
+msgid "Sortuj"
+msgstr "Sort"
+
+msgid "tylko bez pracy w otwartym etapie"
+msgstr "only without work in an open stage"
+
+msgid "tylko bez zgody rodzica"
+msgstr "only without parental consent"
+
+msgid "Pobierz XLSX"
+msgstr "Download XLSX"
+
+msgid "Postęp klasy – uczniowie i etapy"
+msgstr "Class progress – students and stages"
+
+msgid "przyjmuje prace"
+msgstr "accepting work"
+
+msgid "bez pracy w otwartym etapie"
+msgstr "no work in an open stage"
+
+msgid "niezapisany"
+msgstr "not entered"
+
+msgid "Nikt nie pasuje do filtrów"
+msgstr "No one matches the filters"
+
+#, python-format
+msgid "Uczniów na liście: %(shown)s z %(total)s."
+msgstr "Students listed: %(shown)s of %(total)s."
+
+#, python-format
+msgid "oddane %(done)s z %(total)s"
+msgstr "submitted %(done)s of %(total)s"
+
+#, python-format
+msgid "ostatnio %(day)s"
+msgstr "last on %(day)s"
+
+#, python-format
+msgid "%(count)s z %(total)s"
+msgstr "%(count)s of %(total)s"
+
+msgid "Udział szkoły jest potwierdzony. Na tej podstawie organizator wystawia zaświadczenia dla opiekunów."
+msgstr "Your school’s participation is confirmed. The organiser issues supervisor certificates on this basis."
+
+msgid "Potwierdzenie jest oświadczeniem o Tobie, a nie o uczniach: nie warunkuje niczyjego startu, ale bez niego nie wystawimy Ci zaświadczenia dla opiekuna."
+msgstr "The confirmation is a statement about you, not about the students: nobody’s participation depends on it, but without it we cannot issue your supervisor certificate."
+
+msgid "Wycofaj potwierdzenie"
+msgstr "Withdraw the confirmation"
+
+msgid "Potwierdzam udział szkoły"
+msgstr "I confirm my school’s participation"
+
+msgid "Nie ma teraz bieżącej edycji olimpiady – nie ma czego potwierdzać."
+msgstr "There is no current edition of the olympiad – there is nothing to confirm."
+
+msgid "Moje zaświadczenia"
+msgstr "My certificates"
+
+msgid "Nie masz jeszcze żadnego zaświadczenia. Wystawia je organizator po zakończeniu edycji."
+msgstr "You do not have any certificates yet. The organiser issues them after the edition ends."
+
+msgid "Dla szkoły"
+msgstr "For your school"
+
+#, python-format
+msgid "Udział szkoły w edycji %(edition)s"
+msgstr "School participation in edition %(edition)s"
+
+msgid "czy masz zaakceptowane zaświadczenie o statusie ucznia i – jeśli jesteś niepełnoletni – zgodę rodzica, oraz na ilu warsztatach odnotowano Twoją obecność (organizator włączył tę informację dla nauczycieli);"
+msgstr "whether your student status certificate has been accepted and – if you are a minor – whether you have parental consent, and at how many workshops your attendance was recorded (the organiser has enabled this information for teachers);"
+
+msgid "Nauczyciel nie zobaczy Twoich prac, komentarzy recenzentów, punktów przed ogłoszeniem wyników, Twoich danych kontaktowych ani treści zgód i zaświadczenia."
+msgstr "The teacher will not see your work, reviewers’ comments, points before results are published, your contact details, or the content of your consents and certificate."
+
+msgid "W tym konkursie opiekun widzi też, czy masz zaakceptowane zaświadczenie o statusie ucznia i (jeśli jesteś niepełnoletni) zgodę rodzica, oraz na ilu warsztatach byłeś."
+msgstr "In this competition the supervisor also sees whether your student status certificate has been accepted and (if you are a minor) whether you have parental consent, and how many workshops you attended."
+
+msgid "Opcjonalnie. Opiekun z kontem w serwisie zobaczy Twój kod, imię, nazwisko, to, na jakim etapie procedury są Twoje prace, czy masz zaakceptowane zaświadczenie o statusie ucznia i zgodę rodzica oraz na ilu warsztatach byłeś – nigdy punktów przed ogłoszeniem wyników ani samych prac. Puste pole znaczy „nie mam opiekuna”."
+msgstr "Optional. A supervisor with an account will see your code, first name, surname, the stage your work is at, whether your student status certificate and parental consent are in place, and how many workshops you attended – never points before results are published, nor the work itself. An empty field means “I have no supervisor”."

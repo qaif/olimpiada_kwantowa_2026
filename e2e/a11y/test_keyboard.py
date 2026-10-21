@@ -362,6 +362,8 @@ REFLOW_PAGES = (
     ("anon", "/iqo/visa/verify/"),
     ("participant", "/me/"),
     ("leader", "/iqo/delegation/"),
+    # Tabela „Postępu klasy” przewija się we własnej ramce (``.scroll``) – strona nie (UX-PANEL-02).
+    ("teacher", "/supervisor/progress/"),
 )
 
 
@@ -388,6 +390,8 @@ def test_reflow_without_horizontal_scroll(browser, base, data, role, path, viewp
             login(context, base, "uczestnik1@example.com", data["password"])
         elif role == "leader":
             login(context, base, data["iqo"]["leader_email"], data["password"], prefix=data["iqo_prefix"])
+        elif role == "teacher":
+            login(context, base, data["teacher_email"], data["password"])
         page = context.new_page()
         page.goto(f"{base}{path}", wait_until="networkidle")
         state = page.evaluate(OVERFLOW)

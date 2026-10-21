@@ -30,7 +30,7 @@ Nauczyciel {{ teacher }} ({{ email }}) prosi o dopisanie jako Twój opiekun szko
 Nauczyciel z adresem {{ email }} prosi o dopisanie jako Twój opiekun szkolny w konkursie {{ competition }}.
 {% endblocktranslate %}{% endif %}{% endif %}
 
-{% translate "Opiekun szkolny widzi Twoje imię i nazwisko, kod uczestnika, szkołę, klasę i to, na jakim etapie procedury są Twoje prace – punkty dopiero po ogłoszeniu wyników. Nie widzi Twoich prac ani komentarzy recenzentów." %}
+{% translate "Opiekun szkolny widzi Twoje imię i nazwisko, kod uczestnika, szkołę, klasę i to, na jakim etapie procedury są Twoje prace – punkty dopiero po ogłoszeniu wyników. Nie widzi Twoich prac ani komentarzy recenzentów." %}{% if class_details %} {% translate "W tym konkursie opiekun widzi też, czy masz zaakceptowane zaświadczenie o statusie ucznia i (jeśli jesteś niepełnoletni) zgodę rodzica, oraz na ilu warsztatach byłeś." %}{% endif %}
 
 {% translate "Decyzja należy do Ciebie. Zaloguj się na swoje konto i otwórz poniższy adres – zobaczysz tam szczegóły i dwa przyciski: „Zgadzam się” i „Nie zgadzam się”:" %}
 

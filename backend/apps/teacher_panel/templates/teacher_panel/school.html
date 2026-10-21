@@ -1,0 +1,62 @@
+{% extends "teacher_panel/base.html" %}
+{% load i18n school_stats_tags %}
+{% comment %}
+  „Szkoła” (UX-PANEL-02 D3): oświadczenie o udziale szkoły w edycji, własne zaświadczenia opiekuna
+  i wejście do statystyk szkoły. Przeniesione z dawnego pulpitu ``/supervisor/`` bez zmiany reguł:
+  zapis robi ``ConfirmParticipationView`` (POST, przełącznik), pobranie – ``SupervisorCertificateDownloadView``.
+{% endcomment %}
+{% block title %}{% translate "Szkoła" %}{% endblock %}
+{% block panel_content %}
+<div class="page-head">
+  <span class="eyebrow">{% translate "Szkoła" %}</span>
+  <h1>{% translate "Udział szkoły i zaświadczenia" %}</h1>
+  {% if supervisor.school %}<p class="lead">{{ supervisor.school }}</p>{% endif %}
+</div>
+
+<section class="section" aria-labelledby="tp-participation">
+  <div class="card">
+    <h2 class="mt-0" id="tp-participation">{% if edition %}{% blocktranslate trimmed with edition=edition.year_label %}Udział szkoły w edycji {{ edition }}{% endblocktranslate %}{% else %}{% translate "Udział szkoły" %}{% endif %}</h2>
+    {% if edition %}
+      <p>{% if confirmed %}{% translate "Udział szkoły jest potwierdzony. Na tej podstawie organizator wystawia zaświadczenia dla opiekunów." %}{% else %}{% translate "Potwierdzenie jest oświadczeniem o Tobie, a nie o uczniach: nie warunkuje niczyjego startu, ale bez niego nie wystawimy Ci zaświadczenia dla opiekuna." %}{% endif %}</p>
+      <form method="post" action="{% url 'web:supervisor-participation' %}">
+        {% csrf_token %}
+        {% if confirmed %}
+          <button type="submit" class="btn btn--secondary">{% translate "Wycofaj potwierdzenie" %}</button>
+        {% else %}
+          <button type="submit" class="btn btn--primary">{% translate "Potwierdzam udział szkoły" %}</button>
+        {% endif %}
+      </form>
+    {% else %}
+      <p class="hint">{% translate "Nie ma teraz bieżącej edycji olimpiady – nie ma czego potwierdzać." %}</p>
+    {% endif %}
+  </div>
+</section>
+
+<section class="section" aria-labelledby="tp-certificates">
+  <div class="card">
+    <h2 class="mt-0" id="tp-certificates">{% translate "Moje zaświadczenia" %}</h2>
+    {% if certificates %}
+      <ul>
+        {% for certificate in certificates %}
+          <li><a href="{% url 'web:supervisor-certificate-download' certificate.pk %}">{{ certificate.number }}</a>
+            – {{ certificate.get_kind_display }}, {% blocktranslate trimmed with edition=certificate.edition.year_label %}edycja {{ edition }}{% endblocktranslate %}</li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="empty">{% translate "Nie masz jeszcze żadnego zaświadczenia. Wystawia je organizator po zakończeniu edycji." %}</p>
+    {% endif %}
+  </div>
+</section>
+
+{% if statistics or promo_available %}
+  <section class="section" aria-labelledby="tp-more">
+    <div class="card">
+      <h2 class="mt-0" id="tp-more">{% translate "Dla szkoły" %}</h2>
+      <p class="actions">
+        {% school_stats_link %}
+        {% if promo_available %}<a class="btn btn--secondary" href="{% url 'web:posters' %}">{% translate "Plakaty do powieszenia w szkole" %}</a>{% endif %}
+      </p>
+    </div>
+  </section>
+{% endif %}
+{% endblock %}

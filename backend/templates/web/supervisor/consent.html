@@ -9,8 +9,9 @@
   Kolejność treści jest celowa: najpierw **kto prosi**, potem **co zobaczy**, potem **co się stanie
   z obecnym opiekunem**, a dopiero na końcu przyciski. Zgoda bez tej wiedzy nie byłaby świadoma.
   Lista „co zobaczy / czego nie zobaczy” jest przepisana z tego, co naprawdę renderuje panel
-  ``/supervisor/`` (``web/supervisor/dashboard.html`` i ``students.html``) – przy zmianie panelu
-  trzeba zmienić i ją.
+  nauczyciela (``teacher_panel/progress.html`` i ``web/supervisor/students.html``, zakres liczy
+  ``apps.teacher_panel.services``) – przy zmianie panelu trzeba zmienić i ją. Zakres rośnie wyłącznie
+  z flagą ``supervisor_class_details`` (UX-PANEL-02 D5) i wtedy lista mówi o tym wprost.
 
   Dwa przyciski w **jednym** formularzu z polem ``decision``: GET niczego nie zmienia (klienty
   pocztowe i skanery otwierają linki same), a ``csrf_token`` jest ten sam, co w każdym POST-cie
@@ -55,9 +56,14 @@
       <li>{% translate "Twoje imię i nazwisko, kod uczestnika, szkołę i klasę;" %}</li>
       <li>{% translate "na jakim etapie procedury są Twoje prace w każdym etapie: oddane, w ocenie, ocenione, wyniki;" %}</li>
       <li>{% translate "liczbę punktów – wyłącznie po ogłoszeniu wyników etapu, czyli tę samą, którą widać w publicznej tabeli;" %}</li>
+      {% if class_details %}<li>{% translate "czy masz zaakceptowane zaświadczenie o statusie ucznia i – jeśli jesteś niepełnoletni – zgodę rodzica, oraz na ilu warsztatach odnotowano Twoją obecność (organizator włączył tę informację dla nauczycieli);" %}</li>{% endif %}
       <li>{% translate "czy Twoje konto jest już aktywne." %}</li>
     </ul>
-    <p>{% translate "Nauczyciel nie zobaczy Twoich prac, komentarzy recenzentów, punktów przed ogłoszeniem wyników ani Twoich danych kontaktowych i zgód." %}</p>
+    {% if class_details %}
+      <p>{% translate "Nauczyciel nie zobaczy Twoich prac, komentarzy recenzentów, punktów przed ogłoszeniem wyników, Twoich danych kontaktowych ani treści zgód i zaświadczenia." %}</p>
+    {% else %}
+      <p>{% translate "Nauczyciel nie zobaczy Twoich prac, komentarzy recenzentów, punktów przed ogłoszeniem wyników ani Twoich danych kontaktowych i zgód." %}</p>
+    {% endif %}
   </div>
 </section>
 

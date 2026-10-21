@@ -1,0 +1,233 @@
+/* =================================================================================================
+   Panel nauczyciela (UX-PANEL-02): dodatki do ramy panelu uczestnika.
+
+   Rama, menu i kafle to klasy ``pp…`` z ``participant_panel/panel.css`` (ładowanego obok, bez zmian).
+   Tu jest wyłącznie to, czego panel uczestnika nie ma: duża liczba w kaflu, formularz filtrów,
+   tabela „Postępu klasy” i jej komórki. Ani jednego własnego koloru – tylko role z ``:root``
+   (``--surface``, ``--line``, ``--warn-soft``, ``--ok-ink``…), więc tryb ciemny, motyw IQO i wysoki
+   kontrast działają bez osobnych reguł. Właściwości logiczne – arabski interfejs odwraca układ sam.
+
+   Kolejność:
+     1. kafle z liczbą
+     2. filtry i pasek nad tabelą
+     3. tabela postępu
+     4. wymuszone kolory, wydruk
+   ============================================================================================== */
+
+/* --- 1. Kafle z liczbą ------------------------------------------------------------------------- */
+
+.tp .pp-tile > .tp-figure {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin: 0;
+}
+
+.tp-figure__value {
+  font-family: var(--font-serif);
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+.tp-figure__label {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+/* --- 2. Filtry i pasek nad tabelą --------------------------------------------------------------- */
+
+.tp-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--sp-3) var(--sp-4);
+  margin: 0 0 var(--sp-4);
+  padding: var(--sp-4);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+}
+
+.tp-filters > p {
+  margin: 0;
+}
+
+.tp-filters__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  min-width: min(100%, 11rem);
+}
+
+.tp-filters__field label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.tp-filters__check {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 2.5rem;
+}
+
+.tp-filters__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+.tp-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2) var(--sp-4);
+  margin: 0 0 var(--sp-3);
+}
+
+.tp-toolbar > p {
+  margin: 0;
+}
+
+.tp-toolbar__count {
+  color: var(--muted);
+}
+
+.tp-toolbar__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+.tp-toolbar__actions .pp-icon {
+  width: 1rem;
+  height: 1rem;
+  margin-inline-end: var(--sp-1);
+  vertical-align: -0.15em;
+}
+
+/* --- 3. Tabela postępu ------------------------------------------------------------------------- */
+
+.tp-progress:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.tp-table {
+  min-width: 100%;
+}
+
+.tp-table th[scope="row"] {
+  min-width: 12rem;
+}
+
+.tp-name {
+  font-weight: 600;
+}
+
+.tp-col-note,
+.tp-flag {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.tp-flag {
+  color: var(--warn-ink);
+  font-weight: 600;
+}
+
+.tp-row--attention > th[scope="row"] {
+  box-shadow: inset 3px 0 0 var(--warn);
+}
+
+:root[dir="rtl"] .tp-row--attention > th[scope="row"] {
+  box-shadow: inset -3px 0 0 var(--warn);
+}
+
+.tp-cell {
+  min-width: 9rem;
+  vertical-align: top;
+}
+
+.tp-cell > span {
+  display: block;
+}
+
+.tp-cell__meta {
+  font-size: 0.8125rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.tp-cell__result {
+  margin-top: 0.15rem;
+  font-size: 0.875rem;
+  color: var(--ink);
+}
+
+.tp-step {
+  display: inline-block;
+  width: fit-content;
+  padding: 0 var(--sp-2);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.6;
+  color: var(--neutral-ink);
+  background: var(--neutral-soft);
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+}
+
+.tp-step--none {
+  color: var(--warn-ink);
+  background: var(--warn-soft);
+  border-color: var(--warn);
+}
+
+.tp-step--submitted,
+.tp-step--review {
+  color: var(--info-ink);
+  background: var(--info-soft);
+  border-color: var(--info);
+}
+
+.tp-step--graded,
+.tp-step--results {
+  color: var(--ok-ink);
+  background: var(--ok-soft);
+  border-color: var(--ok);
+}
+
+/* --- 4. Wymuszone kolory, wydruk ---------------------------------------------------------------- */
+
+@media (forced-colors: active) {
+  .tp-step {
+    border: 1px solid CanvasText;
+  }
+
+  .tp-row--attention > th[scope="row"] {
+    outline: 2px solid CanvasText;
+    outline-offset: -2px;
+  }
+}
+
+@media print {
+  .tp-filters,
+  .tp-toolbar__actions {
+    display: none;
+  }
+
+  .tp-progress {
+    overflow: visible;
+    border: 0;
+  }
+}

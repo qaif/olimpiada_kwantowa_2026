@@ -33,6 +33,7 @@ from apps.accounts.models import (
     region_for_district,
 )
 from apps.accounts.services import active_reviewer_profile, has_role
+from apps.committee_panel import notifications as committee_notifications  # UX-PANEL-03
 from apps.competitions.models import Problem, Stage, StageKind
 from apps.competitions.scoring import safe_score_rule, score_rule
 from apps.core.api import DomainError
@@ -626,6 +627,7 @@ def assign_reviewers(stage: Stage, per_submission: int = 2, *, actor=None, reque
     created_total = 0
     touched: list[int] = []
     skipped: list[dict] = []
+    notified: set[int] = set()
     # Jedna chwila przydziału i jeden termin na cały przebieg: to jest **ta sama fala** prac, więc
     # recenzenci mają dostać ten sam termin co do sekundy. Liczenie ``now`` osobno przy każdej pracy
     # dawałoby terminy różniące się milisekundami i komunikat koordynatora nie mógłby podać jednej daty.
@@ -700,6 +702,7 @@ def assign_reviewers(stage: Stage, per_submission: int = 2, *, actor=None, reque
         )
         for member in chosen:
             loads[member.pk] += 1
+            notified.add(member.user_id)
         created_total += len(chosen)
         if submission.status == SubmissionStatus.LOCKED:
             submission.status = SubmissionStatus.IN_REVIEW
@@ -713,6 +716,8 @@ def assign_reviewers(stage: Stage, per_submission: int = 2, *, actor=None, reque
         # a komunikat „za mało recenzentów” byłby wtedy nieprawdą.
         raise _conflict("Za mało recenzentów bez konfliktu interesów dla tego etapu.", "NOT_ENOUGH_REVIEWERS")
 
+    # Powiadomienie w panelu komisji (UX-PANEL-03) – jedno na recenzenta i etap, bez danych prac.
+    committee_notifications.reviews_assigned(stage, notified)
     audit(
         actor,
         "review.assigned",
@@ -840,6 +845,8 @@ def add_problem_reviewer_rule(problem, reviewer: CommitteeMember, *, actor=None,
         _create_blind_assignment(submission, reviewer)
         _start_review_if_locked(submission)
         assigned += 1
+    if assigned:
+        committee_notifications.reviews_assigned(stage, {reviewer.user_id})
 
     audit(
         actor,
@@ -915,6 +922,7 @@ def assign_reviewer_to_submission(
 
     review = _create_blind_assignment(locked, reviewer)
     _start_review_if_locked(locked)
+    committee_notifications.reviews_assigned(locked.entry.stage, {reviewer.user_id})
     audit(
         actor,
         "review.assigned_manually",
@@ -1010,6 +1018,7 @@ def assign_third_reviewer(submission: Submission, reviewer: CommitteeMember, *, 
         # ``review_due_at`` zwykle jej nie dotyczy (patrz reguła w ``apps.grading.deadlines``).
         due_at=review_due_at(locked.entry.stage, now),
     )
+    committee_notifications.tiebreak_assigned(locked.entry.stage, reviewer.user_id)
     audit(
         actor,
         "review.third_assigned",

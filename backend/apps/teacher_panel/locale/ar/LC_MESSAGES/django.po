@@ -1,0 +1,290 @@
+# UX-PANEL-02 – napisy aplikacji teacher_panel (ar). Źródło (msgid) po polsku; poza angielskim
+# tłumaczenie maszynowe – do przeglądu native speakera (I18N-01 § 8).
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada teacher_panel\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-21 12:00+0200\n"
+"PO-Revision-Date: 2026-10-21 12:00+0200\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: ar\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=6; plural=(n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : n%100>=3 && n%100<=10 ? 3 : n%100>=11 ? 4 : 5);\n"
+
+msgid "Postęp klasy"
+msgstr "تقدّم الصف"
+
+msgid "Materiały i warsztaty"
+msgstr "المواد وورش العمل"
+
+msgid "Plakaty do powieszenia w szkole"
+msgstr "ملصقات لتعليقها في المدرسة"
+
+msgid "Kalendarz konkursu (.ics)"
+msgstr "تقويم المسابقة (.ics)"
+
+msgid "Udział szkoły i zaświadczenia"
+msgstr "مشاركة المدرسة والشهادات"
+
+msgid "Statystyki szkoły"
+msgstr "إحصاءات المدرسة"
+
+msgid "aktywne"
+msgstr "نشط"
+
+msgid "zaproszony – bez konta"
+msgstr "مدعو – بلا حساب بعد"
+
+msgid "nic nie oddano"
+msgstr "لم يُسلَّم شيء"
+
+msgid "jest"
+msgstr "موجودة"
+
+msgid "pełnoletni"
+msgstr "بالغ"
+
+msgid "czeka na weryfikację"
+msgstr "بانتظار التحقق"
+
+msgid "zaakceptowane"
+msgstr "مقبولة"
+
+msgid "niezakwalifikowany"
+msgstr "غير متأهل"
+
+msgid "Zgoda rodzica"
+msgstr "موافقة الوالد"
+
+msgid "zapis"
+msgstr "التسجيل"
+
+msgid "oddane prace"
+msgstr "الأعمال المسلَّمة"
+
+msgid "ostatnie oddanie"
+msgstr "آخر تسليم"
+
+msgid "stan"
+msgstr "الحالة"
+
+msgid "punkty"
+msgstr "النقاط"
+
+msgid "kwalifikacja"
+msgstr "التأهل"
+
+msgid "Warsztaty (obecności)"
+msgstr "ورش العمل (الحضور)"
+
+msgid "tak"
+msgstr "نعم"
+
+msgid "nazwisko: A–Z"
+msgstr "اسم العائلة: أ–ي"
+
+msgid "nazwisko: Z–A"
+msgstr "اسم العائلة: ي–أ"
+
+msgid "klasa: rosnąco"
+msgstr "الصف: تصاعديًا"
+
+msgid "klasa: malejąco"
+msgstr "الصف: تنازليًا"
+
+msgid "konto: najpierw bez konta"
+msgstr "الحساب: من لا حساب لهم أولًا"
+
+msgid "najwięcej oddanych prac"
+msgstr "الأكثر تسليمًا"
+
+msgid "najmniej oddanych prac"
+msgstr "الأقل تسليمًا"
+
+msgid "Menu nauczyciela"
+msgstr "قائمة المعلّم"
+
+msgid "Panel nauczyciela"
+msgstr "لوحة المعلّم"
+
+msgid "z kontem w serwisie"
+msgstr "لديهم حساب"
+
+msgid "Zaproś z listy"
+msgstr "ادعُ من قائمة"
+
+msgid "termin oddania prac"
+msgstr "موعد التسليم"
+
+msgid "start etapu"
+msgstr "بدء المرحلة"
+
+msgid "Bez pracy w otwartym etapie"
+msgstr "بلا عمل في مرحلة مفتوحة"
+
+msgid "do przypomnienia"
+msgstr "للتذكير"
+
+msgid "Zapisani do etapu, który teraz przyjmuje prace, i jeszcze niczego w nim nie oddali."
+msgstr "مسجّلون في مرحلة تستقبل الأعمال الآن ولم يسلّموا فيها شيئًا بعد."
+
+msgid "Pokaż ich"
+msgstr "اعرضهم"
+
+msgid "Bez zaświadczenia o statusie ucznia"
+msgstr "بلا شهادة صفة الطالب"
+
+msgid "brak albo odrzucone"
+msgstr "مفقودة أو مرفوضة"
+
+msgid "Bez zgody rodzica"
+msgstr "بلا موافقة الوالد"
+
+msgid "wśród niepełnoletnich"
+msgstr "بين القاصرين"
+
+msgid "Zgodę składa rodzic albo opiekun prawny przez link, który uczeń wysyła z panelu."
+msgstr "يمنح أحد الوالدين أو الوصي القانوني الموافقة عبر رابط يرسله الطالب من لوحته."
+
+msgid "Harmonogram warsztatów"
+msgstr "جدول ورش العمل"
+
+msgid "Udział szkoły"
+msgstr "مشاركة المدرسة"
+
+msgid "Nie ma teraz bieżącej edycji olimpiady."
+msgstr "لا توجد حاليًا دورة جارية للأولمبياد."
+
+msgid "potwierdzony"
+msgstr "مؤكَّدة"
+
+msgid "niepotwierdzony"
+msgstr "غير مؤكَّدة"
+
+msgid "Bez potwierdzenia nie wystawimy Ci zaświadczenia dla opiekuna."
+msgstr "من دون التأكيد لن نصدر لك شهادة المشرف."
+
+msgid "Nikt jeszcze nie wskazał Twojego adresu"
+msgstr "لم يذكر أحد عنوانك بعد"
+
+#, python-format
+msgid "Dzień dobry, %(name)s"
+msgstr "مرحبًا، %(name)s"
+
+#, python-format
+msgid "Widzisz uczniów, którzy wskazali Twój adres (%(email)s) w swoim profilu albo przyjęli Twoje zaproszenie. Każdy z nich może to w każdej chwili cofnąć."
+msgstr "ترى الطلاب الذين ذكروا عنوانك (%(email)s) في ملفاتهم الشخصية أو قبلوا دعوتك. يمكن لأي منهم التراجع عن ذلك في أي وقت."
+
+#, python-format
+msgid "Zaproszeni, jeszcze bez konta: %(counter)s"
+msgstr "مدعوون بلا حساب بعد: %(counter)s"
+
+#, python-format
+msgid "Czeka na weryfikację organizatora: %(counter)s."
+msgstr "بانتظار تحقق المنظِّم: %(counter)s."
+
+#, python-format
+msgid "Edycja %(edition)s."
+msgstr "الدورة %(edition)s."
+
+#, python-format
+msgid "Zaproś uczniów z listy klasowej albo podaj im adres %(email)s – wpisują go w swoim profilu („Edytuj dane” → „Adres e-mail opiekuna szkolnego”)."
+msgstr "ادعُ الطلاب من قائمة الصف أو أعطهم العنوان %(email)s – يُدخلونه في ملفهم الشخصي («تعديل البيانات» ← «البريد الإلكتروني للمشرف المدرسي»)."
+
+msgid "Zapisy do etapów i stan prac Twoich uczniów w bieżącej edycji. Punkty i kwalifikacja pojawiają się wyłącznie przy etapach z ogłoszonymi wynikami – to te same liczby, które widać w tabeli publicznej."
+msgstr "تسجيلات طلابك في المراحل وحالة أعمالهم في الدورة الحالية. تظهر النقاط والتأهل فقط في المراحل ذات النتائج المعلنة – وهي الأرقام نفسها في الجدول العام."
+
+msgid "Nie widzisz treści prac, komentarzy recenzentów ani punktów przed ogłoszeniem wyników."
+msgstr "لا ترى محتوى الأعمال ولا تعليقات المراجعين ولا النقاط قبل إعلان النتائج."
+
+msgid "Filtry i sortowanie"
+msgstr "التصفية والترتيب"
+
+msgid "Zaświadczenie"
+msgstr "الشهادة"
+
+msgid "Sortuj"
+msgstr "ترتيب"
+
+msgid "tylko bez pracy w otwartym etapie"
+msgstr "فقط من لا عمل لهم في مرحلة مفتوحة"
+
+msgid "tylko bez zgody rodzica"
+msgstr "فقط من لا موافقة والد لديهم"
+
+msgid "Pobierz XLSX"
+msgstr "تنزيل XLSX"
+
+msgid "Postęp klasy – uczniowie i etapy"
+msgstr "تقدّم الصف – الطلاب والمراحل"
+
+msgid "przyjmuje prace"
+msgstr "يستقبل الأعمال"
+
+msgid "bez pracy w otwartym etapie"
+msgstr "بلا عمل في مرحلة مفتوحة"
+
+msgid "niezapisany"
+msgstr "غير مسجّل"
+
+msgid "Nikt nie pasuje do filtrów"
+msgstr "لا أحد يطابق عوامل التصفية"
+
+#, python-format
+msgid "Uczniów na liście: %(shown)s z %(total)s."
+msgstr "الطلاب في القائمة: %(shown)s من %(total)s."
+
+#, python-format
+msgid "oddane %(done)s z %(total)s"
+msgstr "سُلِّم %(done)s من %(total)s"
+
+#, python-format
+msgid "ostatnio %(day)s"
+msgstr "آخر مرة %(day)s"
+
+#, python-format
+msgid "%(count)s z %(total)s"
+msgstr "%(count)s من %(total)s"
+
+msgid "Udział szkoły jest potwierdzony. Na tej podstawie organizator wystawia zaświadczenia dla opiekunów."
+msgstr "تم تأكيد مشاركة المدرسة. على هذا الأساس يصدر المنظِّم شهادات المشرفين."
+
+msgid "Potwierdzenie jest oświadczeniem o Tobie, a nie o uczniach: nie warunkuje niczyjego startu, ale bez niego nie wystawimy Ci zaświadczenia dla opiekuna."
+msgstr "التأكيد إقرار عنك لا عن الطلاب: لا تتوقف عليه مشاركة أحد، لكن من دونه لن نصدر لك شهادة المشرف."
+
+msgid "Wycofaj potwierdzenie"
+msgstr "اسحب التأكيد"
+
+msgid "Potwierdzam udział szkoły"
+msgstr "أؤكّد مشاركة المدرسة"
+
+msgid "Nie ma teraz bieżącej edycji olimpiady – nie ma czego potwierdzać."
+msgstr "لا توجد دورة جارية للأولمبياد – لا شيء لتأكيده."
+
+msgid "Moje zaświadczenia"
+msgstr "شهاداتي"
+
+msgid "Nie masz jeszcze żadnego zaświadczenia. Wystawia je organizator po zakończeniu edycji."
+msgstr "ليست لديك أي شهادة بعد. يصدرها المنظِّم بعد انتهاء الدورة."
+
+msgid "Dla szkoły"
+msgstr "للمدرسة"
+
+#, python-format
+msgid "Udział szkoły w edycji %(edition)s"
+msgstr "مشاركة المدرسة في الدورة %(edition)s"
+
+msgid "czy masz zaakceptowane zaświadczenie o statusie ucznia i – jeśli jesteś niepełnoletni – zgodę rodzica, oraz na ilu warsztatach odnotowano Twoją obecność (organizator włączył tę informację dla nauczycieli);"
+msgstr "ما إذا كانت شهادة صفة الطالب مقبولة، وإن كنت قاصرًا ما إذا كانت لديك موافقة الوالد، وفي كم ورشة سُجِّل حضورك (فعّل المنظِّم هذه المعلومات للمعلمين)؛"
+
+msgid "Nauczyciel nie zobaczy Twoich prac, komentarzy recenzentów, punktów przed ogłoszeniem wyników, Twoich danych kontaktowych ani treści zgód i zaświadczenia."
+msgstr "لن يرى المعلّم أعمالك ولا تعليقات المراجعين ولا النقاط قبل إعلان النتائج ولا بيانات الاتصال الخاصة بك ولا محتوى الموافقات والشهادة."
+
+msgid "W tym konkursie opiekun widzi też, czy masz zaakceptowane zaświadczenie o statusie ucznia i (jeśli jesteś niepełnoletni) zgodę rodzica, oraz na ilu warsztatach byłeś."
+msgstr "في هذه المسابقة يرى المشرف أيضًا ما إذا كانت شهادة صفة الطالب مقبولة و(إن كنت قاصرًا) ما إذا كانت لديك موافقة الوالد، وكم ورشة حضرت."
+
+msgid "Opcjonalnie. Opiekun z kontem w serwisie zobaczy Twój kod, imię, nazwisko, to, na jakim etapie procedury są Twoje prace, czy masz zaakceptowane zaświadczenie o statusie ucznia i zgodę rodzica oraz na ilu warsztatach byłeś – nigdy punktów przed ogłoszeniem wyników ani samych prac. Puste pole znaczy „nie mam opiekuna”."
+msgstr "اختياري. سيرى المشرف الذي لديه حساب رمزك واسمك ولقبك والمرحلة التي بلغتها أعمالك وما إذا كانت شهادة صفة الطالب وموافقة الوالد متوفرتين وكم ورشة حضرت – ولن يرى أبدًا النقاط قبل إعلان النتائج ولا الأعمال نفسها. الحقل الفارغ يعني «ليس لي مشرف»."

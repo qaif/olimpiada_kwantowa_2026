@@ -1030,6 +1030,16 @@ def participant_profile_initial(participant) -> dict:
     }
 
 
+#: Opis pola „Adres e-mail opiekuna szkolnego”, gdy konkurs włączył ``supervisor_class_details``
+#: (UX-PANEL-02 D5) – dokłada do zakresu wglądu nauczyciela formalności i obecność na warsztatach.
+SUPERVISOR_EMAIL_HELP_WITH_DETAILS = gettext_lazy(
+    "Opcjonalnie. Opiekun z kontem w serwisie zobaczy Twój kod, imię, nazwisko, to, na jakim etapie "
+    "procedury są Twoje prace, czy masz zaakceptowane zaświadczenie o statusie ucznia i zgodę rodzica "
+    "oraz na ilu warsztatach byłeś – nigdy punktów przed ogłoszeniem wyników ani samych prac. Puste "
+    "pole znaczy „nie mam opiekuna”."
+)
+
+
 class ParticipantProfileForm(SchoolChoiceMixin):
     """Edycja własnych danych uczestnika (``/me/profile/``).
 
@@ -1096,6 +1106,13 @@ class ParticipantProfileForm(SchoolChoiceMixin):
 
         if not registration_enabled():
             self.fields.pop("supervisor_email", None)
+        elif participant is not None and "supervisor_email" in self.fields:
+            from apps.teacher_panel.flags import details_enabled
+
+            # Konkurs poszerzył wgląd nauczyciela o formalności (UX-PANEL-02 D5): opis pola mówi to
+            # wprost, bo to tu uczeń decyduje, komu ten wgląd daje.
+            if details_enabled(participant.competition):
+                self.fields["supervisor_email"].help_text = SUPERVISOR_EMAIL_HELP_WITH_DETAILS
         if district_follows_delegation(participant):
             self.fields.pop("district", None)
 
@@ -1274,19 +1291,21 @@ class AppealForm(forms.Form):
 
 
 class AppealDecideForm(forms.Form):
-    """Decyzja komisji odwoławczej."""
+    """Decyzja komisji odwoławczej. Etykiety przez ``gettext_lazy`` – komisja IQO bywa międzynarodowa."""
 
     status = forms.ChoiceField(
-        label="Rozstrzygnięcie",
+        label=gettext_lazy("Rozstrzygnięcie"),
         choices=[
-            (AppealStatus.REJECTED, "odrzucona"),
-            (AppealStatus.ACCEPTED, "uwzględniona"),
-            (AppealStatus.PARTIALLY_ACCEPTED, "częściowo uwzględniona"),
+            (AppealStatus.REJECTED, gettext_lazy("odrzucona")),
+            (AppealStatus.ACCEPTED, gettext_lazy("uwzględniona")),
+            (AppealStatus.PARTIALLY_ACCEPTED, gettext_lazy("częściowo uwzględniona")),
         ],
     )
-    new_score = PointsField(label="Nowa punktacja", required=False, **SCORE_INPUT_BOUNDS)
+    new_score = PointsField(label=gettext_lazy("Nowa punktacja"), required=False, **SCORE_INPUT_BOUNDS)
     justification = forms.CharField(
-        label="Uzasadnienie", widget=forms.Textarea(attrs={"rows": 4}), max_length=MAX_TEXT_LENGTH
+        label=gettext_lazy("Uzasadnienie"),
+        widget=forms.Textarea(attrs={"rows": 4}),
+        max_length=MAX_TEXT_LENGTH,
     )
 
 

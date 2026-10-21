@@ -28,6 +28,11 @@ class NotificationKind(models.TextChoices):
     FORUM_DECISION = "forum_decision", _("Decyzja moderatora forum")
     RESULTS_PUBLISHED = "results_published", _("Ogłoszone wyniki")
     APPEAL_DECIDED = "appeal_decided", _("Decyzja w sprawie reklamacji")
+    # Panel komisji (UX-PANEL-03 D11): odbiorcami są wyłącznie członkowie komisji tego konkursu.
+    REVIEW_ASSIGNED = "review_assigned", _("Nowe prace do oceny")
+    REVIEW_TIEBREAK = "review_tiebreak", _("Praca w rundzie rozjemczej")
+    REVIEW_DEADLINE = "review_deadline", _("Termin oceniania")
+    APPEAL_PENDING = "appeal_pending", _("Reklamacja do rozpatrzenia")
 
 
 @dataclass(frozen=True)
@@ -60,6 +65,17 @@ KINDS: dict[str, KindSpec] = {
     ),
     NotificationKind.RESULTS_PUBLISHED: KindSpec(gettext_noop("Ogłoszono wyniki: %(stage)s"), "trophy"),
     NotificationKind.APPEAL_DECIDED: KindSpec(gettext_noop("Komisja rozpatrzyła Twoją reklamację"), "check"),
+    # Komisja (UX-PANEL-03 D12): nazwa etapu albo liczba prac – nigdy kod publiczny ani punkty.
+    NotificationKind.REVIEW_ASSIGNED: KindSpec(gettext_noop("Nowe prace do oceny: %(stage)s"), "task"),
+    NotificationKind.REVIEW_TIEBREAK: KindSpec(
+        gettext_noop("Praca czeka na Twoją ocenę w rundzie rozjemczej: %(stage)s"), "scale"
+    ),
+    NotificationKind.REVIEW_DEADLINE: KindSpec(
+        gettext_noop("Mija termin oceniania – prace po terminie albo tuż przed nim: %(count)s"), "clock"
+    ),
+    NotificationKind.APPEAL_PENDING: KindSpec(
+        gettext_noop("Nowa reklamacja do rozpatrzenia: %(stage)s"), "shield"
+    ),
 }
 
 #: Zdanie zastępcze dla kodu spoza katalogu (wiersz z wersji, która miała rodzaj usunięty później).

@@ -81,7 +81,11 @@ def test_rejestracja_zaklada_konto_nieaktywne_w_grupie_opiekunow(web_client, sup
 
 
 def test_panel_pokazuje_tylko_uczniow_ktorzy_wskazali_ten_adres(web_client, logged_supervisor, elim_stage):
-    """Lista jest skutkiem decyzji ucznia – nikt inny na nią nie wchodzi."""
+    """Lista jest skutkiem decyzji ucznia – nikt inny na nią nie wchodzi.
+
+    Od UX-PANEL-02 lista ze stanem prac stoi w „Postępie klasy” (``/supervisor/progress/``), a pulpit
+    ``/supervisor/`` jest „Startem” z kaflami.
+    """
     mine = student()
     StageEntryFactory(stage=elim_stage, participant=mine)
     someone_else = student(email="ktos.inny@szkola.test")
@@ -89,7 +93,7 @@ def test_panel_pokazuje_tylko_uczniow_ktorzy_wskazali_ten_adres(web_client, logg
     without_supervisor = student(email="")
     StageEntryFactory(stage=elim_stage, participant=without_supervisor)
 
-    response = web_client.get(reverse("web:supervisor"))
+    response = web_client.get(reverse("web:supervisor-progress"))
 
     body = response.content.decode()
     assert response.status_code == 200
@@ -103,7 +107,7 @@ def test_adres_dopasowuje_sie_niezaleznie_od_wielkosci_liter(web_client, logged_
     mine = student(email=SUPERVISOR_EMAIL.upper())
     StageEntryFactory(stage=elim_stage, participant=mine)
 
-    response = web_client.get(reverse("web:supervisor"))
+    response = web_client.get(reverse("web:supervisor-progress"))
 
     assert mine.public_code in response.content.decode()
 
@@ -116,12 +120,12 @@ def test_panel_nie_pokazuje_punktow_przed_publikacja(web_client, logged_supervis
     entry.save(update_fields=["total_points"])
     SubmissionFactory(entry=entry, problem=problems[0], status=SubmissionStatus.IN_REVIEW)
 
-    body = web_client.get(reverse("web:supervisor")).content.decode()
+    body = web_client.get(reverse("web:supervisor-progress")).content.decode()
 
     assert "w ocenie" in body
     # Nie szukamy samej liczby (trafiłaby w losowy token CSRF), tylko wiersza, który ją podpisuje.
     assert "Suma punktów" not in body
-    assert "Wyniki ogłoszone" not in body
+    assert "wyniki ogłoszone" not in body
 
 
 def test_po_publikacji_panel_pokazuje_ta_sama_liczbe_co_tabela(
@@ -134,9 +138,9 @@ def test_po_publikacji_panel_pokazuje_ta_sama_liczbe_co_tabela(
     publish_results(elim_stage, None, Anonymization.CODE)
     entry.refresh_from_db()
 
-    body = web_client.get(reverse("web:supervisor")).content.decode()
+    body = web_client.get(reverse("web:supervisor-progress")).content.decode()
 
-    assert "Wyniki ogłoszone" in body
+    assert "wyniki ogłoszone" in body and "Suma punktów" in body
     # Suma w postaci, w jakiej ją pokazujemy („0”, „7,75”) – od wydania 0.35.0 kolumna jest dziesiętna,
     # więc ``str`` dałby „0.00”, którego żaden ekran nie wypisuje.
     assert format_points(entry.total_points) in body
@@ -157,9 +161,9 @@ def test_po_wycofaniu_ogloszenia_panel_znow_chowa_sume(web_client, logged_superv
     elim_stage.results_published_at = None
     elim_stage.save(update_fields=["results_published_at"])
 
-    body = web_client.get(reverse("web:supervisor")).content.decode()
+    body = web_client.get(reverse("web:supervisor-progress")).content.decode()
 
-    assert "Wyniki ogłoszone" not in body
+    assert "wyniki ogłoszone" not in body
     assert "Suma punktów" not in body
 
 
@@ -169,6 +173,7 @@ def test_potwierdzenie_udzialu_szkoly_przelacza_sie(web_client, logged_superviso
 
     web_client.post(url)
     assert SchoolParticipation.objects.filter(supervisor=logged_supervisor, edition=edition).exists()
+    assert "Wycofaj potwierdzenie" in web_client.get(reverse("web:supervisor-school")).content.decode()
 
     web_client.post(url)
     assert not SchoolParticipation.objects.filter(supervisor=logged_supervisor, edition=edition).exists()

@@ -282,8 +282,8 @@ def test_zgoda_ucznia_zapisuje_opiekuna_i_zostawia_slad_bez_adresow(
     assert SUPERVISOR_EMAIL not in str(entry.diff) and OLD_SUPERVISOR not in str(entry.diff)
 
     web_client.force_login(supervisor.user)
-    dashboard = web_client.get("/supervisor/")
-    assert [row["participant"].pk for row in dashboard.context["rows"]] == [student.pk]
+    progress = web_client.get("/supervisor/progress/")
+    assert [row.participant.pk for row in progress.context["rows"]] == [student.pk]
 
 
 def test_odmowa_niczego_nie_zmienia_i_zostaje_w_audycie(web_client, supervisor, student):

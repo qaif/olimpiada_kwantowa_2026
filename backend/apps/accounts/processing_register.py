@@ -134,7 +134,15 @@ from apps.competitions.models import DEFAULT_RETENTION_MONTHS
 #: w wierszu „konta” (rodzaj zdarzenia, odnośnik, data odczytu) z własnym, krótszym terminem usunięcia
 #: (90 dni). Ten sam cel (obsługa udziału w zawodach) i ta sama podstawa – ale stan „przeczytane”
 #: per konto jest nową daną, więc zmiana jest materialna.
-REGISTER_VERSION = "1.25"
+#: 1.26 (21.10.2026, zadanie UX-PANEL-02) – panel nauczyciela: opiekun szkolny pobiera listę swojej klasy
+#: (CSV, XLSX) – dane wychodzą z serwisu na jego urządzenie, więc wiersz „opiekunowie” dostaje kategorię
+#: i odbiorcę; do tego wiersz warunkowy (flaga ``supervisor_class_details``, ``apps.teacher_panel.register``):
+#: wgląd opiekuna w formalności ucznia (zaświadczenie, zgoda rodzica) i obecność na warsztatach.
+#: 1.27 (21.10.2026, zadanie UX-PANEL-03) – powiadomienia w panelu komisji: nowa kategoria danych
+#: w wierszu „komitet” (dane pracownicze członków komitetu i komisji odwoławczej: rodzaj zdarzenia,
+#: nazwa etapu albo liczba prac, odnośnik, data odczytu) z tą samą 90-dniową retencją, co u uczestników.
+#: Ten sam cel (przydział i rozpatrywanie prac) i ta sama podstawa.
+REGISTER_VERSION = "1.27"
 REGISTER_DATE = date(2026, 10, 21)
 
 #: Zdanie o okresie przechowywania danych uczestnika. Liczba pochodzi z tego samego miejsca, co
@@ -287,8 +295,15 @@ ACTIVITIES: tuple[ProcessingActivity, ...] = (
             "nazwa szkoły (wolny tekst – opiekun bywa nauczycielem uczniów z kilku placówek)",
             "rodzaj zgody, wersja dokumentu, data wyrażenia i wycofania (regulamin, RODO)",
             "potwierdzenie „szkoła bierze udział w tej edycji” wraz z datą",
+            "lista klasy pobierana przez opiekuna (CSV, XLSX: imię i nazwisko, kod, klasa, stan konta, "
+            "zapisy, stan prac i ogłoszone wyniki uczniów, którzy go wskazali – bez adresów e-mail); "
+            "pobranie zostaje w dzienniku zdarzeń bez danych osobowych",
         ],
-        recipients=[HOSTING_RECIPIENT, MAIL_RECIPIENT],
+        recipients=[
+            HOSTING_RECIPIENT,
+            MAIL_RECIPIENT,
+            "opiekun szkolny – plik listy własnej klasy na jego urządzeniu",
+        ],
         retention=(
             "adres istnieje wyłącznie, gdy organizator włączył tę rolę przełącznikiem "
             "`SiteSettings.supervisor_registration_enabled` na danej witrynie; konto nieaktywowane "
@@ -450,6 +465,12 @@ ACTIVITIES: tuple[ProcessingActivity, ...] = (
             "imię, nazwisko i adres e-mail",
             "województwo (podstawa reguły konfliktu interesów)",
             "status członkostwa i data zatwierdzenia",
+            (
+                "powiadomienia w panelu komisji (od 21.10.2026): rodzaj zdarzenia (nowe prace do oceny, "
+                "praca w rundzie rozjemczej, termin oceniania, reklamacja do rozpatrzenia), nazwa etapu "
+                "albo liczba prac, odnośnik w serwisie, data utworzenia i odczytu – bez danych uczestników "
+                "i bez punktów; usuwane automatycznie po 90 dniach, przy anonimizacji i przy usunięciu konta"
+            ),
         ],
         recipients=[HOSTING_RECIPIENT, MAIL_RECIPIENT],
         retention=(
@@ -1331,6 +1352,12 @@ def activities_for(competition=None) -> tuple[ProcessingActivity, ...]:
         from apps.school_stats.register import SCHOOL_STATISTICS_ACTIVITY
 
         activities = (*activities, SCHOOL_STATISTICS_ACTIVITY)
+    from apps.teacher_panel.flags import details_enabled as class_details_enabled
+
+    if class_details_enabled(competition):
+        from apps.teacher_panel.register import CLASS_DETAILS_ACTIVITY
+
+        activities = (*activities, CLASS_DETAILS_ACTIVITY)
     if competition is not None and competition.has_feature("stage_time_windows"):
         activities = (*activities, TIME_WINDOWS_ACTIVITY)
     if competition is not None and len(competition.ui_languages) > 1:

@@ -1,0 +1,37 @@
+{% load i18n %}{% comment %}
+  Menu panelu nauczyciela. Treść (sekcje, adresy, pozycja bieżąca) przychodzi ze znacznika
+  ``teacher_nav`` (apps/teacher_panel/nav.py) – szablon niczego nie rozstrzyga i nie woła ``url``.
+
+  Układ i klasy jak w menu panelu uczestnika (``participant_panel/_nav.html``): poniżej 1024 px
+  rozwijane „Menu nauczyciela” nad treścią, od 1024 px stała kolumna; zero JavaScriptu. Nagłówki
+  sekcji są tekstem z ``id`` (listy mają ``aria-labelledby``) – menu stoi przed ``<h1>`` strony.
+  Bez dzwonka: nauczyciel nie ma powiadomień w panelu (UX-PANEL-02 D6).
+{% endcomment %}{% include "participant_panel/_icons.html" %}{% include "teacher_panel/_icons.html" %}
+<nav class="pp__nav" aria-label="{% translate 'Nawigacja panelu nauczyciela' %}">
+  <details class="pp-nav">
+    <summary class="pp-nav__summary">
+      <svg class="pp-icon" aria-hidden="true" focusable="false"><use href="#pp-i-menu"></use></svg>
+      <span class="pp-nav__summary-label">{% translate "Menu nauczyciela" %}</span>
+      {% if nav_current %}<span class="pp-nav__where">{{ nav_current.label }}</span>{% endif %}
+    </summary>
+    <div class="pp-nav__body">
+      <div class="pp-nav__head">
+        <span class="pp-nav__title">{% translate "Panel nauczyciela" %}</span>
+      </div>
+      {% for group in nav_groups %}
+        <p class="pp-nav__heading" id="tp-nav-{{ group.key }}">{{ group.label }}</p>
+        <ul class="pp-nav__list" aria-labelledby="tp-nav-{{ group.key }}">
+          {% for item in group.items %}
+            <li>
+              <a class="pp-nav__link{% if item.active %} pp-nav__link--active{% endif %}" href="{{ item.url }}"
+                 {% if item.active %}aria-current="page"{% endif %} data-nav="{{ item.key }}">
+                <svg class="pp-icon" aria-hidden="true" focusable="false"><use href="#{{ item.icon }}"></use></svg>
+                <span class="pp-nav__label">{{ item.label }}</span>
+              </a>
+            </li>
+          {% endfor %}
+        </ul>
+      {% endfor %}
+    </div>
+  </details>
+</nav>

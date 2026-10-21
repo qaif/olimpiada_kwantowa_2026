@@ -195,6 +195,10 @@ def file_appeal(user, submission: Submission, argument: str, *, request=None) ->
     )
     logger.info("Złożono reklamację %s na zgłoszenie %s", appeal.pk, locked.pk)
     appeal.submission = locked
+    # Powiadomienie komisji odwoławczej w panelu (UX-PANEL-03) – bez konfliktu interesów, bez danych pracy.
+    from apps.committee_panel.notifications import appeal_filed
+
+    appeal_filed(appeal)
     return appeal
 
 

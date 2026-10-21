@@ -33,6 +33,7 @@
       </p>
       <p style="margin:0 0 16px;font-size:15px;line-height:1.6;">
         {% translate "Opiekun szkolny widzi Twoje imię i nazwisko, kod uczestnika, szkołę, klasę i to, na jakim etapie procedury są Twoje prace – punkty dopiero po ogłoszeniu wyników. Nie widzi Twoich prac ani komentarzy recenzentów." %}
+        {% if class_details %}{% translate "W tym konkursie opiekun widzi też, czy masz zaakceptowane zaświadczenie o statusie ucznia i (jeśli jesteś niepełnoletni) zgodę rodzica, oraz na ilu warsztatach byłeś." %}{% endif %}
       </p>
       <p style="margin:0 0 24px;">
         <a href="{{ link }}"

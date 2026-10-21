@@ -37,6 +37,7 @@ from apps.accounts.supervisor_consent import (
     requester,
 )
 from apps.core.api import DomainError
+from apps.teacher_panel.flags import details_enabled as class_details_enabled
 
 FORM_TEMPLATE = "web/supervisor/consent.html"
 INVALID_TEMPLATE = "web/supervisor/consent_invalid.html"
@@ -97,6 +98,8 @@ class SupervisorConsentView(LoginRequiredMixin, View):
             # „zastąpi obecnego opiekuna” byłoby zagadką.
             "current_email": consent.current_email,
             "competition": consent.participant.competition,
+            # Zakres wglądu poszerzony flagą konkursu (UX-PANEL-02 D5) – lista „co zobaczy” mówi o tym.
+            "class_details": class_details_enabled(consent.participant.competition),
             "valid_days": SUPERVISOR_CONSENT_DAYS,
             "missing_decision": missing_decision,
             "decision_accept": DECISION_ACCEPT,

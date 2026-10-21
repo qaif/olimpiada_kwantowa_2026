@@ -132,6 +132,55 @@ def _decorate(groups, *, now, with_reason):
     return groups
 
 
+def _int_param(raw) -> int | None:
+    try:
+        value = int(raw)
+    except TypeError, ValueError:
+        return None
+    return value if value > 0 else None
+
+
+def _queue_filter(params, reviews) -> dict:
+    """Filtr kolejki z ``?stage=`` / ``?problem=`` / ``?round=`` i opcje formularza z własnych przydziałów.
+
+    Wartość spoza własnych przydziałów (cudzy etap, literówka, ``?stage=abc``) jest ignorowana, a nie
+    kończy się 404: filtr jest nawigacją, a nie zasobem. Rundy: formularz pokazuje wybór dopiero wtedy,
+    gdy recenzent ma prace z więcej niż jednej rundy.
+    """
+    stages: dict[int, object] = {}
+    problems: dict[int, object] = {}
+    rounds: set[int] = set()
+    for review in reviews:
+        submission = review.submission
+        stages.setdefault(submission.entry.stage_id, submission.entry.stage)
+        problems.setdefault(submission.problem_id, submission.problem)
+        rounds.add(review.round)
+    stage_id = _int_param(params.get("stage"))
+    problem_id = _int_param(params.get("problem"))
+    round_number = _int_param(params.get("round"))
+    selected_problem = problems.get(problem_id)
+    return {
+        "stage": stage_id if stage_id in stages else None,
+        "problem": problem_id if selected_problem is not None else None,
+        "round": round_number if round_number in rounds else None,
+        "stages": list(stages.values()),
+        "problems": sorted(problems.values(), key=lambda problem: (problem.stage_id, problem.number)),
+        "rounds": sorted(rounds) if len(rounds) > 1 else [],
+        "stage_obj": stages.get(stage_id),
+        "problem_obj": selected_problem,
+        "tiebreak_round": ROUND_TIEBREAK,
+    }
+
+
+def _passes(review, queue_filter: dict) -> bool:
+    submission = review.submission
+    if queue_filter["stage"] is not None and submission.entry.stage_id != queue_filter["stage"]:
+        return False
+    if queue_filter["problem"] is not None and submission.problem_id != queue_filter["problem"]:
+        return False
+    return queue_filter["round"] is None or review.round == queue_filter["round"]
+
+
 class ReviewListView(ReviewerScopedMixin, TemplateView):
     """Kolejka pracy recenzenta: cztery zakładki po stanie recenzji, w każdej grupy po zadaniu.
 
@@ -175,6 +224,13 @@ class ReviewListView(ReviewerScopedMixin, TemplateView):
                 # Atrybut, a nie słownik w kontekście: szablon wiersza ma pod ręką samą recenzję,
                 # a mapa ``{pk: etykieta}`` wymagałaby filtru do wyszukania po kluczu.
                 review.role_label = review.role.name if review.role_id else ""
+        # Filtr po etapie / zadaniu / rundzie (UX-PANEL-03 D7) – wyłącznie nawigacja: zawęża zakładki,
+        # a pasek podsumowania i paczka ZIP liczą dalej całą kolejkę. Opcje biorą się z własnych
+        # przydziałów, więc filtr nie zdradza istnienia cudzych etapów ani zadań.
+        queue_filter = _queue_filter(self.request.GET, reviews)
+        context["queue_filter"] = queue_filter
+        all_reviews = reviews
+        reviews = [review for review in reviews if _passes(review, queue_filter)]
         by_status: dict[str, list] = {}
         for review in reviews:
             by_status.setdefault(review.status, []).append(review)
@@ -199,9 +255,16 @@ class ReviewListView(ReviewerScopedMixin, TemplateView):
         # Otwieranie pustej zakładki tylko dlatego, że stoi pierwsza, pokazywałoby recenzentowi
         # komunikat „nic tu nie ma” nad listą, w której coś jest.
         context["active_tab"] = next((tab["key"] for tab in tabs if tab["count"]), "todo")
+        # ``?tab=`` z menu panelu komisji („Ocenione” → ``submitted``) wskazuje zakładkę wprost – także
+        # pustą, bo o nią pytano. Nieznana wartość niczego nie zmienia.
+        requested_tab = self.request.GET.get("tab", "")
+        if requested_tab in {key for key, _status, _label in REVIEW_TABS}:
+            context["active_tab"] = requested_tab
 
-        open_reviews = by_status.get(ReviewStatus.ASSIGNED, []) + by_status.get(ReviewStatus.DRAFT, [])
-        context["reviews"] = [item for item in reviews if item.status != ReviewStatus.CANCELLED]
+        open_reviews = [
+            item for item in all_reviews if item.status in (ReviewStatus.ASSIGNED, ReviewStatus.DRAFT)
+        ]
+        context["reviews"] = [item for item in all_reviews if item.status != ReviewStatus.CANCELLED]
         context["summary"] = {
             "todo": len(open_reviews),
             "overdue": sum(1 for item in open_reviews if item.due_at and item.due_at < now),

@@ -286,7 +286,7 @@ def entry_rows(stage_ids: list[int], participant_ids: list[int] | None = None) -
 
     Dwa ``EXISTS`` po zgłoszeniach chodzą po indeksie klucza obcego ``Submission.entry_id``,
     a złączenia z uczestnikiem i szkołą – po kluczach głównych. Zgłoszenie odrzucone przez skaner
-    antywirusowy nie jest „oddaną pracą” (tak samo liczy ``apps.accounts.supervisors.student_rows``).
+    antywirusowy nie jest „oddaną pracą” (tak samo liczy ``apps.teacher_panel.services.class_progress``).
     Wpisy drużynowe (bez uczestnika) nie wchodzą: grupą jest szkoła ucznia, a nie skład.
     """
     if not stage_ids:

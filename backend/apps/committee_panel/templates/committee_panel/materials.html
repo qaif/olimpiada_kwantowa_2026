@@ -1,0 +1,65 @@
+{% extends "committee_panel/base.html" %}
+{% load i18n web_extras %}
+{% comment %}
+  Materiały dla komisji (UX-PANEL-03): to, co recenzent widzi na ekranie oceny w zwiniętym bloku przy
+  każdej pracy – rubryka, uwagi koordynatora, wzorcówka, wspólne szablony komentarzy – zebrane po
+  zadaniach jego przydziałów. Wzorcówka wychodzi dalej wyłącznie przez ``web:problem-model-solution``
+  (bramka komitetu). Ekran nie ma ani jednej danej uczestnika.
+{% endcomment %}
+{% block title %}{% translate "Materiały dla komisji" %}{% endblock %}
+{% block panel_content %}
+<div class="page-head">
+  <span class="eyebrow">{% translate "Ocenianie" %}</span>
+  <h1>{% translate "Materiały dla komisji" %}</h1>
+  <p class="lead">{% translate "Rubryki, uwagi dla recenzentów, rozwiązania wzorcowe i wspólne szablony komentarzy – dla zadań, które masz do oceny. Materiał wyłącznie dla komitetu." %}</p>
+</div>
+
+{% for group in groups %}
+  <section class="section" aria-labelledby="cp-stage-{{ group.stage.pk }}">
+    <h2 class="mt-0" id="cp-stage-{{ group.stage.pk }}">{{ group.stage.display_name }}</h2>
+    {% for item in group.problems %}
+      <article class="card cp-material" data-problem="{{ item.problem.pk }}">
+        <div class="card__head">
+          <h3 class="mt-0 card__title">{% blocktranslate trimmed with number=item.problem.number title=item.problem.display_title %}Zadanie {{ number }}: {{ title }}{% endblocktranslate %}</h3>
+          <a class="btn btn--small btn--secondary" href="{{ item.queue_url }}">{% translate "Prace tego zadania" %}</a>
+        </div>
+        {% if item.model_solution_url %}
+          <p><a class="btn btn--small btn--ghost" href="{{ item.model_solution_url }}">{% translate "Pobierz rozwiązanie wzorcowe (PDF)" %}</a></p>
+        {% endif %}
+        {% if item.problem.reviewer_notes %}
+          <h4>{% translate "Uwagi dla recenzentów" %}</h4>
+          <p class="quote">{{ item.problem.reviewer_notes|linebreaksbr }}</p>
+        {% endif %}
+        {% if item.criteria %}
+          <h4>{% translate "Rubryka" %}</h4>
+          <div class="scroll">
+            <table class="table">
+              <thead><tr><th scope="col">{% translate "Kryterium" %}</th><th scope="col" class="num">{% translate "Maks. punktów" %}</th></tr></thead>
+              <tbody>
+                {% for criterion in item.criteria %}
+                  <tr><th scope="row">{{ criterion.title }}{% if criterion.description %}<br><span class="hint">{{ criterion.description }}</span>{% endif %}</th>
+                    <td class="num">{{ criterion.max_points|points }}</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% endif %}
+        {% if item.snippets %}
+          <details class="cp-snippets">
+            <summary>{% blocktranslate trimmed with count=item.snippets|length %}Wspólne szablony komentarzy: {{ count }}{% endblocktranslate %}</summary>
+            <ul class="list">
+              {% for snippet in item.snippets %}<li><strong>{{ snippet.title }}</strong><br>{{ snippet.text|linebreaksbr }}</li>{% endfor %}
+            </ul>
+          </details>
+        {% endif %}
+        {% if not item.model_solution_url and not item.problem.reviewer_notes and not item.criteria and not item.snippets %}
+          <p class="hint">{% translate "Koordynator nie dodał do tego zadania materiałów – oceniasz według skali etapu." %}</p>
+        {% endif %}
+      </article>
+    {% endfor %}
+  </section>
+{% empty %}
+  <p class="empty"><span class="empty__title">{% translate "Brak zadań" %}</span>
+    {% translate "Materiały pojawią się tu razem z pierwszym przydziałem prac do oceny." %}</p>
+{% endfor %}
+{% endblock %}

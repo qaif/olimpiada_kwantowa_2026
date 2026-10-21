@@ -8,7 +8,10 @@ Reguły:
   samym kluczem. Więz w bazie (``notif_one_unread_per_key``) pilnuje, że dwa równoległe zapisy nie
   zrobią z jednej rozmowy dwóch pozycji,
 - **tylko uczestnicy** (D9): haki zapisują wyłącznie dla kont z profilem uczestnika w konkursie
-  (:func:`participant_user_ids`) – lista jest na ``/me/notifications/``, a tam wchodzi tylko on,
+  (:func:`participant_user_ids`) – lista jest na ``/me/notifications/``, a tam wchodzi tylko on.
+  Rozszerzenie z UX-PANEL-03 (D11): cztery rodzaje komisji (``review_*``, ``appeal_pending``) zapisują
+  haki ``apps.committee_panel.notifications`` wyłącznie dla członków komisji tego konkursu – ich lista
+  jest na ``/committee/notifications/``; wiersze, retencja, eksport i kasowanie są wspólne,
 - **retencja** (D10): wiersze starsze niż ``NOTIFICATION_RETENTION_DAYS`` (90) znikają nocą.
 """
 

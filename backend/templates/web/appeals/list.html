@@ -1,12 +1,16 @@
-{% extends "base.html" %}
-{% load web_extras %}
-{% block title %}Komisja odwoławcza{% endblock %}
-{% block content %}
+{% extends "committee_panel/base.html" %}
+{% load i18n web_extras %}
+{% comment %}
+  Kolejka komisji odwoławczej w ramie panelu komisji (UX-PANEL-03 D9). Napisy przez gettext (komisja
+  IQO bywa międzynarodowa); kolejka, konflikt interesów i decyzja – bez zmian. Praca jest oznaczona
+  kodem publicznym, a oceny rundy 1 – bez tożsamości recenzentów.
+{% endcomment %}
+{% block title %}{% translate "Komisja odwoławcza" %}{% endblock %}
+{% block panel_content %}
 <div class="page-head">
-  <span class="eyebrow">Komisja odwoławcza</span>
-  <h1>Reklamacje do rozpatrzenia</h1>
-  <p class="lead">Kolejka pomija sprawy, w których jesteś w konflikcie interesów
-    (recenzowałeś tę pracę).</p>
+  <span class="eyebrow">{% translate "Komisja odwoławcza" %}</span>
+  <h1>{% translate "Reklamacje do rozpatrzenia" %}</h1>
+  <p class="lead">{% translate "Kolejka pomija sprawy, w których jesteś w konflikcie interesów (recenzowałeś tę pracę)." %}</p>
 </div>
 
 {% include "web/reviewer/_committee_interviews.html" %}
@@ -17,47 +21,48 @@
   <article class="card">
     <div class="card__head">
       <h2 class="mt-0 card__title"><span class="code-chip">{{ row.public_code }}</span>
-        · zadanie {{ row.submission.problem.number }}</h2>
+        · {% blocktranslate trimmed with number=row.submission.problem.number %}zadanie {{ number }}{% endblocktranslate %}</h2>
       <span class="{{ row.appeal.status|badge_class }}">{{ row.appeal.get_status_display }}</span>
     </div>
     <dl class="meta-list">
-      <dt>Ocena wstępna</dt>
+      <dt>{% translate "Ocena wstępna" %}</dt>
       <dd><strong>{% if row.current_score is not None %}{{ row.current_score|points }}{% else %}—{% endif %}</strong></dd>
-      <dt>Złożona</dt><dd>{{ row.appeal.filed_at }}</dd>
+      <dt>{% translate "Złożona" %}</dt><dd>{{ row.appeal.filed_at }}</dd>
     </dl>
 
-    <h3>Argument uczestnika</h3>
+    <h3>{% translate "Argument uczestnika" %}</h3>
     <p class="quote">{{ row.appeal.argument }}</p>
 
-    <h3>Oceny rundy 1</h3>
+    <h3>{% translate "Oceny rundy 1" %}</h3>
     <div class="scroll">
       <table class="table">
-        <thead><tr><th>Punkty</th><th>Komentarz wewnętrzny</th></tr></thead>
+        <thead><tr><th>{% translate "Punkty" %}</th><th>{% translate "Komentarz wewnętrzny" %}</th></tr></thead>
         <tbody>
           {% for review in row.reviews %}
             <tr><td class="num total">{{ review.score|points }}</td><td>{{ review.comment_internal }}</td></tr>
           {% empty %}
-            <tr><td colspan="2" class="empty">Brak wystawionych ocen rundy 1.</td></tr>
+            <tr><td colspan="2" class="empty">{% translate "Brak wystawionych ocen rundy 1." %}</td></tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
 
     <p><a class="btn btn--secondary btn--small"
-          href="{% url 'submissions:submission-download' row.submission.pk %}">Pobierz pracę</a></p>
+          href="{% url 'submissions:submission-download' row.submission.pk %}">{% translate "Pobierz pracę" %}</a></p>
 
+    {% translate "Zapisać decyzję komisji? Rozstrzygnięcie jest ostateczne." as confirm_text %}
     <form method="post" action="{% url 'web:appeal-decide' row.appeal.pk %}" class="form form--wide"
           x-data="confirmSubmit" x-on:submit="check"
-          data-confirm="Zapisać decyzję komisji? Rozstrzygnięcie jest ostateczne.">
+          data-confirm="{{ confirm_text }}">
       {% csrf_token %}
       {{ decide_form.as_p }}
       <div class="actions">
-        <button type="submit" class="btn btn--primary">Zapisz decyzję</button>
+        <button type="submit" class="btn btn--primary">{% translate "Zapisz decyzję" %}</button>
       </div>
     </form>
   </article>
 {% empty %}
-  <p class="empty"><span class="empty__title">Kolejka pusta</span>
-    Brak reklamacji do rozpatrzenia.</p>
+  <p class="empty"><span class="empty__title">{% translate "Kolejka pusta" %}</span>
+    {% translate "Brak reklamacji do rozpatrzenia." %}</p>
 {% endfor %}
 {% endblock %}

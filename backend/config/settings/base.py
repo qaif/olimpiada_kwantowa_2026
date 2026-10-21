@@ -189,6 +189,7 @@ INSTALLED_APPS = [
     "apps.integrations",
     # Statystyki szkół i opiekunów szkolnych (STAT-01, flaga ``school_statistics``) – bez modeli, sam odczyt.
     "apps.school_stats",
+    "apps.teacher_panel",  # panel nauczyciela: menu, Start, postęp klasy, eksport (UX-PANEL-02), bez modeli
     # Przegląd tłumaczeń interfejsu przez rodzimych użytkowników języka (zadanie L10N-01). Przed
     # ``apps.web``, który montuje jej adresy; w ``ready()`` wkłada nakładkę poprawek do gettext.
     "apps.translation_review",
@@ -209,6 +210,7 @@ INSTALLED_APPS = [
     # przez ``create_submission``, przełącznik udostępniania per etap. **Przed** ``apps.web``,
     # który montuje jej adresy i wstawia jej panel do karty zadania.
     "apps.webtex",
+    "apps.committee_panel",  # rama panelu komisji: menu, Start, materiały (UX-PANEL-03), bez modeli
     # Panel uczestnika (UX-PANEL-01): powiadomienia w panelu (model, haki źródeł, retencja) i rama panelu
     # (menu, kafle „Start”, wejścia do notatników i edytora LaTeX). **Przed** ``apps.web`` jak webtex.
     "apps.notifications",

@@ -89,7 +89,7 @@ def test_deleted_student_leaves_the_teachers_panel_and_counts(web_client, logged
 
     anonymise_account(leaves.user)
 
-    dashboard = web_client.get(reverse("web:supervisor")).content.decode()
+    dashboard = web_client.get(reverse("web:supervisor-progress")).content.decode()
     students = web_client.get(reverse("web:supervisor-students"))
     assert leaves.public_code not in dashboard
     assert leaves.public_code not in students.content.decode()

@@ -1,0 +1,290 @@
+# UX-PANEL-02 – napisy aplikacji teacher_panel (fr). Źródło (msgid) po polsku; poza angielskim
+# tłumaczenie maszynowe – do przeglądu native speakera (I18N-01 § 8).
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada teacher_panel\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-21 12:00+0200\n"
+"PO-Revision-Date: 2026-10-21 12:00+0200\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: fr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+msgid "Postęp klasy"
+msgstr "Progression de la classe"
+
+msgid "Materiały i warsztaty"
+msgstr "Ressources et ateliers"
+
+msgid "Plakaty do powieszenia w szkole"
+msgstr "Affiches pour l’établissement"
+
+msgid "Kalendarz konkursu (.ics)"
+msgstr "Calendrier du concours (.ics)"
+
+msgid "Udział szkoły i zaświadczenia"
+msgstr "Participation de l’établissement et attestations"
+
+msgid "Statystyki szkoły"
+msgstr "Statistiques de l’établissement"
+
+msgid "aktywne"
+msgstr "actif"
+
+msgid "zaproszony – bez konta"
+msgstr "invité – pas encore de compte"
+
+msgid "nic nie oddano"
+msgstr "rien rendu"
+
+msgid "jest"
+msgstr "donné"
+
+msgid "pełnoletni"
+msgstr "majeur"
+
+msgid "czeka na weryfikację"
+msgstr "en attente de vérification"
+
+msgid "zaakceptowane"
+msgstr "acceptée"
+
+msgid "niezakwalifikowany"
+msgstr "non qualifié"
+
+msgid "Zgoda rodzica"
+msgstr "Consentement parental"
+
+msgid "zapis"
+msgstr "inscription"
+
+msgid "oddane prace"
+msgstr "copies rendues"
+
+msgid "ostatnie oddanie"
+msgstr "dernier dépôt"
+
+msgid "stan"
+msgstr "état"
+
+msgid "punkty"
+msgstr "points"
+
+msgid "kwalifikacja"
+msgstr "qualification"
+
+msgid "Warsztaty (obecności)"
+msgstr "Ateliers (présences)"
+
+msgid "tak"
+msgstr "oui"
+
+msgid "nazwisko: A–Z"
+msgstr "nom : A–Z"
+
+msgid "nazwisko: Z–A"
+msgstr "nom : Z–A"
+
+msgid "klasa: rosnąco"
+msgstr "classe : croissant"
+
+msgid "klasa: malejąco"
+msgstr "classe : décroissant"
+
+msgid "konto: najpierw bez konta"
+msgstr "compte : d’abord sans compte"
+
+msgid "najwięcej oddanych prac"
+msgstr "le plus de copies rendues"
+
+msgid "najmniej oddanych prac"
+msgstr "le moins de copies rendues"
+
+msgid "Menu nauczyciela"
+msgstr "Menu de l’enseignant"
+
+msgid "Panel nauczyciela"
+msgstr "Espace enseignant"
+
+msgid "z kontem w serwisie"
+msgstr "avec un compte"
+
+msgid "Zaproś z listy"
+msgstr "Inviter depuis une liste"
+
+msgid "termin oddania prac"
+msgstr "date limite de dépôt"
+
+msgid "start etapu"
+msgstr "début de l’étape"
+
+msgid "Bez pracy w otwartym etapie"
+msgstr "Aucune copie dans une étape ouverte"
+
+msgid "do przypomnienia"
+msgstr "à relancer"
+
+msgid "Zapisani do etapu, który teraz przyjmuje prace, i jeszcze niczego w nim nie oddali."
+msgstr "Inscrits à une étape qui accepte actuellement les copies, sans rien y avoir rendu."
+
+msgid "Pokaż ich"
+msgstr "Les afficher"
+
+msgid "Bez zaświadczenia o statusie ucznia"
+msgstr "Sans attestation de statut d’élève"
+
+msgid "brak albo odrzucone"
+msgstr "absente ou refusée"
+
+msgid "Bez zgody rodzica"
+msgstr "Sans consentement parental"
+
+msgid "wśród niepełnoletnich"
+msgstr "parmi les mineurs"
+
+msgid "Zgodę składa rodzic albo opiekun prawny przez link, który uczeń wysyła z panelu."
+msgstr "Un parent ou le représentant légal donne son consentement via un lien que l’élève envoie depuis son espace."
+
+msgid "Harmonogram warsztatów"
+msgstr "Programme des ateliers"
+
+msgid "Udział szkoły"
+msgstr "Participation de l’établissement"
+
+msgid "Nie ma teraz bieżącej edycji olimpiady."
+msgstr "Il n’y a pas d’édition en cours de l’olympiade pour le moment."
+
+msgid "potwierdzony"
+msgstr "confirmée"
+
+msgid "niepotwierdzony"
+msgstr "non confirmée"
+
+msgid "Bez potwierdzenia nie wystawimy Ci zaświadczenia dla opiekuna."
+msgstr "Sans confirmation, nous ne pourrons pas vous délivrer d’attestation d’enseignant référent."
+
+msgid "Nikt jeszcze nie wskazał Twojego adresu"
+msgstr "Personne n’a encore indiqué votre adresse"
+
+#, python-format
+msgid "Dzień dobry, %(name)s"
+msgstr "Bonjour, %(name)s"
+
+#, python-format
+msgid "Widzisz uczniów, którzy wskazali Twój adres (%(email)s) w swoim profilu albo przyjęli Twoje zaproszenie. Każdy z nich może to w każdej chwili cofnąć."
+msgstr "Vous voyez les élèves qui ont indiqué votre adresse (%(email)s) dans leur profil ou accepté votre invitation. Chacun d’eux peut le retirer à tout moment."
+
+#, python-format
+msgid "Zaproszeni, jeszcze bez konta: %(counter)s"
+msgstr "Invités, pas encore de compte : %(counter)s"
+
+#, python-format
+msgid "Czeka na weryfikację organizatora: %(counter)s."
+msgstr "En attente de vérification par l’organisateur : %(counter)s."
+
+#, python-format
+msgid "Edycja %(edition)s."
+msgstr "Édition %(edition)s."
+
+#, python-format
+msgid "Zaproś uczniów z listy klasowej albo podaj im adres %(email)s – wpisują go w swoim profilu („Edytuj dane” → „Adres e-mail opiekuna szkolnego”)."
+msgstr "Invitez les élèves depuis la liste de classe ou donnez-leur l’adresse %(email)s – ils la saisissent dans leur profil (« Modifier mes données » → « Adresse e-mail de l’enseignant référent »)."
+
+msgid "Zapisy do etapów i stan prac Twoich uczniów w bieżącej edycji. Punkty i kwalifikacja pojawiają się wyłącznie przy etapach z ogłoszonymi wynikami – to te same liczby, które widać w tabeli publicznej."
+msgstr "Inscriptions aux étapes et état des copies de vos élèves pour l’édition en cours. Les points et la qualification n’apparaissent que pour les étapes dont les résultats sont publiés – ce sont les mêmes chiffres que dans le tableau public."
+
+msgid "Nie widzisz treści prac, komentarzy recenzentów ani punktów przed ogłoszeniem wyników."
+msgstr "Vous ne voyez ni le contenu des copies, ni les commentaires des correcteurs, ni les points avant la publication des résultats."
+
+msgid "Filtry i sortowanie"
+msgstr "Filtres et tri"
+
+msgid "Zaświadczenie"
+msgstr "Attestation"
+
+msgid "Sortuj"
+msgstr "Trier"
+
+msgid "tylko bez pracy w otwartym etapie"
+msgstr "uniquement sans copie dans une étape ouverte"
+
+msgid "tylko bez zgody rodzica"
+msgstr "uniquement sans consentement parental"
+
+msgid "Pobierz XLSX"
+msgstr "Télécharger le XLSX"
+
+msgid "Postęp klasy – uczniowie i etapy"
+msgstr "Progression de la classe – élèves et étapes"
+
+msgid "przyjmuje prace"
+msgstr "accepte les copies"
+
+msgid "bez pracy w otwartym etapie"
+msgstr "aucune copie dans une étape ouverte"
+
+msgid "niezapisany"
+msgstr "non inscrit"
+
+msgid "Nikt nie pasuje do filtrów"
+msgstr "Personne ne correspond aux filtres"
+
+#, python-format
+msgid "Uczniów na liście: %(shown)s z %(total)s."
+msgstr "Élèves affichés : %(shown)s sur %(total)s."
+
+#, python-format
+msgid "oddane %(done)s z %(total)s"
+msgstr "rendues %(done)s sur %(total)s"
+
+#, python-format
+msgid "ostatnio %(day)s"
+msgstr "dernier le %(day)s"
+
+#, python-format
+msgid "%(count)s z %(total)s"
+msgstr "%(count)s sur %(total)s"
+
+msgid "Udział szkoły jest potwierdzony. Na tej podstawie organizator wystawia zaświadczenia dla opiekunów."
+msgstr "La participation de l’établissement est confirmée. C’est sur cette base que l’organisateur délivre les attestations des enseignants référents."
+
+msgid "Potwierdzenie jest oświadczeniem o Tobie, a nie o uczniach: nie warunkuje niczyjego startu, ale bez niego nie wystawimy Ci zaświadczenia dla opiekuna."
+msgstr "La confirmation est une déclaration vous concernant, pas les élèves : elle ne conditionne la participation de personne, mais sans elle nous ne pourrons pas vous délivrer d’attestation."
+
+msgid "Wycofaj potwierdzenie"
+msgstr "Retirer la confirmation"
+
+msgid "Potwierdzam udział szkoły"
+msgstr "Je confirme la participation de l’établissement"
+
+msgid "Nie ma teraz bieżącej edycji olimpiady – nie ma czego potwierdzać."
+msgstr "Il n’y a pas d’édition en cours de l’olympiade – rien à confirmer."
+
+msgid "Moje zaświadczenia"
+msgstr "Mes attestations"
+
+msgid "Nie masz jeszcze żadnego zaświadczenia. Wystawia je organizator po zakończeniu edycji."
+msgstr "Vous n’avez encore aucune attestation. L’organisateur les délivre à la fin de l’édition."
+
+msgid "Dla szkoły"
+msgstr "Pour l’établissement"
+
+#, python-format
+msgid "Udział szkoły w edycji %(edition)s"
+msgstr "Participation de l’établissement à l’édition %(edition)s"
+
+msgid "czy masz zaakceptowane zaświadczenie o statusie ucznia i – jeśli jesteś niepełnoletni – zgodę rodzica, oraz na ilu warsztatach odnotowano Twoją obecność (organizator włączył tę informację dla nauczycieli);"
+msgstr "si votre attestation de statut d’élève est acceptée et – si vous êtes mineur – si vous avez le consentement parental, ainsi que le nombre d’ateliers où votre présence a été notée (l’organisateur a activé cette information pour les enseignants) ;"
+
+msgid "Nauczyciel nie zobaczy Twoich prac, komentarzy recenzentów, punktów przed ogłoszeniem wyników, Twoich danych kontaktowych ani treści zgód i zaświadczenia."
+msgstr "L’enseignant ne verra ni vos copies, ni les commentaires des correcteurs, ni les points avant la publication des résultats, ni vos coordonnées, ni le contenu des consentements et de l’attestation."
+
+msgid "W tym konkursie opiekun widzi też, czy masz zaakceptowane zaświadczenie o statusie ucznia i (jeśli jesteś niepełnoletni) zgodę rodzica, oraz na ilu warsztatach byłeś."
+msgstr "Dans ce concours, l’enseignant référent voit aussi si votre attestation de statut d’élève est acceptée et (si vous êtes mineur) si vous avez le consentement parental, ainsi que le nombre d’ateliers suivis."
+
+msgid "Opcjonalnie. Opiekun z kontem w serwisie zobaczy Twój kod, imię, nazwisko, to, na jakim etapie procedury są Twoje prace, czy masz zaakceptowane zaświadczenie o statusie ucznia i zgodę rodzica oraz na ilu warsztatach byłeś – nigdy punktów przed ogłoszeniem wyników ani samych prac. Puste pole znaczy „nie mam opiekuna”."
+msgstr "Facultatif. L’enseignant référent disposant d’un compte verra votre code, votre prénom, votre nom, l’étape de la procédure où en sont vos copies, si votre attestation de statut d’élève et le consentement parental sont acceptés et le nombre d’ateliers suivis – jamais les points avant la publication des résultats ni les copies elles-mêmes. Un champ vide signifie « je n’ai pas d’enseignant référent »."

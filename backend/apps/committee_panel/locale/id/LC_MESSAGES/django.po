@@ -1,0 +1,305 @@
+# UX-PANEL-03 – napisy panelu komisji (id): rama i menu, Start, materiały, powiadomienia komisji,
+# kolejka recenzenta i komisji odwoławczej. Źródło (msgid) po polsku; poza angielskim tłumaczenie
+# maszynowe – do przeglądu native speakera (I18N-01 § 8).
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada committee_panel\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-21 18:00+0200\n"
+"PO-Revision-Date: 2026-10-21 18:00+0200\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: id\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "Ocenianie"
+msgstr "Penilaian"
+
+msgid "Komisja odwoławcza"
+msgstr "Komisi banding"
+
+msgid "Spotkania"
+msgstr "Pertemuan"
+
+msgid "Wiadomości i materiały"
+msgstr "Pesan dan materi"
+
+msgid "Do oceny"
+msgstr "Untuk dinilai"
+
+msgid "Ocenione"
+msgstr "Sudah dinilai"
+
+msgid "Druga ocena (runda rozjemcza)"
+msgstr "Penilaian kedua (putaran penentu)"
+
+msgid "Materiały dla komisji"
+msgstr "Materi komisi"
+
+msgid "Reklamacje do rozpatrzenia"
+msgstr "Banding untuk diputuskan"
+
+msgid "Rozmowy i pokoje komisji"
+msgstr "Wawancara dan ruang komisi"
+
+msgid "Moje pokoje wideo"
+msgstr "Ruang video saya"
+
+msgid "Nawigacja panelu komisji"
+msgstr "Navigasi panel komisi"
+
+msgid "Menu komisji"
+msgstr "Menu komisi"
+
+msgid "czeka"
+msgstr "menunggu"
+
+msgid "Panel komisji"
+msgstr "Panel komisi"
+
+msgid "Prace do oceny, terminy i materiały komisji w jednym miejscu. Ocenianie jest anonimowe: prace są oznaczone wyłącznie kodem publicznym."
+msgstr "Karya untuk dinilai, tenggat, dan materi komisi di satu tempat. Penilaian bersifat anonim: karya hanya ditandai dengan kode publik."
+
+msgid "Reklamacje do rozpatrzenia, terminy i spotkania komisji w jednym miejscu."
+msgstr "Banding untuk diputuskan, tenggat, dan pertemuan komisi di satu tempat."
+
+msgid "do oceny (nowe i w toku)"
+msgstr "untuk dinilai (baru dan sedang dikerjakan)"
+
+msgid "Przejdź do oceniania"
+msgstr "Mulai menilai"
+
+msgid "Postęp oceniania"
+msgstr "Kemajuan penilaian"
+
+msgid "Druga ocena"
+msgstr "Penilaian kedua"
+
+msgid "do oceny w rundzie rozjemczej"
+msgstr "untuk dinilai di putaran penentu"
+
+msgid "Oceny rundy 1 się rozjechały – rozstrzygasz spór o pracę, nie między osobami."
+msgstr "Nilai putaran 1 berbeda – Anda memutuskan sengketa tentang karya, bukan antarorang."
+
+msgid "Pokaż prace rundy 2"
+msgstr "Tampilkan karya putaran 2"
+
+msgid "w kolejce komisji odwoławczej"
+msgstr "dalam antrean komisi banding"
+
+msgid "Kolejka pomija sprawy, w których jesteś w konflikcie interesów."
+msgstr "Antrean melewati perkara yang mengandung konflik kepentingan bagi Anda."
+
+msgid "Otwórz kolejkę"
+msgstr "Buka antrean"
+
+msgid "Najbliższe terminy"
+msgstr "Tenggat terdekat"
+
+msgid "Nic nie czeka na termin."
+msgstr "Tidak ada yang menunggu tenggat."
+
+msgid "Twoja rola"
+msgstr "Peran Anda"
+
+msgid "Recenzent (komitet oceniający)"
+msgstr "Penilai (komite penilaian)"
+
+msgid "Członek komisji odwoławczej"
+msgstr "Anggota komisi banding"
+
+msgid "Nie dostajesz prac uczestników ze swojego województwa ani regionu (konflikt interesów)."
+msgstr "Anda tidak menerima karya peserta dari provinsi atau wilayah Anda sendiri (konflik kepentingan)."
+
+msgid "Prace do oceny według etapów"
+msgstr "Karya untuk dinilai per tahap"
+
+msgid "Koniec oceniania etapu"
+msgstr "Akhir penilaian tahap"
+
+msgid "Czynność"
+msgstr "Tindakan"
+
+msgid "Oceniaj"
+msgstr "Nilai"
+
+msgid "Spotkania komisji"
+msgstr "Pertemuan komisi"
+
+msgid "Rozmowy kwalifikacyjne"
+msgstr "Wawancara kualifikasi"
+
+msgid "Zapisanych"
+msgstr "Terdaftar"
+
+msgid "Wejście"
+msgstr "Masuk"
+
+msgid "Dołącz jako gospodarz"
+msgstr "Bergabung sebagai tuan rumah"
+
+msgid "Adres pokoju podaje koordynator."
+msgstr "Alamat ruang diberikan oleh koordinator."
+
+#, python-format
+msgid "%(done)s z %(total)s ocenionych"
+msgstr "%(done)s dari %(total)s dinilai"
+
+#, python-format
+msgid "Termin Twoich ocen · %(stage)s"
+msgstr "Tenggat penilaian Anda · %(stage)s"
+
+#, python-format
+msgid "Koniec oceniania etapu · %(stage)s"
+msgstr "Akhir penilaian tahap · %(stage)s"
+
+#, python-format
+msgid "Rozmowa kwalifikacyjna · %(stage)s"
+msgstr "Wawancara kualifikasi · %(stage)s"
+
+#, python-format
+msgid "Webinar · %(title)s"
+msgstr "Webinar · %(title)s"
+
+#, python-format
+msgid "runda 2: %(count)s"
+msgstr "putaran 2: %(count)s"
+
+#, python-format
+msgid "Postęp oceniania – %(stage)s"
+msgstr "Kemajuan penilaian – %(stage)s"
+
+#, python-format
+msgid "%(done)s z %(total)s"
+msgstr "%(done)s dari %(total)s"
+
+#, python-format
+msgid "pokój otwiera się %(when)s"
+msgstr "ruang dibuka %(when)s"
+
+msgid "Rubryki, uwagi dla recenzentów, rozwiązania wzorcowe i wspólne szablony komentarzy – dla zadań, które masz do oceny. Materiał wyłącznie dla komitetu."
+msgstr "Rubrik, catatan untuk penilai, solusi model, dan templat komentar bersama – untuk soal yang Anda nilai. Materi khusus komisi."
+
+msgid "Uwagi dla recenzentów"
+msgstr "Catatan untuk penilai"
+
+msgid "Rubryka"
+msgstr "Rubrik"
+
+msgid "Kryterium"
+msgstr "Kriteria"
+
+msgid "Maks. punktów"
+msgstr "Poin maks."
+
+msgid "Koordynator nie dodał do tego zadania materiałów – oceniasz według skali etapu."
+msgstr "Koordinator belum menambahkan materi untuk soal ini – Anda menilai menurut skala tahap."
+
+msgid "Materiały pojawią się tu razem z pierwszym przydziałem prac do oceny."
+msgstr "Materi akan muncul di sini bersama penugasan karya pertama untuk dinilai."
+
+#, python-format
+msgid "Wspólne szablony komentarzy: %(count)s"
+msgstr "Templat komentar bersama: %(count)s"
+
+msgid "Pojawią się tu nowe przydziały prac, prace w rundzie rozjemczej, przypomnienia o terminie oceniania i reklamacje do rozpatrzenia."
+msgstr "Penugasan baru, karya putaran penentu, pengingat tenggat penilaian, dan banding untuk diputuskan akan muncul di sini."
+
+#, python-format
+msgid "Nowe prace do oceny, przypomnienia o terminach i reklamacje do rozpatrzenia – w jednym miejscu. Powiadomienia starsze niż %(days)s dni usuwamy automatycznie."
+msgstr "Karya baru untuk dinilai, pengingat tenggat, dan banding untuk diputuskan – di satu tempat. Notifikasi yang lebih lama dari %(days)s hari dihapus otomatis."
+
+msgid "Nowe prace do oceny"
+msgstr "Karya baru untuk dinilai"
+
+msgid "Praca w rundzie rozjemczej"
+msgstr "Karya di putaran penentu"
+
+msgid "Termin oceniania"
+msgstr "Tenggat penilaian"
+
+msgid "Reklamacja do rozpatrzenia"
+msgstr "Banding untuk diputuskan"
+
+#, python-format
+msgid "Nowe prace do oceny: %(stage)s"
+msgstr "Karya baru untuk dinilai: %(stage)s"
+
+#, python-format
+msgid "Praca czeka na Twoją ocenę w rundzie rozjemczej: %(stage)s"
+msgstr "Sebuah karya menunggu nilai Anda di putaran penentu: %(stage)s"
+
+#, python-format
+msgid "Mija termin oceniania – prace po terminie albo tuż przed nim: %(count)s"
+msgstr "Tenggat penilaian tiba – karya terlambat atau hampir terlambat: %(count)s"
+
+#, python-format
+msgid "Nowa reklamacja do rozpatrzenia: %(stage)s"
+msgstr "Banding baru untuk diputuskan: %(stage)s"
+
+msgid "Filtr kolejki"
+msgstr "Filter antrean"
+
+msgid "wszystkie etapy"
+msgstr "semua tahap"
+
+msgid "wszystkie zadania"
+msgstr "semua soal"
+
+msgid "wszystkie rundy"
+msgstr "semua putaran"
+
+msgid "runda 2 (rozjemcza)"
+msgstr "putaran 2 (penentu)"
+
+msgid "Wyczyść filtr"
+msgstr "Hapus filter"
+
+msgid "Zakładki pokazują tylko prace pasujące do filtra; podsumowanie i paczka ZIP obejmują całą kolejkę."
+msgstr "Tab hanya menampilkan karya yang cocok dengan filter; ringkasan dan paket ZIP mencakup seluruh antrean."
+
+#, python-format
+msgid "runda %(number)s"
+msgstr "putaran %(number)s"
+
+msgid "Kolejka pomija sprawy, w których jesteś w konflikcie interesów (recenzowałeś tę pracę)."
+msgstr "Antrean melewati perkara yang mengandung konflik kepentingan bagi Anda (Anda menilai karya itu)."
+
+msgid "Ocena wstępna"
+msgstr "Nilai sementara"
+
+msgid "Złożona"
+msgstr "Diajukan"
+
+msgid "Argument uczestnika"
+msgstr "Argumen peserta"
+
+msgid "Oceny rundy 1"
+msgstr "Nilai putaran 1"
+
+msgid "Pobierz pracę"
+msgstr "Unduh karya"
+
+msgid "Zapisać decyzję komisji? Rozstrzygnięcie jest ostateczne."
+msgstr "Simpan keputusan komisi? Keputusan bersifat final."
+
+msgid "Zapisz decyzję"
+msgstr "Simpan keputusan"
+
+msgid "Kolejka pusta"
+msgstr "Antrean kosong"
+
+msgid "Brak reklamacji do rozpatrzenia."
+msgstr "Tidak ada banding untuk diputuskan."
+
+msgid "Rozstrzygnięcie"
+msgstr "Putusan"
+
+msgid "Nowa punktacja"
+msgstr "Skor baru"
+
+msgid "Uzasadnienie"
+msgstr "Alasan"

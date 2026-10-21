@@ -1,12 +1,12 @@
-{% extends "base.html" %}
+{% extends "teacher_panel/base.html" %}
 {% load i18n static %}
 {% comment %}
-  Podgląd importu w panelu opiekuna. Rama zwykłej strony serwisu; treść wspólna z ekranem
-  koordynatora (``_import_preview.html``).
+  Podgląd importu w panelu opiekuna. Rama panelu nauczyciela (``teacher_panel/base.html``,
+  UX-PANEL-02); treść wspólna z ekranem koordynatora (``_import_preview.html``).
 {% endcomment %}
 {% block title %}{% translate "Podgląd importu" %}{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'css/coordinator-tools.css' %}">{% endblock %}
-{% block content %}
+{% block panel_head %}<link rel="stylesheet" href="{% static 'css/coordinator-tools.css' %}">{% endblock %}
+{% block panel_content %}
 <div class="page-head">
   <span class="eyebrow"><a href="{% url 'web:supervisor' %}">{% translate "Panel opiekuna szkolnego" %}</a></span>
   <h1>{% translate "Podgląd importu" %}</h1>

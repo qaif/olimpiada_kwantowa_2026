@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% load static committee_panel %}
+{% comment %}
+  Rama panelu komisji (UX-PANEL-03): menu po lewej (desktop) albo rozwijane „Menu komisji” nad treścią
+  (telefon) i kolumna treści. Ten sam układ i ten sam arkusz, co rama panelu uczestnika
+  (``participant_panel/panel.css`` – klasy ``pp-*``, tokeny ról motywu), plus kilka reguł komisji
+  w ``committee_panel/committee.css``. Ekrany wypełniają:
+
+  - ``panel_content`` – treść strony (dawny ``content``),
+  - ``panel_head`` – dodatkowy arkusz strony (osobny blok, żeby nie zabrać ramie jej arkuszy).
+
+  Menu stoi **wewnątrz** ``<main>`` i **przed** treścią – skip link „Przejdź do treści” prowadzi na
+  ``#tresc``, a następny Tab trafia w pierwszą pozycję menu, jak w panelu koordynatora i uczestnika.
+{% endcomment %}
+{% block head %}{{ block.super }}
+  <link rel="stylesheet" href="{% static 'participant_panel/panel.css' %}">
+  <link rel="stylesheet" href="{% static 'committee_panel/committee.css' %}">
+  {% block panel_head %}{% endblock %}
+{% endblock %}
+{% block content %}
+<div class="pp cp">
+  {% committee_nav %}
+  <div class="pp__main">
+    {% block panel_content %}{% endblock %}
+  </div>
+</div>
+{% endblock %}

@@ -67,9 +67,11 @@ def default_panel_url(request) -> str:
     context = roles(request)
     for flag, name in (
         ("is_participant", "web:me"),
-        ("is_reviewer", "web:review-list"),
+        # Recenzent i komisja odwoławcza lądują na Starcie panelu komisji (UX-PANEL-03 D6) – jak
+        # uczestnik na swoim pulpicie; kolejki są w menu o jedno kliknięcie dalej.
+        ("is_reviewer", "web:committee-start"),
         ("is_coordinator", "web:coordinator"),
-        ("is_appeals_committee", "web:appeals"),
+        ("is_appeals_committee", "web:committee-start"),
         # Opiekun szkolny na końcu listy: jego panel jest jedynym, jaki ma, ale konto opiekuna
         # nie wyklucza żadnej innej roli, a tamte prowadzą do pracy przy zawodach.
         ("is_supervisor", "web:supervisor"),

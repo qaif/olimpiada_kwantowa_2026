@@ -12,6 +12,51 @@ podsekcją `### <tytuł>` wydania `## v<x.y.z> – <data tagu> – <opis tagu>`.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – pypdf 6.21.2 (GHSA-qfv9-64jg-mh7p, GHSA-9mx8-4j7g-633p)
+
+- pypdf 6.20.0 → 6.21.2 w `backend/uv.lock` (pip-audit 21.10.2026; poprawka od 6.20.1).
+
+## [Unreleased] – Panel nauczyciela: menu, Start, postęp klasy, eksport klasy (UX-PANEL-02)
+
+- Nowa aplikacja `apps/teacher_panel` (bez modeli): menu panelu opiekuna szkolnego (`nav.py`, znacznik
+  `{% teacher_nav %}`) w ramie panelu uczestnika – te same klasy i arkusz `participant_panel/panel.css`
+  (bez zmian), własne dodatki w `teacher_panel/teacher.css`; sekcje Start, Uczniowie, Materiały
+  i warsztaty, Szkoła, Pomoc, Konto, pozycje warunkowe z istniejących przełączników. Ramę dostały: Start,
+  konta uczniów, import (z podglądem), postęp klasy, szkoła, statystyki szkoły.
+- `/supervisor/` to teraz **Start** z kaflami (uczniowie z kontem / zaproszeni, najbliższy termin, bez
+  pracy w otwartym etapie, najbliższy warsztat, udział szkoły); lista uczniów ze stanem prac przeszła do
+  **Postępu klasy** (`/supervisor/progress/`: filtry, sortowanie, stała liczba zapytań), udział szkoły
+  i zaświadczenia – na ekran **Szkoła** (`/supervisor/school/`).
+- Eksport klasy CSV/XLSX (`/supervisor/progress/export.csv|xlsx`) – te same kolumny i filtr, co ekran,
+  bez adresów e-mail, audyt `export.generated` (`kind=supervisor_class_progress`).
+- Nowa flaga konkursu `supervisor_class_details` (domyślnie wył.): zaświadczenie o statusie ucznia, zgoda
+  rodzica i obecność na warsztatach w panelu nauczyciela; z flagą zmienia się informacja dla ucznia
+  (strona zgody, list, opis pola w profilu) i dochodzi wiersz rejestru czynności. Rejestr czynności 1.26
+  (eksport listy klasy w wierszu „opiekunowie”, wiersz warunkowy `apps/teacher_panel/register.py`).
+- Bez migracji. Opis: `docs/tasks/UX-PANEL-02.md`, `docs/PODRECZNIK-OPIEKUNA-SZKOLNEGO.md` (nowy),
+  PODRĘCZNIK-ORGANIZATORA § 10, OPERACJE § 29.
+
+## [Unreleased] – Panel członka komisji: menu, Start, filtr kolejki, materiały, powiadomienia (UX-PANEL-03)
+
+- Nowa aplikacja `apps/committee_panel`: menu panelu komisji (`nav.py`, wzorem panelu uczestnika – ta sama
+  rama i arkusz `participant_panel/panel.css`, bez zmian w plikach panelu uczestnika), na telefonie
+  `<details>` „Menu komisji”. Sekcje Start, Ocenianie (recenzent), Komisja odwoławcza, Spotkania,
+  Wiadomości i materiały, Konto; pozycje według roli i istniejących przełączników, liczniki prac do oceny,
+  rundy rozjemczej, reklamacji i powiadomień.
+- Start `/committee/` (cel po zalogowaniu recenzenta i komisji odwoławczej zamiast `/review/` / `/appeals/`):
+  kafle bez danych uczestników – do oceny, postęp, druga ocena, reklamacje, najbliższe terminy, rola
+  (województwo / region), skróty; tabela etapów; rozmowy kwalifikacyjne bez imion, pokoje i webinary.
+- Kolejka `/review/` w ramie: `?tab=` (pozycje „Do oceny” / „Ocenione”) i filtr etapu / zadania / rundy
+  (formularz GET, bez JS); ocenianie bez zmian. Ramę dostały też `/appeals/` (napisy i formularz decyzji
+  przez gettext), `/review/video-rooms/` i `/account/profile/` członka komisji.
+- `/committee/materials/` – rubryki, uwagi dla recenzentów, wzorcówki i wspólne szablony komentarzy zadań
+  z przydziałów. `/committee/notifications/` – powiadomienia komisji: nowe prace do oceny (przydział
+  automatyczny, ręczny, z reguły zadania), runda rozjemcza, termin oceniania (obok listu z beat),
+  reklamacja do rozpatrzenia (bez konfliktu interesów); treść bez kodów prac i punktów.
+- Migracja `notifications.0002_committee_kinds` (tylko `choices`); rejestr czynności 1.26 (wiersz „komitet”);
+  budżet zapytań `committee/start` = 20; tłumaczenia 10 języków w `apps/committee_panel/locale`.
+  Opis: `docs/tasks/UX-PANEL-03.md`, PODRĘCZNIK-RECENZENTA § 1a.
+
 ## [Unreleased] – Panel uczestnika: menu, Start, powiadomienia, wejścia do notatników i webTEX (UX-PANEL-01)
 
 - Menu panelu uczestnika (`apps/participant_panel/nav.py`, odpowiednik `coordinator_nav.py`): sekcje

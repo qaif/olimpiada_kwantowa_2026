@@ -57,6 +57,11 @@ SCREENS: tuple[Screen, ...] = (
     Screen("oki-quiz-attempt", "/me/test/{main[quiz_attempt]}/", "participant"),
     Screen("oki-chat-inbox", "/me/messages/", "participant"),
     Screen("oki-chat-thread", "/me/messages/{main[conversation]}/", "participant"),
+    # Panel nauczyciela (UX-PANEL-02): Start, postęp klasy z tabelą i filtrami, konta uczniów, szkoła.
+    Screen("oki-teacher-start", "/supervisor/", "teacher"),
+    Screen("oki-teacher-progress", "/supervisor/progress/", "teacher"),
+    Screen("oki-teacher-students", "/supervisor/students/", "teacher"),
+    Screen("oki-teacher-school", "/supervisor/school/", "teacher"),
     Screen("oki-coordinator", "/coordinator/", "coordinator"),
     Screen("oki-coordinator-accounts", "/coordinator/accounts/", "coordinator"),
     Screen("oki-coordinator-participants", "/coordinator/accounts/?role=participant", "coordinator"),
@@ -69,6 +74,9 @@ SCREENS: tuple[Screen, ...] = (
     Screen("oki-coordinator-2fa-policy", "/coordinator/security/2fa/", "coordinator"),
     Screen("oki-reviewer", "/review/", "reviewer"),
     Screen("oki-reviewer-detail", "/review/{main[review]}/", "reviewer"),
+    Screen("oki-committee-start", "/committee/", "reviewer"),  # UX-PANEL-03
+    Screen("oki-committee-materials", "/committee/materials/", "reviewer"),  # UX-PANEL-03
+    Screen("oki-committee-notifications", "/committee/notifications/", "reviewer"),  # UX-PANEL-03
     # --- IQO, motyw IQO Quantum --------------------------------------------------------------------
     Screen("iqo-home", "/iqo/"),
     Screen("iqo-news", "/iqo/aktualnosci/"),
@@ -96,6 +104,7 @@ SCREENS: tuple[Screen, ...] = (
     # --- Tryb wysokiego kontrastu ---------------------------------------------------------------------
     Screen("hc-oki-home", "/", action="high-contrast"),
     Screen("hc-oki-login", "/login/", action="high-contrast"),
+    Screen("hc-oki-teacher-progress", "/supervisor/progress/", "teacher", action="high-contrast"),
     Screen("hc-iqo-home", "/iqo/", action="high-contrast"),
     Screen("hc-iqo-login", "/iqo/login/", action="high-contrast"),
 )

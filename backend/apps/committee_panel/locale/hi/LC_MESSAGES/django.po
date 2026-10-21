@@ -1,0 +1,305 @@
+# UX-PANEL-03 – napisy panelu komisji (hi): rama i menu, Start, materiały, powiadomienia komisji,
+# kolejka recenzenta i komisji odwoławczej. Źródło (msgid) po polsku; poza angielskim tłumaczenie
+# maszynowe – do przeglądu native speakera (I18N-01 § 8).
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada committee_panel\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-21 18:00+0200\n"
+"PO-Revision-Date: 2026-10-21 18:00+0200\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: hi\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Ocenianie"
+msgstr "मूल्यांकन"
+
+msgid "Komisja odwoławcza"
+msgstr "अपील समिति"
+
+msgid "Spotkania"
+msgstr "बैठकें"
+
+msgid "Wiadomości i materiały"
+msgstr "संदेश और सामग्री"
+
+msgid "Do oceny"
+msgstr "मूल्यांकन हेतु"
+
+msgid "Ocenione"
+msgstr "मूल्यांकित"
+
+msgid "Druga ocena (runda rozjemcza)"
+msgstr "द्वितीय मूल्यांकन (निर्णायक दौर)"
+
+msgid "Materiały dla komisji"
+msgstr "समिति सामग्री"
+
+msgid "Reklamacje do rozpatrzenia"
+msgstr "निर्णय हेतु अपीलें"
+
+msgid "Rozmowy i pokoje komisji"
+msgstr "साक्षात्कार और समिति कक्ष"
+
+msgid "Moje pokoje wideo"
+msgstr "मेरे वीडियो कक्ष"
+
+msgid "Nawigacja panelu komisji"
+msgstr "समिति पैनल नेविगेशन"
+
+msgid "Menu komisji"
+msgstr "समिति मेनू"
+
+msgid "czeka"
+msgstr "प्रतीक्षारत"
+
+msgid "Panel komisji"
+msgstr "समिति पैनल"
+
+msgid "Prace do oceny, terminy i materiały komisji w jednym miejscu. Ocenianie jest anonimowe: prace są oznaczone wyłącznie kodem publicznym."
+msgstr "मूल्यांकन हेतु कार्य, समय-सीमाएँ और समिति सामग्री एक ही स्थान पर। मूल्यांकन गुमनाम है: कार्य की पहचान केवल सार्वजनिक कोड से होती है।"
+
+msgid "Reklamacje do rozpatrzenia, terminy i spotkania komisji w jednym miejscu."
+msgstr "निर्णय हेतु अपीलें, समय-सीमाएँ और समिति बैठकें एक ही स्थान पर।"
+
+msgid "do oceny (nowe i w toku)"
+msgstr "मूल्यांकन हेतु (नए और प्रगति में)"
+
+msgid "Przejdź do oceniania"
+msgstr "मूल्यांकन पर जाएँ"
+
+msgid "Postęp oceniania"
+msgstr "मूल्यांकन प्रगति"
+
+msgid "Druga ocena"
+msgstr "द्वितीय मूल्यांकन"
+
+msgid "do oceny w rundzie rozjemczej"
+msgstr "निर्णायक दौर में मूल्यांकन हेतु"
+
+msgid "Oceny rundy 1 się rozjechały – rozstrzygasz spór o pracę, nie między osobami."
+msgstr "पहले दौर के अंक अलग-अलग हैं – आप कार्य पर विवाद सुलझाते हैं, लोगों के बीच नहीं।"
+
+msgid "Pokaż prace rundy 2"
+msgstr "दौर 2 के कार्य दिखाएँ"
+
+msgid "w kolejce komisji odwoławczej"
+msgstr "अपील समिति की कतार में"
+
+msgid "Kolejka pomija sprawy, w których jesteś w konflikcie interesów."
+msgstr "कतार उन मामलों को छोड़ देती है जिनमें आपका हितों का टकराव है।"
+
+msgid "Otwórz kolejkę"
+msgstr "कतार खोलें"
+
+msgid "Najbliższe terminy"
+msgstr "आगामी समय-सीमाएँ"
+
+msgid "Nic nie czeka na termin."
+msgstr "किसी समय-सीमा पर कुछ लंबित नहीं है।"
+
+msgid "Twoja rola"
+msgstr "आपकी भूमिका"
+
+msgid "Recenzent (komitet oceniający)"
+msgstr "समीक्षक (मूल्यांकन समिति)"
+
+msgid "Członek komisji odwoławczej"
+msgstr "अपील समिति सदस्य"
+
+msgid "Nie dostajesz prac uczestników ze swojego województwa ani regionu (konflikt interesów)."
+msgstr "आपको अपने प्रांत या क्षेत्र के प्रतिभागियों के कार्य नहीं मिलते (हितों का टकराव)।"
+
+msgid "Prace do oceny według etapów"
+msgstr "चरण-वार मूल्यांकन हेतु कार्य"
+
+msgid "Koniec oceniania etapu"
+msgstr "चरण के मूल्यांकन की समाप्ति"
+
+msgid "Czynność"
+msgstr "कार्रवाई"
+
+msgid "Oceniaj"
+msgstr "मूल्यांकन करें"
+
+msgid "Spotkania komisji"
+msgstr "समिति बैठकें"
+
+msgid "Rozmowy kwalifikacyjne"
+msgstr "योग्यता साक्षात्कार"
+
+msgid "Zapisanych"
+msgstr "बुक किए गए"
+
+msgid "Wejście"
+msgstr "प्रवेश"
+
+msgid "Dołącz jako gospodarz"
+msgstr "होस्ट के रूप में जुड़ें"
+
+msgid "Adres pokoju podaje koordynator."
+msgstr "कक्ष का पता समन्वयक देते हैं।"
+
+#, python-format
+msgid "%(done)s z %(total)s ocenionych"
+msgstr "%(total)s में से %(done)s मूल्यांकित"
+
+#, python-format
+msgid "Termin Twoich ocen · %(stage)s"
+msgstr "आपके मूल्यांकन की समय-सीमा · %(stage)s"
+
+#, python-format
+msgid "Koniec oceniania etapu · %(stage)s"
+msgstr "चरण के मूल्यांकन की समाप्ति · %(stage)s"
+
+#, python-format
+msgid "Rozmowa kwalifikacyjna · %(stage)s"
+msgstr "योग्यता साक्षात्कार · %(stage)s"
+
+#, python-format
+msgid "Webinar · %(title)s"
+msgstr "वेबिनार · %(title)s"
+
+#, python-format
+msgid "runda 2: %(count)s"
+msgstr "दौर 2: %(count)s"
+
+#, python-format
+msgid "Postęp oceniania – %(stage)s"
+msgstr "मूल्यांकन प्रगति – %(stage)s"
+
+#, python-format
+msgid "%(done)s z %(total)s"
+msgstr "%(total)s में से %(done)s"
+
+#, python-format
+msgid "pokój otwiera się %(when)s"
+msgstr "कक्ष %(when)s खुलता है"
+
+msgid "Rubryki, uwagi dla recenzentów, rozwiązania wzorcowe i wspólne szablony komentarzy – dla zadań, które masz do oceny. Materiał wyłącznie dla komitetu."
+msgstr "रूब्रिक, समीक्षकों के लिए टिप्पणियाँ, आदर्श समाधान और साझा टिप्पणी टेम्पलेट – उन कार्यों के लिए जिनका आप मूल्यांकन करते हैं। केवल समिति के लिए सामग्री।"
+
+msgid "Uwagi dla recenzentów"
+msgstr "समीक्षकों के लिए टिप्पणियाँ"
+
+msgid "Rubryka"
+msgstr "रूब्रिक"
+
+msgid "Kryterium"
+msgstr "मानदंड"
+
+msgid "Maks. punktów"
+msgstr "अधिकतम अंक"
+
+msgid "Koordynator nie dodał do tego zadania materiałów – oceniasz według skali etapu."
+msgstr "समन्वयक ने इस कार्य में सामग्री नहीं जोड़ी है – आप चरण के पैमाने के अनुसार मूल्यांकन करते हैं।"
+
+msgid "Materiały pojawią się tu razem z pierwszym przydziałem prac do oceny."
+msgstr "मूल्यांकन हेतु कार्य के पहले आवंटन के साथ सामग्री यहाँ दिखेगी।"
+
+#, python-format
+msgid "Wspólne szablony komentarzy: %(count)s"
+msgstr "साझा टिप्पणी टेम्पलेट: %(count)s"
+
+msgid "Pojawią się tu nowe przydziały prac, prace w rundzie rozjemczej, przypomnienia o terminie oceniania i reklamacje do rozpatrzenia."
+msgstr "नए कार्य आवंटन, निर्णायक दौर के कार्य, मूल्यांकन समय-सीमा के अनुस्मारक और निर्णय हेतु अपीलें यहाँ दिखेंगी।"
+
+#, python-format
+msgid "Nowe prace do oceny, przypomnienia o terminach i reklamacje do rozpatrzenia – w jednym miejscu. Powiadomienia starsze niż %(days)s dni usuwamy automatycznie."
+msgstr "नए मूल्यांकन हेतु कार्य, समय-सीमा अनुस्मारक और निर्णय हेतु अपीलें – एक ही स्थान पर। %(days)s दिन से पुरानी सूचनाएँ स्वतः हटा दी जाती हैं।"
+
+msgid "Nowe prace do oceny"
+msgstr "मूल्यांकन हेतु नए कार्य"
+
+msgid "Praca w rundzie rozjemczej"
+msgstr "निर्णायक दौर में कार्य"
+
+msgid "Termin oceniania"
+msgstr "मूल्यांकन की समय-सीमा"
+
+msgid "Reklamacja do rozpatrzenia"
+msgstr "निर्णय हेतु अपील"
+
+#, python-format
+msgid "Nowe prace do oceny: %(stage)s"
+msgstr "मूल्यांकन हेतु नए कार्य: %(stage)s"
+
+#, python-format
+msgid "Praca czeka na Twoją ocenę w rundzie rozjemczej: %(stage)s"
+msgstr "निर्णायक दौर में एक कार्य आपके मूल्यांकन की प्रतीक्षा में है: %(stage)s"
+
+#, python-format
+msgid "Mija termin oceniania – prace po terminie albo tuż przed nim: %(count)s"
+msgstr "मूल्यांकन की समय-सीमा आ रही है – समय-सीमा पार या निकट कार्य: %(count)s"
+
+#, python-format
+msgid "Nowa reklamacja do rozpatrzenia: %(stage)s"
+msgstr "निर्णय हेतु नई अपील: %(stage)s"
+
+msgid "Filtr kolejki"
+msgstr "कतार फ़िल्टर"
+
+msgid "wszystkie etapy"
+msgstr "सभी चरण"
+
+msgid "wszystkie zadania"
+msgstr "सभी समस्याएँ"
+
+msgid "wszystkie rundy"
+msgstr "सभी दौर"
+
+msgid "runda 2 (rozjemcza)"
+msgstr "दौर 2 (निर्णायक)"
+
+msgid "Wyczyść filtr"
+msgstr "फ़िल्टर हटाएँ"
+
+msgid "Zakładki pokazują tylko prace pasujące do filtra; podsumowanie i paczka ZIP obejmują całą kolejkę."
+msgstr "टैब केवल फ़िल्टर से मेल खाने वाले कार्य दिखाते हैं; सारांश और ZIP पैकेज पूरी कतार को शामिल करते हैं।"
+
+#, python-format
+msgid "runda %(number)s"
+msgstr "दौर %(number)s"
+
+msgid "Kolejka pomija sprawy, w których jesteś w konflikcie interesów (recenzowałeś tę pracę)."
+msgstr "कतार उन मामलों को छोड़ देती है जिनमें आपका हितों का टकराव है (आपने उस कार्य की समीक्षा की थी)।"
+
+msgid "Ocena wstępna"
+msgstr "अनंतिम अंक"
+
+msgid "Złożona"
+msgstr "दायर"
+
+msgid "Argument uczestnika"
+msgstr "प्रतिभागी का तर्क"
+
+msgid "Oceny rundy 1"
+msgstr "दौर 1 के अंक"
+
+msgid "Pobierz pracę"
+msgstr "कार्य डाउनलोड करें"
+
+msgid "Zapisać decyzję komisji? Rozstrzygnięcie jest ostateczne."
+msgstr "समिति का निर्णय सहेजें? निर्णय अंतिम है।"
+
+msgid "Zapisz decyzję"
+msgstr "निर्णय सहेजें"
+
+msgid "Kolejka pusta"
+msgstr "कतार खाली है"
+
+msgid "Brak reklamacji do rozpatrzenia."
+msgstr "निर्णय हेतु कोई अपील नहीं।"
+
+msgid "Rozstrzygnięcie"
+msgstr "निर्णय"
+
+msgid "Nowa punktacja"
+msgstr "नए अंक"
+
+msgid "Uzasadnienie"
+msgstr "औचित्य"
