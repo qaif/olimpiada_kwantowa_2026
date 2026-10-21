@@ -1,0 +1,187 @@
+{% extends "committee_panel/base.html" %}
+{% load i18n web_extras %}
+{% comment %}
+  Pulpit „Start” komisji (UX-PANEL-03 § 4). Kafle odpowiadają na trzy pytania: ile na mnie czeka,
+  na kiedy i gdzie kliknąć. **Same liczby** – ani kodu publicznego, ani imienia uczestnika
+  (ocenianie jest ślepe, PROJEKT.md 2.2). Kafle są listą z nagłówkami ``<h3>`` pod ukrytym ``<h2>``,
+  jak na pulpicie uczestnika; kafel, którego warunek nie jest spełniony, po prostu się nie rysuje.
+{% endcomment %}
+{% block title %}{% translate "Panel komisji" %}{% endblock %}
+{% block panel_content %}
+<div class="page-head">
+  <span class="eyebrow">{% translate "Panel komisji" %}</span>
+  <h1>{% translate "Start" %}</h1>
+  <p class="lead">{% if reviewer %}{% translate "Prace do oceny, terminy i materiały komisji w jednym miejscu. Ocenianie jest anonimowe: prace są oznaczone wyłącznie kodem publicznym." %}{% else %}{% translate "Reklamacje do rozpatrzenia, terminy i spotkania komisji w jednym miejscu." %}{% endif %}</p>
+</div>
+
+<section class="pp-tiles" aria-labelledby="cp-tiles-title">
+  <h2 class="visually-hidden" id="cp-tiles-title">{% translate "Na skróty" %}</h2>
+  <ul class="pp-tiles__grid">
+    {% if reviewer %}
+      <li class="pp-tile{% if overdue_total %} pp-tile--attention{% elif counts.todo %} pp-tile--deadline{% endif %}" data-tile="todo">
+        <h3 class="pp-tile__title"><svg class="pp-icon" aria-hidden="true" focusable="false"><use href="#pp-i-task"></use></svg>{% translate "Do oceny" %}</h3>
+        <p class="cp-stat"><span class="cp-stat__value">{{ counts.todo }}</span>
+          <span class="cp-stat__label">{% translate "do oceny (nowe i w toku)" %}</span></p>
+        {% if overdue_total %}<p><span class="badge badge--danger">{% blocktranslate trimmed with count=overdue_total %}{{ count }} po terminie{% endblocktranslate %}</span></p>{% endif %}
+        <p class="pp-tile__actions"><a class="btn btn--small btn--primary" href="{% url 'web:review-list' %}">{% translate "Przejdź do oceniania" %}</a></p>
+      </li>
+
+      <li class="pp-tile" data-tile="progress">
+        <h3 class="pp-tile__title"><svg class="pp-icon" aria-hidden="true" focusable="false"><use href="#pp-i-check"></use></svg>{% translate "Postęp" %}</h3>
+        <p class="pp-tile__value">{% blocktranslate trimmed with done=counts.submitted total=counts.total %}{{ done }} z {{ total }} ocenionych{% endblocktranslate %}</p>
+        <progress class="cp-progress" max="100" value="{{ progress_percent }}" aria-label="{% translate 'Postęp oceniania' %}">{{ progress_percent }}%</progress>
+        <p class="pp-tile__actions"><a class="btn btn--small btn--secondary" href="{% url 'web:review-list' %}?tab=submitted">{% translate "Ocenione" %}</a></p>
+      </li>
+
+      {% if counts.tiebreak %}
+        <li class="pp-tile{% if counts.tiebreak_open %} pp-tile--attention{% endif %}" data-tile="tiebreak">
+          <h3 class="pp-tile__title"><svg class="pp-icon" aria-hidden="true" focusable="false"><use href="#pp-i-scale"></use></svg>{% translate "Druga ocena" %}</h3>
+          <p class="cp-stat"><span class="cp-stat__value">{{ counts.tiebreak_open }}</span>
+            <span class="cp-stat__label">{% translate "do oceny w rundzie rozjemczej" %}</span></p>
+          <p class="pp-tile__meta">{% translate "Oceny rundy 1 się rozjechały – rozstrzygasz spór o pracę, nie między osobami." %}</p>
+          <p class="pp-tile__actions"><a class="btn btn--small btn--secondary" href="{% url 'web:review-list' %}?round=2">{% translate "Pokaż prace rundy 2" %}</a></p>
+        </li>
+      {% endif %}
+    {% endif %}
+
+    {% if appeals_member %}
+      <li class="pp-tile{% if appeals_count %} pp-tile--attention{% endif %}" data-tile="appeals">
+        <h3 class="pp-tile__title"><svg class="pp-icon" aria-hidden="true" focusable="false"><use href="#pp-i-shield"></use></svg>{% translate "Reklamacje do rozpatrzenia" %}</h3>
+        <p class="cp-stat"><span class="cp-stat__value">{{ appeals_count }}</span>
+          <span class="cp-stat__label">{% translate "w kolejce komisji odwoławczej" %}</span></p>
+        <p class="pp-tile__meta">{% translate "Kolejka pomija sprawy, w których jesteś w konflikcie interesów." %}</p>
+        <p class="pp-tile__actions"><a class="btn btn--small btn--primary" href="{% url 'web:appeals' %}">{% translate "Otwórz kolejkę" %}</a></p>
+      </li>
+    {% endif %}
+
+    <li class="pp-tile" data-tile="upcoming">
+      <h3 class="pp-tile__title"><svg class="pp-icon" aria-hidden="true" focusable="false"><use href="#pp-i-clock"></use></svg>{% translate "Najbliższe terminy" %}</h3>
+      {% if upcoming %}
+        <ul class="pp-tile__list cp-dates">
+          {% for item in upcoming %}
+            <li>
+              <span>
+                {% if item.kind == "due" %}{% blocktranslate trimmed with stage=item.stage.display_name %}Termin Twoich ocen · {{ stage }}{% endblocktranslate %}
+                {% elif item.kind == "stage_deadline" %}{% blocktranslate trimmed with stage=item.stage.display_name %}Koniec oceniania etapu · {{ stage }}{% endblocktranslate %}
+                {% elif item.kind == "interview" %}{% blocktranslate trimmed with stage=item.stage.display_name %}Rozmowa kwalifikacyjna · {{ stage }}{% endblocktranslate %}
+                {% else %}{% blocktranslate trimmed with title=item.title %}Webinar · {{ title }}{% endblocktranslate %}{% endif %}
+              </span>
+              <time class="pp-tile__meta{% if item.at < now %} pp-tile__meta--passed{% endif %}" datetime="{{ item.at|date:'c' }}">{{ item.at|local_datetime }}</time>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="pp-tile__meta">{% translate "Nic nie czeka na termin." %}</p>
+      {% endif %}
+    </li>
+
+    <li class="pp-tile" data-tile="role">
+      <h3 class="pp-tile__title"><svg class="pp-icon" aria-hidden="true" focusable="false"><use href="#pp-i-user"></use></svg>{% translate "Twoja rola" %}</h3>
+      <ul class="pp-tile__list">
+        {% if reviewer %}<li>{% translate "Recenzent (komitet oceniający)" %}</li>{% endif %}
+        {% if appeals_member %}<li>{% translate "Członek komisji odwoławczej" %}</li>{% endif %}
+        {% if member.district %}<li><span>{% translate "Województwo" %}</span><span class="hint">{{ member.get_district_display }}</span></li>{% endif %}
+        {% if member.region_id %}<li><span>{% translate "Region" %}</span><span class="hint">{{ member.region }}</span></li>{% endif %}
+      </ul>
+      {% if member.district or member.region_id %}<p class="pp-tile__meta">{% translate "Nie dostajesz prac uczestników ze swojego województwa ani regionu (konflikt interesów)." %}</p>{% endif %}
+      <p class="pp-tile__actions"><a class="btn btn--small btn--ghost" href="{% url 'web:account-profile' %}">{% translate "Profil i dane" %}</a></p>
+    </li>
+
+    <li class="pp-tile" data-tile="shortcuts">
+      <h3 class="pp-tile__title"><svg class="pp-icon" aria-hidden="true" focusable="false"><use href="#pp-i-file"></use></svg>{% translate "Na skróty" %}</h3>
+      <ul class="pp-tile__list">
+        {% if reviewer %}
+          {% if counts.total %}<li><a href="{% url 'web:review-download' %}">{% translate "Pobierz moje prace (ZIP)" %}</a></li>{% endif %}
+          <li><a href="{% url 'web:committee-materials' %}">{% translate "Materiały dla komisji" %}</a></li>
+          <li><a href="{% url 'web:review-list' %}#how-to-review">{% translate "Jak oceniać – w pięciu zdaniach" %}</a></li>
+        {% endif %}
+        <li><a href="{% url 'web:committee-notifications' %}">{% translate "Powiadomienia" %}</a>
+          {% if notifications_unread %}<span class="pp-badge">{{ notifications_unread }}<span class="visually-hidden"> {% translate "nowe" %}</span></span>{% endif %}</li>
+        <li><a href="{% url 'web:support-new' %}">{% translate "Zgłoś problem" %}</a></li>
+      </ul>
+    </li>
+  </ul>
+</section>
+
+{% if reviewer and stage_rows %}
+  <section class="section" aria-labelledby="cp-stages-title">
+    <div class="section__head">
+      <h2 class="mt-0" id="cp-stages-title">{% translate "Prace do oceny według etapów" %}</h2>
+    </div>
+    <div class="scroll">
+      <table class="table cp-stages">
+        <thead>
+          <tr>
+            <th scope="col">{% translate "Etap" %}</th>
+            <th scope="col" class="num">{% translate "Do oceny" %}</th>
+            <th scope="col">{% translate "Postęp" %}</th>
+            <th scope="col">{% translate "Najbliższy termin" %}</th>
+            <th scope="col">{% translate "Koniec oceniania etapu" %}</th>
+            <th scope="col"><span class="visually-hidden">{% translate "Czynność" %}</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in stage_rows %}
+            <tr data-stage="{{ row.stage.pk }}">
+              <th scope="row">{{ row.stage.display_name }}</th>
+              <td class="num">{{ row.open }}
+                {% if row.overdue %}<span class="badge badge--danger">{% blocktranslate trimmed with count=row.overdue %}{{ count }} po terminie{% endblocktranslate %}</span>{% endif %}
+                {% if row.tiebreak_open %}<span class="badge badge--info">{% blocktranslate trimmed with count=row.tiebreak_open %}runda 2: {{ count }}{% endblocktranslate %}</span>{% endif %}</td>
+              <td>
+                <span class="cp-meter">
+                  <progress class="cp-progress" max="100" value="{{ row.percent }}" aria-label="{% blocktranslate trimmed with stage=row.stage.display_name %}Postęp oceniania – {{ stage }}{% endblocktranslate %}">{{ row.percent }}%</progress>
+                  <span class="hint">{% blocktranslate trimmed with done=row.submitted total=row.total %}{{ done }} z {{ total }}{% endblocktranslate %}</span>
+                </span>
+              </td>
+              <td>{% if row.next_due %}{{ row.next_due|local_datetime }}{% else %}—{% endif %}</td>
+              <td>{% if row.review_deadline %}{{ row.review_deadline|local_datetime }}{% else %}—{% endif %}</td>
+              <td>{% if row.open %}<a class="btn btn--small btn--secondary" href="{{ row.url }}">{% translate "Oceniaj" %}</a>{% else %}<a class="btn btn--small btn--ghost" href="{{ row.url }}">{% translate "Zobacz" %}</a>{% endif %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% elif reviewer %}
+  <p class="empty"><span class="empty__title">{% translate "Brak przydziałów" %}</span>
+    {% translate "Nie masz jeszcze przydzielonych prac. Przydziału dokonuje koordynator, gdy prace trafią do oceniania – czasem jeszcze przed zamknięciem etapu." %}</p>
+{% endif %}
+
+{% if meetings %}
+  <section class="section cp-meetings" id="{{ meetings_anchor }}" aria-labelledby="cp-meetings-title" tabindex="-1">
+    <h2 class="mt-0" id="cp-meetings-title">{% translate "Spotkania komisji" %}</h2>
+    {% comment %}
+      Rozmowy kwalifikacyjne na Starcie – godzina, etap, liczba zapisanych i wejście. **Bez imion**
+      (pełna karta z imionami zostaje w kolejkach ``/review/`` i ``/appeals/``): Start ma nie nieść
+      ani jednej danej uczestnika.
+    {% endcomment %}
+    {% if committee_interviews %}
+      <h3>{% translate "Rozmowy kwalifikacyjne" %}</h3>
+      <div class="scroll">
+        <table class="table">
+          <thead><tr>
+            <th scope="col">{% translate "Termin" %}</th>
+            <th scope="col">{% translate "Etap" %}</th>
+            <th scope="col" class="num">{% translate "Zapisanych" %}</th>
+            <th scope="col"><span class="visually-hidden">{% translate "Wejście" %}</span></th>
+          </tr></thead>
+          <tbody>
+            {% for row in committee_interviews %}
+              <tr>
+                <th scope="row">{{ row.slot.starts_at|local_datetime }}–{{ row.slot.ends_at|time:"H:i" }}</th>
+                <td>{{ row.stage.display_name }}</td>
+                <td class="num">{{ row.count }}</td>
+                <td>{% if row.platform %}<a class="btn btn--primary btn--small" href="{% url 'web:committee-interview-slot-join' row.slot.pk %}" target="_blank" rel="noopener noreferrer nofollow">{% translate "Dołącz jako gospodarz" %}</a>
+                  {% if not row.is_open %}<span class="hint">{% blocktranslate trimmed with when=row.opens_at|local_datetime %}pokój otwiera się {{ when }}{% endblocktranslate %}</span>{% endif %}
+                  {% else %}<span class="hint">{% translate "Adres pokoju podaje koordynator." %}</span>{% endif %}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endif %}
+    {% include "web/reviewer/_committee_rooms.html" %}
+    {% include "web/webinars/_committee_card.html" %}
+  </section>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,305 @@
+# UX-PANEL-03 – napisy panelu komisji (ru): rama i menu, Start, materiały, powiadomienia komisji,
+# kolejka recenzenta i komisji odwoławczej. Źródło (msgid) po polsku; poza angielskim tłumaczenie
+# maszynowe – do przeglądu native speakera (I18N-01 § 8).
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada committee_panel\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-21 18:00+0200\n"
+"PO-Revision-Date: 2026-10-21 18:00+0200\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: ru\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
+
+msgid "Ocenianie"
+msgstr "Оценивание"
+
+msgid "Komisja odwoławcza"
+msgstr "Апелляционная комиссия"
+
+msgid "Spotkania"
+msgstr "Встречи"
+
+msgid "Wiadomości i materiały"
+msgstr "Сообщения и материалы"
+
+msgid "Do oceny"
+msgstr "К оценке"
+
+msgid "Ocenione"
+msgstr "Оценённые"
+
+msgid "Druga ocena (runda rozjemcza)"
+msgstr "Повторная оценка (арбитражный раунд)"
+
+msgid "Materiały dla komisji"
+msgstr "Материалы для комиссии"
+
+msgid "Reklamacje do rozpatrzenia"
+msgstr "Апелляции к рассмотрению"
+
+msgid "Rozmowy i pokoje komisji"
+msgstr "Собеседования и комнаты комиссии"
+
+msgid "Moje pokoje wideo"
+msgstr "Мои видеокомнаты"
+
+msgid "Nawigacja panelu komisji"
+msgstr "Навигация панели комиссии"
+
+msgid "Menu komisji"
+msgstr "Меню комиссии"
+
+msgid "czeka"
+msgstr "ожидают"
+
+msgid "Panel komisji"
+msgstr "Панель комиссии"
+
+msgid "Prace do oceny, terminy i materiały komisji w jednym miejscu. Ocenianie jest anonimowe: prace są oznaczone wyłącznie kodem publicznym."
+msgstr "Работы к оценке, сроки и материалы комиссии в одном месте. Оценивание анонимно: работы обозначены только публичным кодом."
+
+msgid "Reklamacje do rozpatrzenia, terminy i spotkania komisji w jednym miejscu."
+msgstr "Апелляции к рассмотрению, сроки и встречи комиссии в одном месте."
+
+msgid "do oceny (nowe i w toku)"
+msgstr "к оценке (новые и в работе)"
+
+msgid "Przejdź do oceniania"
+msgstr "Перейти к оцениванию"
+
+msgid "Postęp oceniania"
+msgstr "Ход оценивания"
+
+msgid "Druga ocena"
+msgstr "Повторная оценка"
+
+msgid "do oceny w rundzie rozjemczej"
+msgstr "к оценке в арбитражном раунде"
+
+msgid "Oceny rundy 1 się rozjechały – rozstrzygasz spór o pracę, nie między osobami."
+msgstr "Оценки первого раунда разошлись – вы разрешаете спор о работе, а не между людьми."
+
+msgid "Pokaż prace rundy 2"
+msgstr "Показать работы раунда 2"
+
+msgid "w kolejce komisji odwoławczej"
+msgstr "в очереди апелляционной комиссии"
+
+msgid "Kolejka pomija sprawy, w których jesteś w konflikcie interesów."
+msgstr "Очередь пропускает дела, в которых у вас конфликт интересов."
+
+msgid "Otwórz kolejkę"
+msgstr "Открыть очередь"
+
+msgid "Najbliższe terminy"
+msgstr "Ближайшие сроки"
+
+msgid "Nic nie czeka na termin."
+msgstr "Ничего не ждёт срока."
+
+msgid "Twoja rola"
+msgstr "Ваша роль"
+
+msgid "Recenzent (komitet oceniający)"
+msgstr "Рецензент (оценочный комитет)"
+
+msgid "Członek komisji odwoławczej"
+msgstr "Член апелляционной комиссии"
+
+msgid "Nie dostajesz prac uczestników ze swojego województwa ani regionu (konflikt interesów)."
+msgstr "Вы не получаете работы участников из своего воеводства или региона (конфликт интересов)."
+
+msgid "Prace do oceny według etapów"
+msgstr "Работы к оценке по этапам"
+
+msgid "Koniec oceniania etapu"
+msgstr "Окончание оценивания этапа"
+
+msgid "Czynność"
+msgstr "Действие"
+
+msgid "Oceniaj"
+msgstr "Оценивать"
+
+msgid "Spotkania komisji"
+msgstr "Встречи комиссии"
+
+msgid "Rozmowy kwalifikacyjne"
+msgstr "Квалификационные собеседования"
+
+msgid "Zapisanych"
+msgstr "Записано"
+
+msgid "Wejście"
+msgstr "Вход"
+
+msgid "Dołącz jako gospodarz"
+msgstr "Войти как ведущий"
+
+msgid "Adres pokoju podaje koordynator."
+msgstr "Адрес комнаты сообщает координатор."
+
+#, python-format
+msgid "%(done)s z %(total)s ocenionych"
+msgstr "оценено %(done)s из %(total)s"
+
+#, python-format
+msgid "Termin Twoich ocen · %(stage)s"
+msgstr "Ваш срок оценки · %(stage)s"
+
+#, python-format
+msgid "Koniec oceniania etapu · %(stage)s"
+msgstr "Окончание оценивания этапа · %(stage)s"
+
+#, python-format
+msgid "Rozmowa kwalifikacyjna · %(stage)s"
+msgstr "Квалификационное собеседование · %(stage)s"
+
+#, python-format
+msgid "Webinar · %(title)s"
+msgstr "Вебинар · %(title)s"
+
+#, python-format
+msgid "runda 2: %(count)s"
+msgstr "раунд 2: %(count)s"
+
+#, python-format
+msgid "Postęp oceniania – %(stage)s"
+msgstr "Ход оценивания – %(stage)s"
+
+#, python-format
+msgid "%(done)s z %(total)s"
+msgstr "%(done)s из %(total)s"
+
+#, python-format
+msgid "pokój otwiera się %(when)s"
+msgstr "комната откроется %(when)s"
+
+msgid "Rubryki, uwagi dla recenzentów, rozwiązania wzorcowe i wspólne szablony komentarzy – dla zadań, które masz do oceny. Materiał wyłącznie dla komitetu."
+msgstr "Критерии, указания для рецензентов, эталонные решения и общие шаблоны комментариев – по задачам, которые вы оцениваете. Только для комиссии."
+
+msgid "Uwagi dla recenzentów"
+msgstr "Указания для рецензентов"
+
+msgid "Rubryka"
+msgstr "Критерии оценки"
+
+msgid "Kryterium"
+msgstr "Критерий"
+
+msgid "Maks. punktów"
+msgstr "Макс. баллов"
+
+msgid "Koordynator nie dodał do tego zadania materiałów – oceniasz według skali etapu."
+msgstr "Координатор не добавил материалов к этой задаче – оценивайте по шкале этапа."
+
+msgid "Materiały pojawią się tu razem z pierwszym przydziałem prac do oceny."
+msgstr "Материалы появятся здесь вместе с первым назначением работ."
+
+#, python-format
+msgid "Wspólne szablony komentarzy: %(count)s"
+msgstr "Общие шаблоны комментариев: %(count)s"
+
+msgid "Pojawią się tu nowe przydziały prac, prace w rundzie rozjemczej, przypomnienia o terminie oceniania i reklamacje do rozpatrzenia."
+msgstr "Здесь появятся новые назначения работ, работы арбитражного раунда, напоминания о сроках оценивания и апелляции к рассмотрению."
+
+#, python-format
+msgid "Nowe prace do oceny, przypomnienia o terminach i reklamacje do rozpatrzenia – w jednym miejscu. Powiadomienia starsze niż %(days)s dni usuwamy automatycznie."
+msgstr "Новые работы к оценке, напоминания о сроках и апелляции к рассмотрению – в одном месте. Уведомления старше %(days)s дней удаляются автоматически."
+
+msgid "Nowe prace do oceny"
+msgstr "Новые работы к оценке"
+
+msgid "Praca w rundzie rozjemczej"
+msgstr "Работа в арбитражном раунде"
+
+msgid "Termin oceniania"
+msgstr "Срок оценивания"
+
+msgid "Reklamacja do rozpatrzenia"
+msgstr "Апелляция к рассмотрению"
+
+#, python-format
+msgid "Nowe prace do oceny: %(stage)s"
+msgstr "Новые работы к оценке: %(stage)s"
+
+#, python-format
+msgid "Praca czeka na Twoją ocenę w rundzie rozjemczej: %(stage)s"
+msgstr "Работа ждёт вашей оценки в арбитражном раунде: %(stage)s"
+
+#, python-format
+msgid "Mija termin oceniania – prace po terminie albo tuż przed nim: %(count)s"
+msgstr "Истекает срок оценивания – просроченных или почти просроченных работ: %(count)s"
+
+#, python-format
+msgid "Nowa reklamacja do rozpatrzenia: %(stage)s"
+msgstr "Новая апелляция к рассмотрению: %(stage)s"
+
+msgid "Filtr kolejki"
+msgstr "Фильтр очереди"
+
+msgid "wszystkie etapy"
+msgstr "все этапы"
+
+msgid "wszystkie zadania"
+msgstr "все задачи"
+
+msgid "wszystkie rundy"
+msgstr "все раунды"
+
+msgid "runda 2 (rozjemcza)"
+msgstr "раунд 2 (арбитражный)"
+
+msgid "Wyczyść filtr"
+msgstr "Сбросить фильтр"
+
+msgid "Zakładki pokazują tylko prace pasujące do filtra; podsumowanie i paczka ZIP obejmują całą kolejkę."
+msgstr "Вкладки показывают только работы, подходящие под фильтр; сводка и ZIP-архив охватывают всю очередь."
+
+#, python-format
+msgid "runda %(number)s"
+msgstr "раунд %(number)s"
+
+msgid "Kolejka pomija sprawy, w których jesteś w konflikcie interesów (recenzowałeś tę pracę)."
+msgstr "Очередь пропускает дела, в которых у вас конфликт интересов (вы рецензировали эту работу)."
+
+msgid "Ocena wstępna"
+msgstr "Предварительная оценка"
+
+msgid "Złożona"
+msgstr "Подана"
+
+msgid "Argument uczestnika"
+msgstr "Довод участника"
+
+msgid "Oceny rundy 1"
+msgstr "Оценки раунда 1"
+
+msgid "Pobierz pracę"
+msgstr "Скачать работу"
+
+msgid "Zapisać decyzję komisji? Rozstrzygnięcie jest ostateczne."
+msgstr "Сохранить решение комиссии? Решение окончательное."
+
+msgid "Zapisz decyzję"
+msgstr "Сохранить решение"
+
+msgid "Kolejka pusta"
+msgstr "Очередь пуста"
+
+msgid "Brak reklamacji do rozpatrzenia."
+msgstr "Нет апелляций к рассмотрению."
+
+msgid "Rozstrzygnięcie"
+msgstr "Решение"
+
+msgid "Nowa punktacja"
+msgstr "Новые баллы"
+
+msgid "Uzasadnienie"
+msgstr "Обоснование"

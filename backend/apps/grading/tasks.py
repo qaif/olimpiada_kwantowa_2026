@@ -17,6 +17,7 @@ import logging
 from celery import shared_task
 from django.utils import timezone
 
+from apps.committee_panel import notifications as committee_notifications  # UX-PANEL-03
 from apps.core.models import audit
 
 from .deadlines import group_by_reviewer, reminder_message, reviews_needing_reminder
@@ -59,6 +60,8 @@ def remind_overdue_reviews() -> dict[str, int]:
             subject, message = reminder_message(reviews, now, competition)
             send_mail_task.delay(subject, message, [recipient], from_email)
             Review.objects.filter(pk__in=[review.pk for review in reviews]).update(reminded_at=now)
+            # To samo przypomnienie w panelu komisji (UX-PANEL-03): liczba prac, bez ich listy.
+            committee_notifications.deadline_reminder(competition, reviews[0].reviewer.user_id, len(reviews))
             # Wpis audytowy na członka komitetu, a nie na każdą recenzję z osobna: zdarzeniem jest
             # „poszedł list do tej osoby”, a nie „przypomniano o tej pracy”. W ``diff`` stoją same
             # liczby – treść listu i lista prac nie są faktem, który akta mają przechowywać.

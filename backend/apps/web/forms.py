@@ -1274,19 +1274,21 @@ class AppealForm(forms.Form):
 
 
 class AppealDecideForm(forms.Form):
-    """Decyzja komisji odwoławczej."""
+    """Decyzja komisji odwoławczej. Etykiety przez ``gettext_lazy`` – komisja IQO bywa międzynarodowa."""
 
     status = forms.ChoiceField(
-        label="Rozstrzygnięcie",
+        label=gettext_lazy("Rozstrzygnięcie"),
         choices=[
-            (AppealStatus.REJECTED, "odrzucona"),
-            (AppealStatus.ACCEPTED, "uwzględniona"),
-            (AppealStatus.PARTIALLY_ACCEPTED, "częściowo uwzględniona"),
+            (AppealStatus.REJECTED, gettext_lazy("odrzucona")),
+            (AppealStatus.ACCEPTED, gettext_lazy("uwzględniona")),
+            (AppealStatus.PARTIALLY_ACCEPTED, gettext_lazy("częściowo uwzględniona")),
         ],
     )
-    new_score = PointsField(label="Nowa punktacja", required=False, **SCORE_INPUT_BOUNDS)
+    new_score = PointsField(label=gettext_lazy("Nowa punktacja"), required=False, **SCORE_INPUT_BOUNDS)
     justification = forms.CharField(
-        label="Uzasadnienie", widget=forms.Textarea(attrs={"rows": 4}), max_length=MAX_TEXT_LENGTH
+        label=gettext_lazy("Uzasadnienie"),
+        widget=forms.Textarea(attrs={"rows": 4}),
+        max_length=MAX_TEXT_LENGTH,
     )
 
 

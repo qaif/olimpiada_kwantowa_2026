@@ -42,7 +42,8 @@ def test_home_is_public(web_client, elim_stage):
 
 @pytest.mark.parametrize(
     "role,expected",
-    [("participant", "/me/"), ("reviewer", "/review/"), ("coordinator", "/coordinator/")],
+    # Recenzent – Start panelu komisji (UX-PANEL-03 D6), a nie od razu kolejka.
+    [("participant", "/me/"), ("reviewer", "/committee/"), ("coordinator", "/coordinator/")],
 )
 def test_login_lands_on_panel_matching_role(web_client, participant, reviewer, coordinator, role, expected):
     """Bez ``next`` logowanie prowadzi do panelu roli – recenzent nie ląduje na 403 uczestnika."""

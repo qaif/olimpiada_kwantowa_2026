@@ -134,7 +134,12 @@ from apps.competitions.models import DEFAULT_RETENTION_MONTHS
 #: w wierszu „konta” (rodzaj zdarzenia, odnośnik, data odczytu) z własnym, krótszym terminem usunięcia
 #: (90 dni). Ten sam cel (obsługa udziału w zawodach) i ta sama podstawa – ale stan „przeczytane”
 #: per konto jest nową daną, więc zmiana jest materialna.
-REGISTER_VERSION = "1.25"
+#: 1.26 (21.10.2026, zadanie UX-PANEL-03) – powiadomienia w panelu komisji: nowa kategoria danych
+#: w wierszu „komitet” (dane pracownicze członków komitetu i komisji odwoławczej: rodzaj zdarzenia,
+#: nazwa etapu albo liczba prac, odnośnik, data odczytu) z tą samą 90-dniową retencją, co u uczestników.
+#: Ten sam cel (przydział i rozpatrywanie prac) i ta sama podstawa. Uwaga przy scalaniu: równoległa
+#: zmiana panelu nauczyciela może podbić wersję z tej samej bazy 1.25 – wtedy jedna z nich dostaje 1.27.
+REGISTER_VERSION = "1.26"
 REGISTER_DATE = date(2026, 10, 21)
 
 #: Zdanie o okresie przechowywania danych uczestnika. Liczba pochodzi z tego samego miejsca, co
@@ -450,6 +455,12 @@ ACTIVITIES: tuple[ProcessingActivity, ...] = (
             "imię, nazwisko i adres e-mail",
             "województwo (podstawa reguły konfliktu interesów)",
             "status członkostwa i data zatwierdzenia",
+            (
+                "powiadomienia w panelu komisji (od 21.10.2026): rodzaj zdarzenia (nowe prace do oceny, "
+                "praca w rundzie rozjemczej, termin oceniania, reklamacja do rozpatrzenia), nazwa etapu "
+                "albo liczba prac, odnośnik w serwisie, data utworzenia i odczytu – bez danych uczestników "
+                "i bez punktów; usuwane automatycznie po 90 dniach, przy anonimizacji i przy usunięciu konta"
+            ),
         ],
         recipients=[HOSTING_RECIPIENT, MAIL_RECIPIENT],
         retention=(

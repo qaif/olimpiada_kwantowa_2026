@@ -440,7 +440,8 @@ def test_committee_member_lands_in_the_review_panel(web_client, google):
     response = social_login(web_client)
 
     assert response.status_code == 302
-    assert response.headers["Location"] == "/review/"
+    # Start panelu komisji (UX-PANEL-03 D6) – ta sama reguła, co po logowaniu hasłem.
+    assert response.headers["Location"] == "/committee/"
     assert SocialAccount.objects.get(user=reviewer.user).provider == "google"
 
 

@@ -1,0 +1,305 @@
+# UX-PANEL-03 – napisy panelu komisji (fr): rama i menu, Start, materiały, powiadomienia komisji,
+# kolejka recenzenta i komisji odwoławczej. Źródło (msgid) po polsku; poza angielskim tłumaczenie
+# maszynowe – do przeglądu native speakera (I18N-01 § 8).
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada committee_panel\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-21 18:00+0200\n"
+"PO-Revision-Date: 2026-10-21 18:00+0200\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: fr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+msgid "Ocenianie"
+msgstr "Évaluation"
+
+msgid "Komisja odwoławcza"
+msgstr "Commission d’appel"
+
+msgid "Spotkania"
+msgstr "Réunions"
+
+msgid "Wiadomości i materiały"
+msgstr "Messages et ressources"
+
+msgid "Do oceny"
+msgstr "À évaluer"
+
+msgid "Ocenione"
+msgstr "Évaluées"
+
+msgid "Druga ocena (runda rozjemcza)"
+msgstr "Seconde correction (tour d’arbitrage)"
+
+msgid "Materiały dla komisji"
+msgstr "Ressources du jury"
+
+msgid "Reklamacje do rozpatrzenia"
+msgstr "Réclamations à traiter"
+
+msgid "Rozmowy i pokoje komisji"
+msgstr "Entretiens et salles du jury"
+
+msgid "Moje pokoje wideo"
+msgstr "Mes salles vidéo"
+
+msgid "Nawigacja panelu komisji"
+msgstr "Navigation de l’espace du jury"
+
+msgid "Menu komisji"
+msgstr "Menu du jury"
+
+msgid "czeka"
+msgstr "en attente"
+
+msgid "Panel komisji"
+msgstr "Espace du jury"
+
+msgid "Prace do oceny, terminy i materiały komisji w jednym miejscu. Ocenianie jest anonimowe: prace są oznaczone wyłącznie kodem publicznym."
+msgstr "Copies à évaluer, échéances et ressources du jury au même endroit. La correction est anonyme : les copies ne sont identifiées que par leur code public."
+
+msgid "Reklamacje do rozpatrzenia, terminy i spotkania komisji w jednym miejscu."
+msgstr "Réclamations à traiter, échéances et réunions du jury au même endroit."
+
+msgid "do oceny (nowe i w toku)"
+msgstr "à évaluer (nouvelles et en cours)"
+
+msgid "Przejdź do oceniania"
+msgstr "Aller à la correction"
+
+msgid "Postęp oceniania"
+msgstr "Avancement de la correction"
+
+msgid "Druga ocena"
+msgstr "Seconde correction"
+
+msgid "do oceny w rundzie rozjemczej"
+msgstr "à évaluer au tour d’arbitrage"
+
+msgid "Oceny rundy 1 się rozjechały – rozstrzygasz spór o pracę, nie między osobami."
+msgstr "Les notes du tour 1 divergent – vous tranchez un différend sur la copie, pas entre des personnes."
+
+msgid "Pokaż prace rundy 2"
+msgstr "Afficher les copies du tour 2"
+
+msgid "w kolejce komisji odwoławczej"
+msgstr "dans la file de la commission d’appel"
+
+msgid "Kolejka pomija sprawy, w których jesteś w konflikcie interesów."
+msgstr "La file ignore les dossiers dans lesquels vous êtes en conflit d’intérêts."
+
+msgid "Otwórz kolejkę"
+msgstr "Ouvrir la file"
+
+msgid "Najbliższe terminy"
+msgstr "Prochaines échéances"
+
+msgid "Nic nie czeka na termin."
+msgstr "Rien n’attend d’échéance."
+
+msgid "Twoja rola"
+msgstr "Votre rôle"
+
+msgid "Recenzent (komitet oceniający)"
+msgstr "Correcteur (jury d’évaluation)"
+
+msgid "Członek komisji odwoławczej"
+msgstr "Membre de la commission d’appel"
+
+msgid "Nie dostajesz prac uczestników ze swojego województwa ani regionu (konflikt interesów)."
+msgstr "Vous ne recevez pas de copies de participants de votre voïvodie ou région (conflit d’intérêts)."
+
+msgid "Prace do oceny według etapów"
+msgstr "Copies à évaluer par épreuve"
+
+msgid "Koniec oceniania etapu"
+msgstr "Fin de la correction de l’épreuve"
+
+msgid "Czynność"
+msgstr "Action"
+
+msgid "Oceniaj"
+msgstr "Corriger"
+
+msgid "Spotkania komisji"
+msgstr "Réunions du jury"
+
+msgid "Rozmowy kwalifikacyjne"
+msgstr "Entretiens de qualification"
+
+msgid "Zapisanych"
+msgstr "Inscrits"
+
+msgid "Wejście"
+msgstr "Accès"
+
+msgid "Dołącz jako gospodarz"
+msgstr "Rejoindre en tant qu’hôte"
+
+msgid "Adres pokoju podaje koordynator."
+msgstr "L’adresse de la salle est communiquée par le coordinateur."
+
+#, python-format
+msgid "%(done)s z %(total)s ocenionych"
+msgstr "%(done)s sur %(total)s évaluées"
+
+#, python-format
+msgid "Termin Twoich ocen · %(stage)s"
+msgstr "Votre échéance de correction · %(stage)s"
+
+#, python-format
+msgid "Koniec oceniania etapu · %(stage)s"
+msgstr "Fin de la correction de l’épreuve · %(stage)s"
+
+#, python-format
+msgid "Rozmowa kwalifikacyjna · %(stage)s"
+msgstr "Entretien de qualification · %(stage)s"
+
+#, python-format
+msgid "Webinar · %(title)s"
+msgstr "Webinaire · %(title)s"
+
+#, python-format
+msgid "runda 2: %(count)s"
+msgstr "tour 2 : %(count)s"
+
+#, python-format
+msgid "Postęp oceniania – %(stage)s"
+msgstr "Avancement de la correction – %(stage)s"
+
+#, python-format
+msgid "%(done)s z %(total)s"
+msgstr "%(done)s sur %(total)s"
+
+#, python-format
+msgid "pokój otwiera się %(when)s"
+msgstr "la salle ouvre le %(when)s"
+
+msgid "Rubryki, uwagi dla recenzentów, rozwiązania wzorcowe i wspólne szablony komentarzy – dla zadań, które masz do oceny. Materiał wyłącznie dla komitetu."
+msgstr "Barèmes, consignes aux correcteurs, corrigés types et modèles de commentaires partagés – pour les exercices que vous corrigez. Réservé au jury."
+
+msgid "Uwagi dla recenzentów"
+msgstr "Consignes aux correcteurs"
+
+msgid "Rubryka"
+msgstr "Barème"
+
+msgid "Kryterium"
+msgstr "Critère"
+
+msgid "Maks. punktów"
+msgstr "Points max."
+
+msgid "Koordynator nie dodał do tego zadania materiałów – oceniasz według skali etapu."
+msgstr "Le coordinateur n’a pas ajouté de ressources à cet exercice – vous corrigez selon le barème de l’épreuve."
+
+msgid "Materiały pojawią się tu razem z pierwszym przydziałem prac do oceny."
+msgstr "Les ressources apparaîtront ici avec votre première attribution de copies."
+
+#, python-format
+msgid "Wspólne szablony komentarzy: %(count)s"
+msgstr "Modèles de commentaires partagés : %(count)s"
+
+msgid "Pojawią się tu nowe przydziały prac, prace w rundzie rozjemczej, przypomnienia o terminie oceniania i reklamacje do rozpatrzenia."
+msgstr "Les nouvelles attributions, les copies du tour d’arbitrage, les rappels d’échéance et les réclamations à traiter apparaîtront ici."
+
+#, python-format
+msgid "Nowe prace do oceny, przypomnienia o terminach i reklamacje do rozpatrzenia – w jednym miejscu. Powiadomienia starsze niż %(days)s dni usuwamy automatycznie."
+msgstr "Nouvelles copies à évaluer, rappels d’échéance et réclamations à traiter – au même endroit. Les notifications de plus de %(days)s jours sont supprimées automatiquement."
+
+msgid "Nowe prace do oceny"
+msgstr "Nouvelles copies à évaluer"
+
+msgid "Praca w rundzie rozjemczej"
+msgstr "Copie au tour d’arbitrage"
+
+msgid "Termin oceniania"
+msgstr "Échéance de correction"
+
+msgid "Reklamacja do rozpatrzenia"
+msgstr "Réclamation à traiter"
+
+#, python-format
+msgid "Nowe prace do oceny: %(stage)s"
+msgstr "Nouvelles copies à évaluer : %(stage)s"
+
+#, python-format
+msgid "Praca czeka na Twoją ocenę w rundzie rozjemczej: %(stage)s"
+msgstr "Une copie attend votre note au tour d’arbitrage : %(stage)s"
+
+#, python-format
+msgid "Mija termin oceniania – prace po terminie albo tuż przed nim: %(count)s"
+msgstr "L’échéance de correction approche – copies en retard ou presque : %(count)s"
+
+#, python-format
+msgid "Nowa reklamacja do rozpatrzenia: %(stage)s"
+msgstr "Nouvelle réclamation à traiter : %(stage)s"
+
+msgid "Filtr kolejki"
+msgstr "Filtre de la file"
+
+msgid "wszystkie etapy"
+msgstr "toutes les épreuves"
+
+msgid "wszystkie zadania"
+msgstr "tous les exercices"
+
+msgid "wszystkie rundy"
+msgstr "tous les tours"
+
+msgid "runda 2 (rozjemcza)"
+msgstr "tour 2 (arbitrage)"
+
+msgid "Wyczyść filtr"
+msgstr "Effacer le filtre"
+
+msgid "Zakładki pokazują tylko prace pasujące do filtra; podsumowanie i paczka ZIP obejmują całą kolejkę."
+msgstr "Les onglets n’affichent que les copies correspondant au filtre ; le résumé et l’archive ZIP couvrent toute la file."
+
+#, python-format
+msgid "runda %(number)s"
+msgstr "tour %(number)s"
+
+msgid "Kolejka pomija sprawy, w których jesteś w konflikcie interesów (recenzowałeś tę pracę)."
+msgstr "La file ignore les dossiers dans lesquels vous êtes en conflit d’intérêts (vous avez corrigé cette copie)."
+
+msgid "Ocena wstępna"
+msgstr "Note provisoire"
+
+msgid "Złożona"
+msgstr "Déposée"
+
+msgid "Argument uczestnika"
+msgstr "Argument du participant"
+
+msgid "Oceny rundy 1"
+msgstr "Notes du tour 1"
+
+msgid "Pobierz pracę"
+msgstr "Télécharger la copie"
+
+msgid "Zapisać decyzję komisji? Rozstrzygnięcie jest ostateczne."
+msgstr "Enregistrer la décision du jury ? Elle est définitive."
+
+msgid "Zapisz decyzję"
+msgstr "Enregistrer la décision"
+
+msgid "Kolejka pusta"
+msgstr "File vide"
+
+msgid "Brak reklamacji do rozpatrzenia."
+msgstr "Aucune réclamation à traiter."
+
+msgid "Rozstrzygnięcie"
+msgstr "Décision"
+
+msgid "Nowa punktacja"
+msgstr "Nouvelle note"
+
+msgid "Uzasadnienie"
+msgstr "Justification"

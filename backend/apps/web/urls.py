@@ -4,6 +4,7 @@ from django.urls import path
 
 from apps.alumni.urls import urlpatterns as alumni_urlpatterns
 from apps.calendar_feed.urls import urlpatterns as calendar_feed_urlpatterns  # CAL-01
+from apps.committee_panel.urls import urlpatterns as committee_panel_urlpatterns  # UX-PANEL-03
 from apps.consent_gate.urls import urlpatterns as consent_gate_urlpatterns  # CONS-01
 from apps.coordinator_stats.urls import urlpatterns as coordinator_stats_urlpatterns  # STATS-02
 from apps.delegation_logistics.urls import urlpatterns as final_logistics_urlpatterns
@@ -361,6 +362,8 @@ urlpatterns = [
     # Publiczna weryfikacja dokumentu po kodzie z papieru. Adres jest po polsku i krótki, bo
     # bywa przepisywany z dyplomu ręcznie; nie wydaje danych osobowych bez zgody na publikację.
     path("dyplomy/<str:code>/", certificates.CertificateVerifyView.as_view(), name="certificate-verify"),
+    # --- panel komisji: Start, materiały, powiadomienia komisji (UX-PANEL-03) --------------------
+    *committee_panel_urlpatterns,
     # --- recenzent ---------------------------------------------------------------------------
     path("review/", reviewer.ReviewListView.as_view(), name="review-list"),
     # Paczka ZIP z własnymi pracami. Stoi przed adresem szczegółowym dla czytelności –

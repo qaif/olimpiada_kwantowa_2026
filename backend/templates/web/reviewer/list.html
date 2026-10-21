@@ -1,8 +1,13 @@
-{% extends "base.html" %}
+{% extends "committee_panel/base.html" %}
 {% load i18n static web_extras %}
+{% comment %}
+  Kolejka recenzenta w ramie panelu komisji (UX-PANEL-03): menu „Do oceny” / „Ocenione” / „Druga ocena”
+  prowadzi tutaj z ``?tab=`` albo ``?round=``, a filtr etapu i zadania (formularz GET niżej) zawęża
+  zakładki. Logika kolejki, zakładek i oceniania – bez zmian.
+{% endcomment %}
 {% block title %}{% translate "Moje recenzje" %}{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'css/reviewer.css' %}">{% endblock %}
-{% block content %}
+{% block panel_head %}<link rel="stylesheet" href="{% static 'css/reviewer.css' %}">{% endblock %}
+{% block panel_content %}
 <div class="page-head">
   <span class="eyebrow">{% translate "Panel recenzenta" %}</span>
   <h1>{% translate "Moje przydziały" %}</h1>
@@ -74,6 +79,57 @@
     <li>{% translate "Coś jest nie tak z pracą (nieczytelny skan, inne zadanie)? Zgłoś problem – to nie wstrzymuje oceniania." %}</li>
   </ol>
 </details>
+
+{% comment %}
+  Filtr kolejki (UX-PANEL-03 D7): zwykły formularz GET, bez JavaScriptu. Opcje pochodzą wyłącznie
+  z własnych przydziałów. Wybór rundy pojawia się dopiero przy pracach z dwóch rund.
+{% endcomment %}
+{% if queue_filter.stages|length > 1 or queue_filter.problems|length > 1 or queue_filter.rounds %}
+  <form method="get" class="cp-filter" aria-label="{% translate 'Filtr kolejki' %}">
+    {% if queue_filter.stages|length > 1 %}
+      <p class="cp-filter__field">
+        <label for="id_queue_stage">{% translate "Etap" %}</label>
+        <select id="id_queue_stage" name="stage">
+          <option value="">{% translate "wszystkie etapy" %}</option>
+          {% for stage in queue_filter.stages %}
+            <option value="{{ stage.pk }}"{% if stage.pk == queue_filter.stage %} selected{% endif %}>{{ stage.display_name }}</option>
+          {% endfor %}
+        </select>
+      </p>
+    {% endif %}
+    {% if queue_filter.problems|length > 1 %}
+      <p class="cp-filter__field">
+        <label for="id_queue_problem">{% translate "Zadanie" %}</label>
+        <select id="id_queue_problem" name="problem">
+          <option value="">{% translate "wszystkie zadania" %}</option>
+          {% for problem in queue_filter.problems %}
+            <option value="{{ problem.pk }}"{% if problem.pk == queue_filter.problem %} selected{% endif %}>{% blocktranslate trimmed with number=problem.number title=problem.display_title %}zadanie {{ number }}: {{ title }}{% endblocktranslate %}</option>
+          {% endfor %}
+        </select>
+      </p>
+    {% endif %}
+    {% if queue_filter.rounds %}
+      <p class="cp-filter__field">
+        <label for="id_queue_round">{% translate "Runda" %}</label>
+        <select id="id_queue_round" name="round">
+          <option value="">{% translate "wszystkie rundy" %}</option>
+          {% for number in queue_filter.rounds %}
+            <option value="{{ number }}"{% if number == queue_filter.round %} selected{% endif %}>{% if number == queue_filter.tiebreak_round %}{% translate "runda 2 (rozjemcza)" %}{% else %}{% blocktranslate trimmed with number=number %}runda {{ number }}{% endblocktranslate %}{% endif %}</option>
+          {% endfor %}
+        </select>
+      </p>
+    {% endif %}
+    <p class="cp-filter__actions">
+      <button type="submit" class="btn btn--small btn--secondary">{% translate "Pokaż" %}</button>
+      {% if queue_filter.stage or queue_filter.problem or queue_filter.round %}
+        <a class="btn btn--small btn--ghost" href="{% url 'web:review-list' %}">{% translate "Wyczyść filtr" %}</a>
+      {% endif %}
+    </p>
+    {% if queue_filter.stage or queue_filter.problem or queue_filter.round %}
+      <p class="cp-filter__active" role="status">{% translate "Zakładki pokazują tylko prace pasujące do filtra; podsumowanie i paczka ZIP obejmują całą kolejkę." %}</p>
+    {% endif %}
+  </form>
+{% endif %}
 
 {% comment %}
   Zakładki. Wszystkie cztery panele renderuje serwer, a ``static/js/reviewer-layout.js`` chowa
