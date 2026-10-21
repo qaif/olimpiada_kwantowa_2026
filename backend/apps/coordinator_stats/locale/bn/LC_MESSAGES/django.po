@@ -135,9 +135,6 @@ msgstr "অংশগ্রহণকারী ফানেল"
 msgid "panel koordynatora"
 msgstr "সমন্বয়কারী প্যানেল"
 
-msgid "Ilu uczestników przechodzi kolejne kroki – od rejestracji, przez aktywację konta i zapis do etapu, do pierwszej pracy, zaświadczenia i warsztatów."
-msgstr "কতজন অংশগ্রহণকারী প্রতিটি ধাপ পার হন – নিবন্ধন, অ্যাকাউন্ট সক্রিয়করণ ও পর্বে নাম লেখানো থেকে প্রথম কাজ, প্রত্যয়নপত্র ও কর্মশালা পর্যন্ত।"
-
 msgid "Liczby dotyczą uczestników wybranej edycji: zapisanych do jej etapu albo zarejestrowanych w czasie jej trwania. Konta usunięte nie są liczone."
 msgstr "সংখ্যাগুলি নির্বাচিত সংস্করণের অংশগ্রহণকারীদের: এর কোনো পর্বে নাম লেখানো বা এর চলাকালীন নিবন্ধিত। মুছে ফেলা অ্যাকাউন্ট গণনা করা হয় না।"
 
@@ -159,29 +156,17 @@ msgstr "দেখান"
 msgid "Wyczyść filtry"
 msgstr "ফিল্টার মুছুন"
 
-msgid "Kroki lejka"
-msgstr "ফানেলের ধাপ"
-
 msgid "Krok"
 msgstr "ধাপ"
 
 msgid "Uczestnicy"
 msgstr "অংশগ্রহণকারী"
 
-msgid "względem poprzedniego kroku"
-msgstr "আগের ধাপের তুলনায়"
-
 msgid "względem rejestracji"
 msgstr "নিবন্ধনের তুলনায়"
 
 msgid "brak takiego etapu w tej edycji"
 msgstr "এই সংস্করণে এমন কোনো পর্ব নেই"
-
-msgid "Lejek ścisły: krok liczy osoby, które przeszły także wszystkie poprzednie kroki. Wiersze „w tym” rozbijają zapis do etapu i liczą się względem kroku zgód."
-msgstr "কঠোর ফানেল: একটি ধাপ কেবল তাঁদের গোনে যাঁরা আগের সব ধাপও পার করেছেন। “যার মধ্যে” সারিগুলি পর্বে নাম লেখানো ভাগ করে এবং সম্মতির ধাপের তুলনায় গোনা হয়।"
-
-msgid "Kroki niezależne: każdy krok liczy wszystkich, którzy spełniają jego warunek – także bez poprzednich kroków (np. obecni na warsztacie bez zaakceptowanego zaświadczenia)."
-msgstr "স্বতন্ত্র ধাপ: প্রতিটি ধাপ তার শর্ত পূরণকারী সবাইকে গোনে – আগের ধাপ ছাড়াও (যেমন গৃহীত প্রত্যয়নপত্র ছাড়াই কর্মশালায় উপস্থিত)।"
 
 msgid "Zgoda opiekuna jest wymagana od niepełnoletnich według tej samej reguły wieku, co przy rejestracji."
 msgstr "নাবালকদের কাছ থেকে নিবন্ধনের মতো একই বয়স-নিয়মে অভিভাবকের সম্মতি প্রয়োজন।"
@@ -250,17 +235,8 @@ msgstr "নিবন্ধন থেকে"
 msgid "Rejestracja do"
 msgstr "নিবন্ধন পর্যন্ত"
 
-msgid "Sposób liczenia"
-msgstr "গণনার পদ্ধতি"
-
 msgid "Początek okresu rejestracji jest późniejszy niż jego koniec."
 msgstr "নিবন্ধনের সময়কালের শুরু তার শেষের পরে।"
-
-msgid "lejek ścisły – krok wymaga wszystkich poprzednich"
-msgstr "কঠোর ফানেল – প্রতিটি ধাপে আগের সবগুলি প্রয়োজন"
-
-msgid "kroki niezależne"
-msgstr "স্বতন্ত্র ধাপ"
 
 msgid "Rejestracja (profil uczestnika)"
 msgstr "নিবন্ধন (অংশগ্রহণকারীর প্রোফাইল)"
@@ -304,9 +280,6 @@ msgstr "কোনো প্রদেশ নেই"
 msgid "Filtry"
 msgstr "ফিল্টার"
 
-msgid "Lejek"
-msgstr "ফানেল"
-
 msgid "Sekcja"
 msgstr "অংশ"
 
@@ -316,8 +289,17 @@ msgstr "বিষয়"
 msgid "Liczba"
 msgstr "সংখ্যা"
 
-msgid "Odsetek względem poprzedniego kroku (%)"
-msgstr "আগের ধাপের তুলনায় অনুপাত (%)"
-
 msgid "Odsetek względem rejestracji (%)"
 msgstr "নিবন্ধনের তুলনায় অনুপাত (%)"
+
+msgid "Ilu uczestników spełnia każdy z warunków aktywności – rejestracja, aktywacja konta, logowanie, zgody, zapis do etapu, pierwsza praca, zaświadczenie i warsztaty. Każdy krok jest liczony osobno, bez kolejności: liczy wszystkich, którzy spełniają jego warunek, także bez pozostałych kroków."
+msgstr "কতজন অংশগ্রহণকারী প্রতিটি কার্যকলাপের শর্ত পূরণ করেন – নিবন্ধন, অ্যাকাউন্ট সক্রিয়করণ, লগইন, সম্মতি, পর্বে নাম লেখানো, প্রথম কাজ, প্রত্যয়নপত্র ও কর্মশালা। প্রতিটি ধাপ আলাদাভাবে, কোনো ক্রম ছাড়াই গোনা হয়: শর্ত পূরণকারী সবাইকে গোনে, অন্য ধাপ ছাড়াও।"
+
+msgid "Kroki aktywności"
+msgstr "কার্যকলাপের ধাপ"
+
+msgid "Kroki są niezależne: liczba w wierszu nie zależy od wierszy powyżej (np. zaświadczenie może być zaakceptowane, zanim uczestnik wyśle pierwszą pracę). Odsetek i słupek – względem rejestracji; wiersze „w tym” rozbijają zapis do etapu."
+msgstr "ধাপগুলি স্বতন্ত্র: কোনো সারির সংখ্যা উপরের সারিগুলির ওপর নির্ভর করে না (যেমন অংশগ্রহণকারী প্রথম কাজ পাঠানোর আগেই প্রত্যয়নপত্র গৃহীত হতে পারে)। অনুপাত ও দণ্ড – নিবন্ধনের তুলনায়; “যার মধ্যে” সারিগুলি পর্বে নাম লেখানো ভাগ করে।"
+
+msgid "Odsetek aktywowanych kont w grupie (%)"
+msgstr "দলে সক্রিয় অ্যাকাউন্টের অনুপাত (%)"

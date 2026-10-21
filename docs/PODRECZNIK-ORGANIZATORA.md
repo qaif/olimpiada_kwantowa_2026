@@ -1691,6 +1691,23 @@ Co zostaje w dzienniku zdarzeń (bez linków, przepustek i nazw gości): założ
 linków, wymiana linku, zamknięcie, każde wejście (rola: koordynator, komisja, autor, link gospodarza,
 link gościa), nadanie i odebranie uprawnienia.
 
+### 6.4c Panel uczestnika: menu i powiadomienia (UX-PANEL-01)
+
+Uczestnik ma w panelu menu (Start, Zawody, Nauka, Wiadomości, Konto) i dzwonek **powiadomień**
+(`/me/notifications/`) – opis dla uczestnika: PODRĘCZNIK-UCZESTNIKA § 2. Organizator niczego nie
+konfiguruje: pozycje menu pojawiają się same razem z włączeniem funkcji (forum, Wiadomości, materiały
+z warsztatów, webinary, notatniki kwantowe – flaga `quantum_notebooks`, edytor LaTeX – flaga
+`latex_editor` i skonfigurowany webTEX, zaświadczenie o statusie ucznia).
+
+Powiadomienie w panelu powstaje samo przy zdarzeniach, które i tak wysyłają list albo zmieniają stan:
+Twoja wiadomość do uczestnika (Wiadomości), **opublikowanie ogłoszenia organizatora** (wszyscy
+uczestnicy konkursu; ogłoszenie z polem „widoczne od” – gdy wejdzie w okno, w ciągu 10 minut),
+odpowiedź w wątku forum obserwowanym przez uczestnika, decyzja moderatora, akceptacja albo odrzucenie
+zaświadczenia, decyzja komisji w sprawie reklamacji, publikacja wyników etapu. Komunikaty e-mail
+(§ 6.1 tego podręcznika) powiadomień w panelu **nie** dają. Powiadomienie nie zawiera treści
+wiadomości ani powodu odrzucenia; jest usuwane po 90 dniach i przy usunięciu konta (rejestr czynności
+1.25, wiersz „konta”).
+
 ### 6.5 FAQ
 
 Strona `/faq/` z pytaniami pogrupowanymi w sekcje; każde pytanie ma **trwałą kotwicę**, więc odpowiedź na
@@ -2535,24 +2552,29 @@ szkolnych” (§ 9.2). Nowych danych funkcja nie zbiera.
 ### 10c.1 Lejek uczestnika — `/coordinator/stats/funnel/`
 
 Menu **Raporty → Lejek uczestnika** (bez przełącznika). Ekran pokazuje, ilu uczestników wybranej
-edycji (domyślnie bieżącej) przechodzi kolejne kroki: **rejestracja** (profil) → **aktywacja konta**
-(potwierdzony adres) → **pierwsze logowanie** → **zgody** (RODO, regulamin, a od niepełnoletnich zgoda
-opiekuna — ta sama reguła wieku co przy rejestracji) → **zapis do etapu** (z wierszami „w tym trening”
-i „w tym Etap I”) → **pierwsza wysłana praca** (także zakończony test online) → **zaświadczenie
-o statusie ucznia zaakceptowane** → **obecność na co najmniej jednym warsztacie**. Przy każdym kroku
-liczba, odsetek względem poprzedniego kroku i względem rejestracji oraz słupek.
+edycji (domyślnie bieżącej) spełnia każdy z warunków aktywności („Kroki aktywności”): **rejestracja**
+(profil), **aktywacja konta** (potwierdzony adres), **pierwsze logowanie**, **zgody** (RODO, regulamin,
+a od niepełnoletnich zgoda opiekuna — ta sama reguła wieku co przy rejestracji), **zapis do etapu**
+(z wierszami „w tym trening” i „w tym Etap I”), **pierwsza wysłana praca** (także zakończony test
+online), **zaświadczenie o statusie ucznia zaakceptowane**, **obecność na co najmniej jednym
+warsztacie**. Przy każdym kroku liczba, odsetek względem rejestracji i słupek w tej samej skali.
+
+**Kroki są liczone niezależnie, bez kolejności** (od 21.10.2026): wiersz liczy każdego, kto spełnia
+jego warunek, także bez pozostałych kroków — np. zaakceptowane zaświadczenie u kogoś, kto nie wysłał
+jeszcze żadnej pracy, albo obecność na warsztacie bez zaświadczenia. Dlatego liczba niżej w tabeli
+może być większa niż wyżej (zgody bywają częstsze niż pierwsze logowanie) i nie ma odsetka „względem
+poprzedniego kroku”. Nazwa „lejek” zostaje w menu, żeby ekran łatwo było znaleźć; dawnego trybu
+„lejek ścisły” już nie ma, a stare zakładki z nim działają (pokazują kroki niezależne).
 
 - **Uczestnik edycji** to ten, kto jest zapisany do jej etapu albo założył konto w czasie jej trwania
   (ta sama definicja co w komunikatach). Konta usunięte nie są liczone.
-- **Sposób liczenia:** „lejek ścisły” (domyślny — krok liczy osoby, które przeszły też wszystkie
-  poprzednie) albo „kroki niezależne” (każdy warunek osobno, np. obecni na warsztacie bez
-  zaakceptowanego zaświadczenia).
 - **Filtry:** województwo (albo region konkursu), szkoła (lista szkół z uczestnikami, jak w
   komunikatach), domena adresu e-mail (Gmail, WP/O2/Onet/Interia, Microsoft, szkolne, inne), okres
   rejestracji (od–do, obie daty włącznie).
 - **„Gdzie odpadają”** — po 10 województw i szkół z **najniższym odsetkiem aktywowanych kont**;
   tylko grupy z co najmniej 5 rejestracjami (mniejsze dają procenty bez znaczenia).
-- **Eksport CSV** — te same liczby z opisem filtrów, bez żadnych danych osobowych; pobranie jest
+- **Eksport CSV** — te same liczby z opisem filtrów (kroki z odsetkiem względem rejestracji, tabele
+  „gdzie odpadają” z odsetkiem aktywowanych kont w grupie), bez żadnych danych osobowych; pobranie jest
   w audycie (`export.generated`, rodzaj `participant_funnel`). Liczby odświeżają się co 5 minut.
 
 ## 10d. Logistyka finału — `/coordinator/logistics/`

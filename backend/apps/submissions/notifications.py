@@ -297,6 +297,10 @@ def notify_results_published(publication, *, request=None) -> int:
         sent += 1
     if sent:
         audit(None, "notification.sent", publication, {"type": TYPE_RESULTS_PUBLISHED})
+    # Powiadomienia w panelu uczestnika (UX-PANEL-01) – jednym ``bulk_create`` dla całego etapu.
+    from apps.notifications.hooks import results_published
+
+    results_published(publication)
     logger.info("Zakolejkowano %s powiadomień o wynikach etapu %s.", sent, stage.pk)
     return sent
 
@@ -344,6 +348,10 @@ def notify_appeal_decided(appeal, decision, *, request=None) -> bool:
     with language_for(user, competition):
         subject = str(branding.subject(APPEAL_DECIDED_SUBJECT_TEMPLATE, APPEAL_DECIDED_SUBJECT, competition))
         message = appeal_decided_message(appeal, decision, link, competition)
+    # Powiadomienie w panelu uczestnika (UX-PANEL-01) – niezależnie od tego, czy list wyszedł.
+    from apps.notifications.hooks import appeal_decided
+
+    appeal_decided(appeal)
     return _send(
         user,
         subject,

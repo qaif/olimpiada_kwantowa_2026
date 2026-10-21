@@ -1,0 +1,118 @@
+# UX-PANEL-01 – napisy aplikacji participant_panel (ar). Źródło (msgid) po polsku; poza angielskim
+# tłumaczenie maszynowe – do przeglądu native speakera (I18N-01 § 8).
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada participant_panel\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-21 12:00+0200\n"
+"PO-Revision-Date: 2026-10-21 12:00+0200\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: ar\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=6; plural=(n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : n%100>=3 && n%100<=10 ? 3 : n%100>=11 ? 4 : 5);\n"
+
+msgid "Powiadomienia"
+msgstr "الإشعارات"
+
+msgid "nowe"
+msgstr "جديد"
+
+msgid "Ogłoszenia"
+msgstr "الإعلانات"
+
+msgid "Pulpit"
+msgstr "لوحة المعلومات"
+
+msgid "Zadania i moje prace"
+msgstr "المسائل وأعمالي"
+
+msgid "Archiwum zadań"
+msgstr "أرشيف المسائل"
+
+msgid "Nauka"
+msgstr "التعلّم"
+
+msgid "Notatniki Qiskit"
+msgstr "دفاتر Qiskit"
+
+msgid "Edytor LaTeX (webTEX)"
+msgstr "محرر LaTeX ‏(webTEX)"
+
+msgid "Profil i dane"
+msgstr "الملف الشخصي والبيانات"
+
+msgid "Weryfikacja dwuetapowa"
+msgstr "التحقق بخطوتين"
+
+msgid "Menu uczestnika"
+msgstr "قائمة المشارك"
+
+msgid "Nawigacja panelu uczestnika"
+msgstr "تنقّل لوحة المشارك"
+
+msgid "Powiadomienia – brak nowych"
+msgstr "الإشعارات – لا جديد"
+
+msgid "Na skróty"
+msgstr "اختصارات"
+
+msgid "Najbliższy termin"
+msgstr "الموعد التالي"
+
+msgid "Przejdź do zadań"
+msgstr "الانتقال إلى المسائل"
+
+msgid "Bieżący etap"
+msgstr "المرحلة الحالية"
+
+msgid "Najbliższy warsztat"
+msgstr "الورشة القادمة"
+
+msgid "Warsztaty online"
+msgstr "ورش عبر الإنترنت"
+
+msgid "Link do spotkania organizator podaje w ogłoszeniu."
+msgstr "يشارك المنظِّم رابط الاجتماع في إعلان."
+
+msgid "Co nowego"
+msgstr "ما الجديد"
+
+msgid "brak nowych"
+msgstr "لا جديد"
+
+msgid "nieprzeczytane rozmowy"
+msgstr "محادثات غير مقروءة"
+
+msgid "Narzędzia"
+msgstr "الأدوات"
+
+msgid "Pracujesz w przeglądarce – nic nie trzeba instalować."
+msgstr "تعمل في المتصفح – لا حاجة لتثبيت أي شيء."
+
+msgid "Edytor LaTeX"
+msgstr "محرر LaTeX"
+
+msgid "(otwiera się w nowej karcie)"
+msgstr "(يُفتح في علامة تبويب جديدة)"
+
+msgid "Na razie nie ma tu zadań"
+msgstr "لا توجد مسائل هنا حاليًا"
+
+msgid "Notatniki pojawiają się przy zadaniach z obliczeń kwantowych, gdy etap, do którego jesteś zapisany, się rozpocznie."
+msgstr "تظهر الدفاتر مع مسائل الحوسبة الكمومية عند بدء مرحلة أنت مسجَّل فيها."
+
+msgid "Edytor jest dostępny przy zadaniach etapu, do którego jesteś zapisany, od chwili jego rozpoczęcia."
+msgstr "يتاح المحرر لمسائل المرحلة التي أنت مسجَّل فيها منذ لحظة بدئها."
+
+msgid "Zadania z obliczeń kwantowych rozwiązujesz w notatniku Jupyter z biblioteką Qiskit, uruchamianym w przeglądarce – nic nie trzeba instalować. Notatnik otwiera się w osobnej karcie, z plikiem startowym zadania."
+msgstr "تحلّ مسائل الحوسبة الكمومية في دفتر Jupyter مع مكتبة Qiskit يعمل في المتصفح – لا حاجة لتثبيت أي شيء. يُفتح الدفتر في علامة تبويب منفصلة مع ملف البداية الخاص بالمسألة."
+
+msgid "Rozwiązanie możesz napisać w edytorze LaTeX (webTEX) z podglądem PDF. Edytor otwiera się w nowej karcie z gotowym szablonem; skompilowany PDF złożysz przyciskiem na karcie zadania."
+msgstr "يمكنك كتابة حلّك في محرر LaTeX ‏(webTEX) مع معاينة PDF. يُفتح المحرر في علامة تبويب جديدة مع قالب جاهز؛ وتُسلِّم ملف PDF المجمَّع بالزر الموجود في بطاقة المسألة."
+
+#, python-format
+msgid "Powiadomienia, nieprzeczytane: %(number)s"
+msgstr "الإشعارات، غير المقروءة: %(number)s"

@@ -227,6 +227,10 @@ def post_published(post: ForumPost, moment=None) -> None:
     if post.author_id is not None:
         rows = rows.exclude(user_id=post.author_id)
     rows.update(pending_since=Coalesce(F("pending_since"), Value(moment)))
+    # Powiadomienie w panelu uczestnika (UX-PANEL-01) – jedno na wątek, bez treści wpisu.
+    from apps.notifications.hooks import forum_post_published
+
+    forum_post_published(post)
 
 
 def record_decision(*, kind: DecisionKind, thread: ForumThread, post: ForumPost | None, actor) -> None:
@@ -242,6 +246,9 @@ def record_decision(*, kind: DecisionKind, thread: ForumThread, post: ForumPost 
     ForumDecisionNotice.objects.create(
         competition_id=thread.competition_id, user_id=author_id, kind=kind, thread=thread, post=post
     )
+    from apps.notifications.hooks import forum_decision  # powiadomienie w panelu (UX-PANEL-01)
+
+    forum_decision(author_id=author_id, thread=thread)
 
 
 # --- tokeny wypisu -----------------------------------------------------------------------------------

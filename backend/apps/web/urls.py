@@ -13,6 +13,8 @@ from apps.message_rules.urls import urlpatterns as message_rule_urlpatterns  # M
 
 # Notatniki kwantowe (QC-01) – wzorce w module aplikacji, rozwinięte na końcu listy.
 from apps.notebooks.urls import urlpatterns as notebook_urlpatterns
+from apps.notifications.urls import urlpatterns as notification_urlpatterns  # UX-PANEL-01
+from apps.participant_panel.urls import urlpatterns as participant_panel_urlpatterns  # UX-PANEL-01
 from apps.password_change.urls import urlpatterns as password_change_urlpatterns  # AUTH-01b
 from apps.payments.urls import urlpatterns as payment_urlpatterns
 from apps.problem_translations.urls import urlpatterns as translation_urlpatterns
@@ -1314,4 +1316,7 @@ urlpatterns = [
     *webtex_urlpatterns,
     # --- automatyczne przypomnienia: reguły → komunikaty planowane (MSG-AUTO-01) ----------------
     *message_rule_urlpatterns,
+    # --- panel uczestnika: powiadomienia, notatniki i edytor LaTeX z menu (UX-PANEL-01) ----------
+    *notification_urlpatterns,
+    *participant_panel_urlpatterns,
 ]

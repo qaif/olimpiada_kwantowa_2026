@@ -135,9 +135,6 @@ msgstr "Funil de participantes"
 msgid "panel koordynatora"
 msgstr "painel do coordenador"
 
-msgid "Ilu uczestników przechodzi kolejne kroki – od rejestracji, przez aktywację konta i zapis do etapu, do pierwszej pracy, zaświadczenia i warsztatów."
-msgstr "Quantos participantes passam cada etapa – do registo, ativação da conta e inscrição na fase até ao primeiro trabalho, ao certificado e às oficinas."
-
 msgid "Liczby dotyczą uczestników wybranej edycji: zapisanych do jej etapu albo zarejestrowanych w czasie jej trwania. Konta usunięte nie są liczone."
 msgstr "Os números referem-se aos participantes da edição selecionada: inscritos numa das suas fases ou registados durante ela. As contas eliminadas não são contadas."
 
@@ -159,29 +156,17 @@ msgstr "Mostrar"
 msgid "Wyczyść filtry"
 msgstr "Limpar filtros"
 
-msgid "Kroki lejka"
-msgstr "Etapas do funil"
-
 msgid "Krok"
 msgstr "Etapa"
 
 msgid "Uczestnicy"
 msgstr "Participantes"
 
-msgid "względem poprzedniego kroku"
-msgstr "em relação à etapa anterior"
-
 msgid "względem rejestracji"
 msgstr "em relação aos registos"
 
 msgid "brak takiego etapu w tej edycji"
 msgstr "não existe essa fase nesta edição"
-
-msgid "Lejek ścisły: krok liczy osoby, które przeszły także wszystkie poprzednie kroki. Wiersze „w tym” rozbijają zapis do etapu i liczą się względem kroku zgód."
-msgstr "Funil estrito: cada etapa conta as pessoas que também passaram todas as anteriores. As linhas «dos quais» desdobram a inscrição na fase e são calculadas em relação à etapa dos consentimentos."
-
-msgid "Kroki niezależne: każdy krok liczy wszystkich, którzy spełniają jego warunek – także bez poprzednich kroków (np. obecni na warsztacie bez zaakceptowanego zaświadczenia)."
-msgstr "Etapas independentes: cada etapa conta todos os que cumprem a sua condição – também sem as etapas anteriores (p. ex. presentes numa oficina sem certificado aceite)."
 
 msgid "Zgoda opiekuna jest wymagana od niepełnoletnich według tej samej reguły wieku, co przy rejestracji."
 msgstr "O consentimento do responsável é exigido aos menores segundo a mesma regra de idade do registo."
@@ -250,17 +235,8 @@ msgstr "Registo desde"
 msgid "Rejestracja do"
 msgstr "Registo até"
 
-msgid "Sposób liczenia"
-msgstr "Forma de cálculo"
-
 msgid "Początek okresu rejestracji jest późniejszy niż jego koniec."
 msgstr "O início do período de registo é posterior ao seu fim."
-
-msgid "lejek ścisły – krok wymaga wszystkich poprzednich"
-msgstr "funil estrito – cada etapa exige todas as anteriores"
-
-msgid "kroki niezależne"
-msgstr "etapas independentes"
 
 msgid "Rejestracja (profil uczestnika)"
 msgstr "Registo (perfil de participante)"
@@ -304,9 +280,6 @@ msgstr "sem voivodia"
 msgid "Filtry"
 msgstr "Filtros"
 
-msgid "Lejek"
-msgstr "Funil"
-
 msgid "Sekcja"
 msgstr "Secção"
 
@@ -316,8 +289,17 @@ msgstr "Item"
 msgid "Liczba"
 msgstr "Número"
 
-msgid "Odsetek względem poprzedniego kroku (%)"
-msgstr "Percentagem em relação à etapa anterior (%)"
-
 msgid "Odsetek względem rejestracji (%)"
 msgstr "Percentagem em relação aos registos (%)"
+
+msgid "Ilu uczestników spełnia każdy z warunków aktywności – rejestracja, aktywacja konta, logowanie, zgody, zapis do etapu, pierwsza praca, zaświadczenie i warsztaty. Każdy krok jest liczony osobno, bez kolejności: liczy wszystkich, którzy spełniają jego warunek, także bez pozostałych kroków."
+msgstr "Quantos participantes cumprem cada condição de atividade – registo, ativação da conta, início de sessão, consentimentos, inscrição na fase, primeiro trabalho, certificado e oficinas. Cada etapa é contada separadamente, sem ordem: conta todos os que cumprem a sua condição, também sem as outras etapas."
+
+msgid "Kroki aktywności"
+msgstr "Etapas de atividade"
+
+msgid "Kroki są niezależne: liczba w wierszu nie zależy od wierszy powyżej (np. zaświadczenie może być zaakceptowane, zanim uczestnik wyśle pierwszą pracę). Odsetek i słupek – względem rejestracji; wiersze „w tym” rozbijają zapis do etapu."
+msgstr "As etapas são independentes: o número de uma linha não depende das linhas acima (p. ex. um certificado pode ser aceite antes de o participante enviar o primeiro trabalho). Percentagem e barra em relação aos registos; as linhas «dos quais» desdobram a inscrição na fase."
+
+msgid "Odsetek aktywowanych kont w grupie (%)"
+msgstr "Percentagem de contas ativadas no grupo (%)"

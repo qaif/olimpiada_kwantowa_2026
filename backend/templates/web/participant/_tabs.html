@@ -11,8 +11,9 @@
   zwykłe odnośniki nie dają. To jest nawigacja po stronach – i tak się przedstawia
   (``<nav>`` + ``aria-current="page"``).
 
-  Za zakładkami stoją ekrany panelu, które mają własne adresy (kalendarz, archiwum, dyplomy,
-  profil). Inny wariant graficzny, bo to inna rzecz: wyjście z pulpitu, a nie jego sekcja.
+  Ekrany panelu z własnymi adresami (Wiadomości, kalendarz, archiwum, dyplomy, profil) stały tu
+  kiedyś jako „odnośniki boczne” – od UX-PANEL-01 są w menu panelu (``participant_panel/_nav.html``),
+  więc pasek mówi już tylko o sekcjach pulpitu.
 {% endcomment %}
 <nav class="p-tabs" aria-label="{% translate 'Sekcje panelu uczestnika' %}">
   <ul class="p-tabs__list">
@@ -21,13 +22,6 @@
         <a class="p-tabs__link" href="{{ item.url }}"
            {% if item.current %}aria-current="page"{% endif %}>{{ item.label }}</a>
       </li>
-    {% endfor %}
-    {% for link in panel_links %}
-      {% if not link.chat or chat_visible %}
-      <li class="p-tabs__item p-tabs__item--aside">
-        <a class="p-tabs__link p-tabs__link--aside" href="{{ link.url }}">{{ link.label }}{% if link.chat and chat_unread %} <span class="badge badge--count"><span class="visually-hidden">{% translate "nieprzeczytane rozmowy:" %} </span>{{ chat_unread }}</span>{% endif %}</a>
-      </li>
-      {% endif %}
     {% endfor %}
   </ul>
 </nav>

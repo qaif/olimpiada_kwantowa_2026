@@ -1,0 +1,105 @@
+# UX-PANEL-01 – napisy aplikacji notifications (en). Źródło (msgid) po polsku; poza angielskim
+# tłumaczenie maszynowe – do przeglądu native speakera (I18N-01 § 8).
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada notifications\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-21 12:00+0200\n"
+"PO-Revision-Date: 2026-10-21 12:00+0200\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Wiadomość od organizatora"
+msgstr "Message from the organiser"
+
+msgid "Wiadomość od uczestnika"
+msgstr "Message from a participant"
+
+msgid "Ogłoszenie organizatora"
+msgstr "Organiser announcement"
+
+msgid "Zaświadczenie zaakceptowane"
+msgstr "Certificate accepted"
+
+msgid "Zaświadczenie odrzucone"
+msgstr "Certificate rejected"
+
+msgid "Odpowiedź na forum"
+msgstr "Forum reply"
+
+msgid "Decyzja moderatora forum"
+msgstr "Forum moderator’s decision"
+
+msgid "Ogłoszone wyniki"
+msgstr "Published results"
+
+msgid "Decyzja w sprawie reklamacji"
+msgstr "Appeal decision"
+
+msgid "Nowa wiadomość od organizatora"
+msgstr "New message from the organiser"
+
+msgid "Nowa wiadomość w rozmowie z innym uczestnikiem"
+msgstr "New message in a conversation with another participant"
+
+#, python-format
+msgid "Nowe ogłoszenie organizatora: %(title)s"
+msgstr "New announcement from the organiser: %(title)s"
+
+msgid "Zaświadczenie o statusie ucznia zostało zaakceptowane"
+msgstr "Your student status certificate has been accepted"
+
+msgid "Zaświadczenie o statusie ucznia zostało odrzucone – sprawdź powód"
+msgstr "Your student status certificate has been rejected – check the reason"
+
+msgid "Nowa odpowiedź w obserwowanym wątku na forum"
+msgstr "New reply in a forum thread you follow"
+
+msgid "Moderator forum podjął decyzję w sprawie Twojego wpisu"
+msgstr "A forum moderator has made a decision about your post"
+
+#, python-format
+msgid "Ogłoszono wyniki: %(stage)s"
+msgstr "Results published: %(stage)s"
+
+msgid "Komisja rozpatrzyła Twoją reklamację"
+msgstr "The committee has decided on your appeal"
+
+msgid "Nowe powiadomienie"
+msgstr "New notification"
+
+msgid "Wszystkie powiadomienia oznaczono jako przeczytane."
+msgstr "All notifications have been marked as read."
+
+msgid "Powiadomienia"
+msgstr "Notifications"
+
+msgid "Oznacz wszystkie jako przeczytane"
+msgstr "Mark all as read"
+
+msgid "nowe"
+msgstr "new"
+
+msgid "Nowsze"
+msgstr "Newer"
+
+msgid "Starsze"
+msgstr "Older"
+
+msgid "Nie masz jeszcze powiadomień"
+msgstr "You have no notifications yet"
+
+msgid "Pojawią się tu nowe wiadomości, ogłoszenia organizatora, decyzje w sprawie zaświadczenia i reklamacji oraz ogłoszone wyniki."
+msgstr "New messages, organiser announcements, decisions on your certificate and appeals, and published results will appear here."
+
+msgid "Strony powiadomień"
+msgstr "Notification pages"
+
+#, python-format
+msgid "Nowe wiadomości, ogłoszenia organizatora, decyzje i wyniki – w jednym miejscu. Powiadomienia starsze niż %(days)s dni usuwamy automatycznie."
+msgstr "New messages, organiser announcements, decisions and results – all in one place. Notifications older than %(days)s days are deleted automatically."

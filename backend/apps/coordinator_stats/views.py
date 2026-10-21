@@ -68,7 +68,6 @@ class FunnelView(_EditionMixin, CoordinatorRequiredMixin, TemplateView):
                 ),
                 "form": form,
                 "result": result,
-                "strict": result is None or form.filters().mode == funnel.STRICT,
                 "k_anonymity": K_ANONYMITY,
                 "export_query": self.request.GET.urlencode(),
             }
@@ -89,8 +88,8 @@ class FunnelExportView(_EditionMixin, CoordinatorRequiredMixin, View):
                 _("Sekcja"),
                 _("Pozycja"),
                 _("Liczba"),
-                _("Odsetek względem poprzedniego kroku (%)"),
                 _("Odsetek względem rejestracji (%)"),
+                _("Odsetek aktywowanych kont w grupie (%)"),
             ],
             rows=iter(rows),
             count=len(rows),
@@ -108,20 +107,23 @@ class FunnelExportView(_EditionMixin, CoordinatorRequiredMixin, View):
 
 
 def _csv_rows(edition, form, result) -> list[list]:
-    """Wiersze CSV: filtry, kroki lejka, potem obie tabele „gdzie odpadają” (aktywacja w %)."""
-    filters_section, steps_section = _("Filtry"), _("Lejek")
+    """Wiersze CSV: filtry, kroki (każdy niezależnie), potem obie tabele „gdzie odpadają”.
+
+    Kroki mają odsetek względem rejestracji (czwarta kolumna), grupy „gdzie odpadają” – odsetek
+    aktywowanych wśród zarejestrowanych **w grupie** (piąta), żeby jedna kolumna nie znaczyła dwóch rzeczy.
+    """
+    filters_section, steps_section = _("Filtry"), _("Kroki aktywności")
     rows: list[list] = [[filters_section, _("Edycja"), edition.year_label, None, None]]
     rows += [[filters_section, label, value, None, None] for label, value in form.description()]
     for step in result.steps:
         label = ("— " if step["sub"] else "") + step["label"]
-        rows.append([steps_section, label, step["count"], step["vs_previous"], step["vs_registered"]])
+        rows.append([steps_section, label, step["count"], step["vs_registered"], None])
     for section, items in (
         (_("Województwa – najniższa aktywacja"), result.regions),
         (_("Szkoły – najniższa aktywacja"), result.schools),
     ):
         for item in items:
-            # Czwarta kolumna to tu odsetek aktywowanych wśród zarejestrowanych w grupie.
-            rows.append([section, item["label"], item["registered"], item["activation"], None])
+            rows.append([section, item["label"], item["registered"], None, item["activation"]])
     return rows
 
 

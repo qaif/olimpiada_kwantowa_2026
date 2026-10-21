@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "participant_panel/base.html" %}
 {% load i18n static %}
 {% load organizer_announcements from chat_extras %}
 {% comment %}
@@ -14,8 +14,8 @@
   włączonego szyfrowania i bez klucza tej osoby strona nie ładuje ani jednej linijki kryptografii.
 {% endcomment %}
 {% block title %}{% translate "Wiadomości" %}{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'css/chat.css' %}">{% endblock %}
-{% block content %}
+{% block panel_head %}<link rel="stylesheet" href="{% static 'css/chat.css' %}">{% endblock %}
+{% block panel_content %}
 <div class="page-head">
   <span class="eyebrow"><a href="{% url 'web:me' %}">{% translate "Mój panel" %}</a></span>
   <h1>{% translate "Wiadomości" %}</h1>

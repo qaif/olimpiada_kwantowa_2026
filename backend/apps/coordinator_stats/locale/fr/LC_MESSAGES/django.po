@@ -135,9 +135,6 @@ msgstr "Entonnoir des participants"
 msgid "panel koordynatora"
 msgstr "panneau du coordinateur"
 
-msgid "Ilu uczestników przechodzi kolejne kroki – od rejestracji, przez aktywację konta i zapis do etapu, do pierwszej pracy, zaświadczenia i warsztatów."
-msgstr "Combien de participants franchissent chaque étape – de l’inscription, l’activation du compte et l’inscription à une épreuve jusqu’au premier travail, à l’attestation et aux ateliers."
-
 msgid "Liczby dotyczą uczestników wybranej edycji: zapisanych do jej etapu albo zarejestrowanych w czasie jej trwania. Konta usunięte nie są liczone."
 msgstr "Les chiffres concernent les participants de l’édition choisie : inscrits à l’une de ses épreuves ou enregistrés pendant sa durée. Les comptes supprimés ne sont pas comptés."
 
@@ -159,29 +156,17 @@ msgstr "Afficher"
 msgid "Wyczyść filtry"
 msgstr "Effacer les filtres"
 
-msgid "Kroki lejka"
-msgstr "Étapes de l’entonnoir"
-
 msgid "Krok"
 msgstr "Étape"
 
 msgid "Uczestnicy"
 msgstr "Participants"
 
-msgid "względem poprzedniego kroku"
-msgstr "par rapport à l’étape précédente"
-
 msgid "względem rejestracji"
 msgstr "par rapport aux inscriptions"
 
 msgid "brak takiego etapu w tej edycji"
 msgstr "pas d’épreuve de ce type dans cette édition"
-
-msgid "Lejek ścisły: krok liczy osoby, które przeszły także wszystkie poprzednie kroki. Wiersze „w tym” rozbijają zapis do etapu i liczą się względem kroku zgód."
-msgstr "Entonnoir strict : une étape compte les personnes qui ont aussi franchi toutes les étapes précédentes. Les lignes « dont » détaillent l’inscription à une épreuve et sont rapportées à l’étape des consentements."
-
-msgid "Kroki niezależne: każdy krok liczy wszystkich, którzy spełniają jego warunek – także bez poprzednich kroków (np. obecni na warsztacie bez zaakceptowanego zaświadczenia)."
-msgstr "Étapes indépendantes : chaque étape compte toutes les personnes qui remplissent sa condition – même sans les étapes précédentes (p. ex. présentes à un atelier sans attestation acceptée)."
 
 msgid "Zgoda opiekuna jest wymagana od niepełnoletnich według tej samej reguły wieku, co przy rejestracji."
 msgstr "Le consentement du représentant légal est exigé des mineurs selon la même règle d’âge qu’à l’inscription."
@@ -250,17 +235,8 @@ msgstr "Inscription à partir du"
 msgid "Rejestracja do"
 msgstr "Inscription jusqu’au"
 
-msgid "Sposób liczenia"
-msgstr "Mode de calcul"
-
 msgid "Początek okresu rejestracji jest późniejszy niż jego koniec."
 msgstr "Le début de la période d’inscription est postérieur à sa fin."
-
-msgid "lejek ścisły – krok wymaga wszystkich poprzednich"
-msgstr "entonnoir strict – une étape exige toutes les précédentes"
-
-msgid "kroki niezależne"
-msgstr "étapes indépendantes"
 
 msgid "Rejestracja (profil uczestnika)"
 msgstr "Inscription (profil de participant)"
@@ -304,9 +280,6 @@ msgstr "aucune voïvodie"
 msgid "Filtry"
 msgstr "Filtres"
 
-msgid "Lejek"
-msgstr "Entonnoir"
-
 msgid "Sekcja"
 msgstr "Section"
 
@@ -316,8 +289,17 @@ msgstr "Élément"
 msgid "Liczba"
 msgstr "Nombre"
 
-msgid "Odsetek względem poprzedniego kroku (%)"
-msgstr "Part par rapport à l’étape précédente (%)"
-
 msgid "Odsetek względem rejestracji (%)"
 msgstr "Part par rapport aux inscriptions (%)"
+
+msgid "Ilu uczestników spełnia każdy z warunków aktywności – rejestracja, aktywacja konta, logowanie, zgody, zapis do etapu, pierwsza praca, zaświadczenie i warsztaty. Każdy krok jest liczony osobno, bez kolejności: liczy wszystkich, którzy spełniają jego warunek, także bez pozostałych kroków."
+msgstr "Combien de participants remplissent chaque condition d’activité – inscription, activation du compte, connexion, consentements, inscription à une épreuve, premier travail, attestation et ateliers. Chaque étape est comptée séparément, sans ordre : elle compte toutes les personnes qui remplissent sa condition, même sans les autres étapes."
+
+msgid "Kroki aktywności"
+msgstr "Étapes d’activité"
+
+msgid "Kroki są niezależne: liczba w wierszu nie zależy od wierszy powyżej (np. zaświadczenie może być zaakceptowane, zanim uczestnik wyśle pierwszą pracę). Odsetek i słupek – względem rejestracji; wiersze „w tym” rozbijają zapis do etapu."
+msgstr "Les étapes sont indépendantes : le nombre d’une ligne ne dépend pas des lignes au-dessus (p. ex. une attestation peut être acceptée avant que le participant envoie son premier travail). Part et barre – par rapport aux inscriptions ; les lignes « dont » détaillent l’inscription à une épreuve."
+
+msgid "Odsetek aktywowanych kont w grupie (%)"
+msgstr "Part des comptes activés dans le groupe (%)"

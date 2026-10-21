@@ -1,0 +1,46 @@
+{% extends "participant_panel/base.html" %}
+{% load i18n %}
+{% comment %}
+  „Notatniki Qiskit” (``tool == "notebooks"``) i „Edytor LaTeX” (``tool == "latex"``) – jedna strona,
+  dwa warianty (``apps.participant_panel.views``). Lista zadań otwartych etapów z przyciskiem; samo
+  otwarcie robi widok docelowy (laboratorium JupyterLite w nowej karcie, SSO do webTEX).
+{% endcomment %}
+{% block title %}{% if tool == "notebooks" %}{% translate "Notatniki Qiskit" %}{% else %}{% translate "Edytor LaTeX" %}{% endif %}{% endblock %}
+{% block panel_content %}
+<div class="page-head">
+  <span class="eyebrow">{% translate "Nauka" %}</span>
+  {% if tool == "notebooks" %}
+    <h1>{% translate "Notatniki Qiskit" %}</h1>
+    <p class="lead">{% blocktranslate trimmed %}Zadania z obliczeń kwantowych rozwiązujesz w notatniku Jupyter z biblioteką Qiskit,
+      uruchamianym w przeglądarce – nic nie trzeba instalować. Notatnik otwiera się w osobnej karcie, z plikiem
+      startowym zadania.{% endblocktranslate %}</p>
+  {% else %}
+    <h1>{% translate "Edytor LaTeX" %}</h1>
+    <p class="lead">{% blocktranslate trimmed %}Rozwiązanie możesz napisać w edytorze LaTeX (webTEX) z podglądem PDF. Edytor otwiera
+      się w nowej karcie z gotowym szablonem; skompilowany PDF złożysz przyciskiem na karcie zadania.{% endblocktranslate %}</p>
+  {% endif %}
+</div>
+
+{% if groups %}
+  {% for group in groups %}
+    <section class="section" aria-labelledby="tools-stage-{{ group.stage.pk }}">
+      <div class="section__head"><h2 class="mt-0" id="tools-stage-{{ group.stage.pk }}">{{ group.stage.display_name }}</h2></div>
+      <ul class="pp-tools">
+        {% for row in group.rows %}
+          <li class="pp-tools__row">
+            <span class="pp-tools__title"><span class="code-chip">{{ row.problem.number }}</span> {{ row.problem.display_title }}</span>
+            {% if tool == "notebooks" %}
+              <a class="btn btn--small btn--primary" href="{{ row.url }}">{% translate "Otwórz notatnik" %}</a>
+            {% else %}
+              <a class="btn btn--small btn--primary" href="{{ row.url }}" target="_blank" rel="noopener noreferrer">{% translate "Napisz rozwiązanie w LaTeX" %}<span class="visually-hidden"> {% translate "(otwiera się w nowej karcie)" %}</span></a>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% endfor %}
+{% else %}
+  <p class="empty"><span class="empty__title">{% translate "Na razie nie ma tu zadań" %}</span>
+    {% if tool == "notebooks" %}{% translate "Notatniki pojawiają się przy zadaniach z obliczeń kwantowych, gdy etap, do którego jesteś zapisany, się rozpocznie." %}{% else %}{% translate "Edytor jest dostępny przy zadaniach etapu, do którego jesteś zapisany, od chwili jego rozpoczęcia." %}{% endif %}</p>
+{% endif %}
+{% endblock %}

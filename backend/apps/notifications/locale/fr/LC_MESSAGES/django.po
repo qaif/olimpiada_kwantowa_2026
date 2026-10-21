@@ -1,0 +1,105 @@
+# UX-PANEL-01 – napisy aplikacji notifications (fr). Źródło (msgid) po polsku; poza angielskim
+# tłumaczenie maszynowe – do przeglądu native speakera (I18N-01 § 8).
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada notifications\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-21 12:00+0200\n"
+"PO-Revision-Date: 2026-10-21 12:00+0200\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: fr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+msgid "Wiadomość od organizatora"
+msgstr "Message de l’organisateur"
+
+msgid "Wiadomość od uczestnika"
+msgstr "Message d’un participant"
+
+msgid "Ogłoszenie organizatora"
+msgstr "Annonce de l’organisateur"
+
+msgid "Zaświadczenie zaakceptowane"
+msgstr "Attestation acceptée"
+
+msgid "Zaświadczenie odrzucone"
+msgstr "Attestation refusée"
+
+msgid "Odpowiedź na forum"
+msgstr "Réponse sur le forum"
+
+msgid "Decyzja moderatora forum"
+msgstr "Décision du modérateur du forum"
+
+msgid "Ogłoszone wyniki"
+msgstr "Résultats publiés"
+
+msgid "Decyzja w sprawie reklamacji"
+msgstr "Décision sur la réclamation"
+
+msgid "Nowa wiadomość od organizatora"
+msgstr "Nouveau message de l’organisateur"
+
+msgid "Nowa wiadomość w rozmowie z innym uczestnikiem"
+msgstr "Nouveau message dans une conversation avec un autre participant"
+
+#, python-format
+msgid "Nowe ogłoszenie organizatora: %(title)s"
+msgstr "Nouvelle annonce de l’organisateur : %(title)s"
+
+msgid "Zaświadczenie o statusie ucznia zostało zaakceptowane"
+msgstr "Ton attestation de statut d’élève a été acceptée"
+
+msgid "Zaświadczenie o statusie ucznia zostało odrzucone – sprawdź powód"
+msgstr "Ton attestation de statut d’élève a été refusée – consulte le motif"
+
+msgid "Nowa odpowiedź w obserwowanym wątku na forum"
+msgstr "Nouvelle réponse dans un fil du forum que tu suis"
+
+msgid "Moderator forum podjął decyzję w sprawie Twojego wpisu"
+msgstr "Un modérateur du forum a pris une décision concernant ton message"
+
+#, python-format
+msgid "Ogłoszono wyniki: %(stage)s"
+msgstr "Résultats publiés : %(stage)s"
+
+msgid "Komisja rozpatrzyła Twoją reklamację"
+msgstr "Le comité a statué sur ta réclamation"
+
+msgid "Nowe powiadomienie"
+msgstr "Nouvelle notification"
+
+msgid "Wszystkie powiadomienia oznaczono jako przeczytane."
+msgstr "Toutes les notifications ont été marquées comme lues."
+
+msgid "Powiadomienia"
+msgstr "Notifications"
+
+msgid "Oznacz wszystkie jako przeczytane"
+msgstr "Tout marquer comme lu"
+
+msgid "nowe"
+msgstr "nouveau"
+
+msgid "Nowsze"
+msgstr "Plus récentes"
+
+msgid "Starsze"
+msgstr "Plus anciennes"
+
+msgid "Nie masz jeszcze powiadomień"
+msgstr "Tu n’as pas encore de notifications"
+
+msgid "Pojawią się tu nowe wiadomości, ogłoszenia organizatora, decyzje w sprawie zaświadczenia i reklamacji oraz ogłoszone wyniki."
+msgstr "Les nouveaux messages, les annonces de l’organisateur, les décisions concernant ton attestation et tes réclamations ainsi que les résultats publiés apparaîtront ici."
+
+msgid "Strony powiadomień"
+msgstr "Pages des notifications"
+
+#, python-format
+msgid "Nowe wiadomości, ogłoszenia organizatora, decyzje i wyniki – w jednym miejscu. Powiadomienia starsze niż %(days)s dni usuwamy automatycznie."
+msgstr "Nouveaux messages, annonces de l’organisateur, décisions et résultats – au même endroit. Les notifications de plus de %(days)s jours sont supprimées automatiquement."

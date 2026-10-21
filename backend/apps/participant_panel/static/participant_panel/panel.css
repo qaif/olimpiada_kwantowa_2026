@@ -1,0 +1,515 @@
+/* =================================================================================================
+   Rama panelu uczestnika (UX-PANEL-01): menu, kafle „Start”, powiadomienia, listy narzędzi.
+
+   Osobny arkusz, ładowany wyłącznie przez ``participant_panel/base.html`` – panel koordynatora
+   i strony publiczne go nie dostają. Tokenów nie definiujemy ani jednego: kolory, odstępy, promienie
+   i cienie to role z ``:root`` w ``app.css`` (``--surface``, ``--line``, ``--brand``, ``--accent``…),
+   więc tryb ciemny, motyw IQO (most tokenów w ``theme.css``) i wysoki kontrast działają bez osobnych
+   reguł. Właściwości logiczne (``inline-start``) – arabski interfejs odwraca układ sam.
+
+   Kolejność:
+     1. układ: kolumna menu + treść
+     2. menu (``<details>``: telefon zwinięty, desktop – stała kolumna)
+     3. kafle „Start”
+     4. lista powiadomień, lista narzędzi
+     5. Wiadomości w ramie (węższa kolumna treści)
+     6. wymuszone kolory, wydruk
+   ============================================================================================== */
+
+/* --- 1. Układ ---------------------------------------------------------------------------------- */
+
+.pp {
+  --pp-width: min(100vw - 2rem, 1320px);
+}
+
+.pp__main {
+  min-width: 0;
+  /* Kontener dla reguł zależnych od szerokości kolumny treści, a nie okna (sekcja 5). */
+  container-type: inline-size;
+  container-name: pp-main;
+}
+
+/* Od 1024 px menu jest kolumną z lewej. Kolumna NIE jest przyklejona (``sticky``): przyklejony pasek
+   konta u góry okna zasłaniałby wtedy pozycję menu z fokusem (WCAG 2.4.11 – błąd znany z A11Y-01). */
+@media (min-width: 1024px) {
+  .pp {
+    display: grid;
+    grid-template-columns: 16rem minmax(0, 1fr);
+    gap: var(--sp-8);
+    align-items: start;
+    width: var(--pp-width);
+    margin-inline-start: calc(50% - var(--pp-width) / 2);
+  }
+}
+
+.pp-sprite {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+.pp-icon {
+  flex: 0 0 auto;
+  width: 1.25rem;
+  height: 1.25rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.pp-badge {
+  flex: 0 0 auto;
+  display: inline-block;
+  min-width: 1.5rem;
+  padding: 0 var(--sp-1);
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.5rem;
+  text-align: center;
+  color: var(--t-on-accent);
+  background: var(--accent);
+  border-radius: 999px;
+}
+
+/* --- 2. Menu ----------------------------------------------------------------------------------- */
+
+.pp-nav {
+  margin: 0 0 var(--sp-6);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.pp-nav__summary {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 2.75rem;
+  padding: var(--sp-2) var(--sp-4);
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--ink);
+  list-style: none;
+  border-radius: var(--radius-lg);
+}
+
+.pp-nav__summary::-webkit-details-marker {
+  display: none;
+}
+
+.pp-nav__summary::marker {
+  content: "";
+}
+
+/* Strzałka rozwinięcia – obrys, nie znak z fontu (motyw może podmienić krój bez tego glifu). */
+.pp-nav__summary::after {
+  content: "";
+  margin-inline-start: auto;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-inline-end: 2px solid currentColor;
+  border-block-end: 2px solid currentColor;
+  transform: rotate(45deg);
+}
+
+.pp-nav[open] > .pp-nav__summary::after {
+  transform: rotate(-135deg);
+}
+
+.pp-nav__summary:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.pp-nav__where {
+  min-width: 0;
+  color: var(--muted);
+  font-weight: 400;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pp-nav__where::before {
+  content: "· ";
+}
+
+.pp-nav__body {
+  padding: var(--sp-2) 0 var(--sp-3);
+  border-top: 1px solid var(--line);
+}
+
+.pp-nav__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-4) var(--sp-1);
+}
+
+.pp-nav__title {
+  font-family: var(--font-serif);
+  font-weight: 700;
+  font-size: 1.0625rem;
+  color: var(--ink);
+}
+
+.pp-bell {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  color: var(--ink-soft);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
+
+.pp-bell:hover {
+  color: var(--ink);
+  background: var(--brand-soft);
+  text-decoration: none;
+}
+
+.pp-bell:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.pp-bell--unread {
+  color: var(--ink);
+  border-color: var(--accent);
+}
+
+.pp-bell__count {
+  position: absolute;
+  top: -0.35rem;
+  inset-inline-end: -0.35rem;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.3rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  line-height: 1.25rem;
+  text-align: center;
+  color: var(--t-on-accent);
+  background: var(--accent);
+  border-radius: 999px;
+}
+
+.pp-nav__heading {
+  margin: var(--sp-4) 0 var(--sp-1);
+  padding: 0 var(--sp-4);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.pp-nav__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pp-nav__link {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-height: 2.5rem;
+  margin: 1px var(--sp-2);
+  padding: var(--sp-1) var(--sp-3);
+  color: var(--ink-soft);
+  font-size: 0.9375rem;
+  text-decoration: none;
+  border-radius: var(--radius);
+  /* Kreska po stronie początku wiersza jest miejscem na znacznik pozycji bieżącej – zarezerwowana
+     zawsze, żeby podświetlenie nie przesuwało tekstu. */
+  border-inline-start: 3px solid transparent;
+}
+
+.pp-nav__link:hover {
+  color: var(--ink);
+  background: var(--surface-2);
+  text-decoration: none;
+}
+
+.pp-nav__link:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.pp-nav__link[aria-current="page"] {
+  color: var(--ink);
+  font-weight: 600;
+  background: var(--brand-soft);
+  border-inline-start-color: var(--accent);
+}
+
+.pp-nav__link[aria-current="page"] .pp-icon {
+  color: var(--accent);
+}
+
+.pp-nav__label {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Od 1024 px menu jest stałą kolumną – rozwinięte bez atrybutu ``open``. Dwie reguły, bo silniki
+   chowają zawartość zamkniętego ``<details>`` na dwa sposoby: starsze ``display: none``, nowsze
+   ``content-visibility`` na ``::details-content`` (ta sama para, co w menu koordynatora). */
+@media (min-width: 1024px) {
+  .pp-nav > .pp-nav__summary {
+    display: none;
+  }
+
+  .pp-nav > .pp-nav__body {
+    display: block;
+    border-top: 0;
+  }
+
+  .pp-nav::details-content {
+    content-visibility: visible;
+    block-size: auto;
+  }
+}
+
+/* --- 3. Kafle „Start” ------------------------------------------------------------------------- */
+
+.pp-tiles {
+  margin: var(--sp-6) 0;
+}
+
+.pp-tiles__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr));
+  gap: var(--sp-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pp-tile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  min-width: 0;
+  padding: var(--sp-4);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.pp-tile > p {
+  margin: 0;
+}
+
+.pp-tile--attention {
+  border-color: var(--warn);
+  box-shadow: inset 0 3px 0 var(--warn), var(--shadow-sm);
+}
+
+.pp-tile--deadline {
+  box-shadow: inset 0 3px 0 var(--accent), var(--shadow-sm);
+}
+
+.pp-tile__title {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.pp-tile__title .pp-icon {
+  color: var(--accent);
+}
+
+.pp-tile__lead {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.pp-tile__value {
+  font-size: 1.125rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+.pp-tile__meta {
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+
+.pp-tile__meta--passed {
+  color: var(--danger-ink);
+}
+
+.pp-tile > .pp-tile__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-top: auto;
+  padding-top: var(--sp-2);
+}
+
+.pp-tile__list {
+  display: grid;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pp-tile__list > li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+}
+
+/* --- 4. Powiadomienia i narzędzia ------------------------------------------------------------- */
+
+.pp-notes {
+  margin: 0 0 var(--sp-6);
+  padding: 0;
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.pp-note {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+}
+
+.pp-note + .pp-note {
+  border-top: 1px solid var(--line);
+}
+
+.pp-note--unread {
+  background: var(--brand-soft);
+}
+
+.pp-note__icon {
+  margin-top: 0.15rem;
+  color: var(--muted);
+}
+
+.pp-note--unread .pp-note__icon {
+  color: var(--accent);
+}
+
+.pp-note__body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.pp-note__link {
+  font-weight: 400;
+  overflow-wrap: anywhere;
+}
+
+.pp-note--unread .pp-note__link {
+  font-weight: 600;
+}
+
+.pp-note__time {
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+
+.pp-note__dot {
+  flex: 0 0 auto;
+  width: 0.625rem;
+  height: 0.625rem;
+  margin-top: 0.45rem;
+  background: var(--accent);
+  border-radius: 999px;
+}
+
+.pp-tools {
+  display: grid;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pp-tools__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2) var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.pp-tools__title {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* --- 5. Wiadomości w ramie --------------------------------------------------------------------- */
+
+/* Skrzynka ma dwie kolumny od 900 px **okna** (``chat.css``); w ramie z menu kolumna treści jest
+   o szerokość menu węższa, więc o układzie decyduje szerokość kolumny treści. */
+@container pp-main (max-width: 760px) {
+  .chat {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* --- 6. Wysoki kontrast, wymuszone kolory, wydruk ---------------------------------------------- */
+
+/* W trybie wysokiego kontrastu akcent jest jasny (żółty), a ``--t-on-accent`` zostaje biały – liczba
+   na odznace znikałaby. Tło strony w tym trybie jest czarne, więc ono jest kolorem cyfr. */
+:root[data-contrast="high"] :is(.pp-badge, .pp-bell__count) {
+  color: var(--bg);
+}
+
+@media (forced-colors: active) {
+  .pp-nav__link[aria-current="page"] {
+    outline: 2px solid CanvasText;
+  }
+
+  .pp-badge,
+  .pp-bell__count,
+  .pp-note__dot {
+    border: 1px solid CanvasText;
+  }
+}
+
+@media print {
+  .pp__nav,
+  .pp-tiles {
+    display: none;
+  }
+
+  .pp {
+    display: block;
+    width: auto;
+    margin: 0;
+  }
+}

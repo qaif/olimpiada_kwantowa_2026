@@ -209,6 +209,10 @@ INSTALLED_APPS = [
     # przez ``create_submission``, przełącznik udostępniania per etap. **Przed** ``apps.web``,
     # który montuje jej adresy i wstawia jej panel do karty zadania.
     "apps.webtex",
+    # Panel uczestnika (UX-PANEL-01): powiadomienia w panelu (model, haki źródeł, retencja) i rama panelu
+    # (menu, kafle „Start”, wejścia do notatników i edytora LaTeX). **Przed** ``apps.web`` jak webtex.
+    "apps.notifications",
+    "apps.participant_panel",
     "apps.web",
     # Logowanie przez dostawców zewnętrznych (Google, Facebook). ``allauth.account`` jest wymagane
     # przez ``allauth.socialaccount`` (model ``EmailAddress``, adaptery) – jego **widoki** nie są
@@ -746,6 +750,16 @@ CELERY_BEAT_SCHEDULE = {
     "proctoring-purge": {
         "task": "apps.proctoring.tasks.purge_expired",
         "schedule": crontab(minute=40, hour=3),
+    },
+    # Powiadomienia w panelu uczestnika (UX-PANEL-01): ogłoszenia zaplanowane, które weszły w okno
+    # (i rozesłania zgubione przy wyłączonym brokerze) co 10 minut; retencja 90 dni raz na dobę.
+    "notifications-announcements": {
+        "task": "apps.notifications.tasks.deliver_due_announcements",
+        "schedule": 600.0,
+    },
+    "notifications-purge": {
+        "task": "apps.notifications.tasks.purge_expired",
+        "schedule": crontab(minute=45, hour=3),
     },
 }
 

@@ -2,6 +2,8 @@
 {% load static i18n %}
 {% comment %}
   Lejek uczestnika (STATS-02 § 1): od rejestracji do warsztatów, z filtrami i tabelą „gdzie odpadają”.
+  Każdy krok liczony niezależnie (bez kolejności, zmiana z 21.10.2026) – nazwa „lejek” zostaje
+  w menu i tytule dla rozpoznawalności, a opis i nagłówek tabeli mówią wprost, jak liczymy.
 
   Same agregaty – ani jednej osoby. Słupki to klasy szerokości z zamkniętej listy (``stat-bar``, jak
   na ``/statystyki/`` i w statystykach szkół), bez JavaScriptu i bez stylu w dokumencie; liczba
@@ -14,7 +16,7 @@
 {% endblock %}
 {% block panel_title %}{% translate "Lejek uczestnika" %}{% endblock %}
 {% block panel_lead %}
-  <p class="lead">{% translate "Ilu uczestników przechodzi kolejne kroki – od rejestracji, przez aktywację konta i zapis do etapu, do pierwszej pracy, zaświadczenia i warsztatów." %}</p>
+  <p class="lead">{% translate "Ilu uczestników spełnia każdy z warunków aktywności – rejestracja, aktywacja konta, logowanie, zgody, zapis do etapu, pierwsza praca, zaświadczenie i warsztaty. Każdy krok jest liczony osobno, bez kolejności: liczy wszystkich, którzy spełniają jego warunek, także bez pozostałych kroków." %}</p>
   <p class="hint">{% translate "Liczby dotyczą uczestników wybranej edycji: zapisanych do jej etapu albo zarejestrowanych w czasie jej trwania. Konta usunięte nie są liczone." %}</p>
 {% endblock %}
 {% block panel_actions %}
@@ -53,14 +55,13 @@
 
 {% if result %}
 <section class="section">
-  <h2>{% translate "Kroki lejka" %}</h2>
-  <div class="scroll" role="region" tabindex="0" aria-label="{% translate 'Kroki lejka' %}">
+  <h2>{% translate "Kroki aktywności" %}</h2>
+  <div class="scroll" role="region" tabindex="0" aria-label="{% translate 'Kroki aktywności' %}">
     <table class="table stat-table cs-funnel">
       <thead>
         <tr>
           <th scope="col">{% translate "Krok" %}</th>
           <th scope="col" class="num">{% translate "Uczestnicy" %}</th>
-          <th scope="col" class="num">{% translate "względem poprzedniego kroku" %}</th>
           <th scope="col">{% translate "względem rejestracji" %}</th>
         </tr>
       </thead>
@@ -69,10 +70,9 @@
           <tr{% if step.sub %} class="cs-funnel__sub"{% endif %}>
             <th scope="row">{{ step.label }}{% if step.key == "enrolled_first" and result.first_stage_name %} <span class="hint">({{ result.first_stage_name }})</span>{% endif %}</th>
             {% if step.count is None %}
-              <td class="num" colspan="3"><span class="hint">{% translate "brak takiego etapu w tej edycji" %}</span></td>
+              <td class="num" colspan="2"><span class="hint">{% translate "brak takiego etapu w tej edycji" %}</span></td>
             {% else %}
               <td class="num">{{ step.count }}</td>
-              <td class="num">{% if step.vs_previous is None %}—{% else %}{{ step.vs_previous }}%{% endif %}</td>
               <td><span class="stat-bar" aria-hidden="true"><span class="stat-bar__fill stat-bar__fill--{{ step.width }}"></span></span><span class="stat-bar__value">{% if step.vs_registered is None %}—{% else %}{{ step.vs_registered }}%{% endif %}</span></td>
             {% endif %}
           </tr>
@@ -80,11 +80,7 @@
       </tbody>
     </table>
   </div>
-  {% if strict %}
-    <p class="hint">{% translate "Lejek ścisły: krok liczy osoby, które przeszły także wszystkie poprzednie kroki. Wiersze „w tym” rozbijają zapis do etapu i liczą się względem kroku zgód." %}</p>
-  {% else %}
-    <p class="hint">{% translate "Kroki niezależne: każdy krok liczy wszystkich, którzy spełniają jego warunek – także bez poprzednich kroków (np. obecni na warsztacie bez zaakceptowanego zaświadczenia)." %}</p>
-  {% endif %}
+  <p class="hint">{% translate "Kroki są niezależne: liczba w wierszu nie zależy od wierszy powyżej (np. zaświadczenie może być zaakceptowane, zanim uczestnik wyśle pierwszą pracę). Odsetek i słupek – względem rejestracji; wiersze „w tym” rozbijają zapis do etapu." %}</p>
   <p class="hint">{% translate "Zgoda opiekuna jest wymagana od niepełnoletnich według tej samej reguły wieku, co przy rejestracji." %}</p>
 </section>
 

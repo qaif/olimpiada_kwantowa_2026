@@ -1,6 +1,11 @@
 """Lejek uczestnika: od rejestracji do warsztatów, z filtrami i tabelą „gdzie odpadają” (STATS-02 § 1).
 
-Wszystko liczy baza i liczy **stałą liczbą zapytań**: kroki lejka to jedno ``aggregate`` z
+Każdy krok jest liczony **niezależnie** – „ilu uczestników edycji spełnia ten warunek”, bez względu
+na pozostałe kroki i ich kolejność (decyzja organizatora z 21.10.2026). Lejek ścisły („krok wymaga
+wszystkich poprzednich”) zerował wszystko za krokiem, który w danej chwili jest pusty z powodu
+kalendarza – np. zaakceptowane zaświadczenia przed startem Etapu I, gdy nikt nie wysłał jeszcze pracy.
+
+Wszystko liczy baza i liczy **stałą liczbą zapytań**: kroki to jedno ``aggregate`` z
 ``COUNT(*) FILTER (WHERE …)`` po populacji, a warunki „ma wpis / pracę / zaświadczenie / obecność”
 są podzapytaniami ``EXISTS`` – nie złączeniami, które mnożyłyby wiersze profilu przez jego wpisy.
 Tabele „gdzie odpadają” to dwa grupowania tej samej populacji. Żadna liczba nie powstaje w pętli
@@ -42,11 +47,11 @@ CACHE_SECONDS = 300
 #: Ile grup pokazuje każda tabela „gdzie odpadają”.
 DROPOFF_LIMIT = 10
 
-STRICT = "strict"
-INDEPENDENT = "independent"
-MODES = (STRICT, INDEPENDENT)
+#: Wersja klucza pamięci podręcznej – podnoszona przy zmianie sposobu liczenia, żeby wynik policzony
+#: starym kodem (do 21.10.2026 – z trybem „ścisły”) nie wrócił z pamięci po wdrożeniu.
+CACHE_VERSION = 2
 
-#: Podpisy kroków lejka i podwierszy („w tym …” – rozbicie kroku, liczone względem kroku przed nim).
+#: Podpisy kroków i podwierszy („w tym …” – rozbicie kroku „zapis do etapu”).
 STEP_LABELS = {
     "registered": _("Rejestracja (profil uczestnika)"),
     "activated": _("Aktywacja konta (potwierdzony adres e-mail)"),
@@ -59,7 +64,8 @@ STEP_LABELS = {
     "student_status": _("Zaświadczenie o statusie ucznia zaakceptowane"),
     "workshop": _("Obecność na co najmniej jednym warsztacie"),
 }
-#: Kroki główne (łańcuch lejka) i podwiersze (rozbicie kroku „zapis do etapu”).
+#: Kroki główne w kolejności wyświetlania (naturalny porządek aktywności – liczby od niej nie
+#: zależą) i podwiersze (rozbicie kroku „zapis do etapu”).
 CHAIN = (
     "registered",
     "activated",
@@ -82,7 +88,6 @@ class Filters:
     domain: str = ""
     registered_from: date | None = None
     registered_to: date | None = None
-    mode: str = STRICT
 
     def cache_part(self) -> str:
         return json.dumps(
@@ -92,7 +97,6 @@ class Filters:
                 self.domain,
                 self.registered_from.isoformat() if self.registered_from else "",
                 self.registered_to.isoformat() if self.registered_to else "",
-                self.mode,
             ]
         )
 
@@ -274,25 +278,8 @@ def conditions(
     return annotations, steps
 
 
-def _effective(steps: dict, mode: str) -> dict:
-    """Warunek liczony dla każdego wiersza: sam krok (niezależnie) albo krok i wszystkie poprzednie."""
-    if mode != STRICT:
-        return dict(steps)
-    effective = {}
-    prefix = previous = Q()
-    for name in CHAIN:
-        prefix &= steps[name]
-        effective[name] = prefix
-        for sub in SUBSTEPS.get(name, ()):
-            # Podwiersz „w tym …” to krok **poprzedni** łańcucha i własny warunek – nie zależy od
-            # drugiego podwiersza (trening i Etap I są równoległe).
-            effective[sub] = None if steps[sub] is None else (previous & steps[sub])
-        previous = prefix
-    return effective
-
-
 def compute(competition, edition: Edition, filters: Filters, *, today: date | None = None) -> FunnelResult:
-    """Lejek i tabele „gdzie odpadają” – stała liczba zapytań bez względu na liczbę uczestników."""
+    """Kroki (każdy niezależnie) i „gdzie odpadają” – stała liczba zapytań bez względu na liczbę osób."""
     today = today or timezone.localdate()
     following = next_edition(edition)
     until = following.created_at if following is not None else None
@@ -300,10 +287,9 @@ def compute(competition, edition: Edition, filters: Filters, *, today: date | No
     stages = list(Stage.objects.filter(edition=edition).only("id", "kind", "name", "opens_at"))
     first = first_stage(stages)
     annotations, steps = conditions(competition, edition, first=first, until=until, today=today)
-    effective = _effective(steps, filters.mode)
     aggregates = {
         name: Count("pk", filter=condition) if condition else Count("pk")
-        for name, condition in effective.items()
+        for name, condition in steps.items()
         if condition is not None
     }
     counts = queryset.annotate(**annotations).aggregate(**aggregates)
@@ -312,27 +298,28 @@ def compute(competition, edition: Edition, filters: Filters, *, today: date | No
         has_training=any(stage.kind == StageKind.TRAINING for stage in stages),
     )
     registered = counts.get("registered") or 0
-    previous_count = None
     for name in CHAIN:
-        count = counts.get(name)
-        result.steps.append(_step_row(name, count, previous_count, registered, sub=False))
+        result.steps.append(_step_row(name, counts.get(name), registered, sub=False))
         for sub in SUBSTEPS.get(name, ()):
-            result.steps.append(_step_row(sub, counts.get(sub), previous_count, registered, sub=True))
-        previous_count = count
+            result.steps.append(_step_row(sub, counts.get(sub), registered, sub=True))
     result.regions = _dropoff(queryset, ("district",), _region_label)
     result.schools = _dropoff(queryset, ("school_ref_id", "school_ref__city", "school"), _school_label)
     return result
 
 
-def _step_row(name: str, count, previous, registered: int, *, sub: bool) -> dict:
+def _step_row(name: str, count, registered: int, *, sub: bool) -> dict:
+    """Wiersz kroku: liczba i odsetek **względem rejestracji** (także słupek i podwiersze).
+
+    Odsetka „względem poprzedniego kroku” nie ma: przy krokach niezależnych krok nie jest podzbiorem
+    poprzedniego (zgody 646 przy 602 zalogowanych dawałyby 107 %). Rejestracja to cała populacja,
+    więc każdy krok jest jej podzbiorem i odsetek nie przekracza 100 %.
+    """
     vs_registered = share(count, registered)
     return {
         "key": name,
         "label": str(STEP_LABELS[name]),
         "count": count,
         "sub": sub,
-        # Pierwszy krok nie ma poprzedniego; podwiersz liczy się względem kroku przed rozbiciem.
-        "vs_previous": None if name == "registered" else share(count, previous),
         "vs_registered": vs_registered,
         "width": width_class(vs_registered or 0),
     }
@@ -393,7 +380,10 @@ def cached(competition, edition: Edition, filters: Filters, *, today: date | Non
     today = today or timezone.localdate()
     digest = hashlib.sha256(filters.cache_part().encode()).hexdigest()[:24]
     language = translation.get_language() or ""
-    key = f"coordinator_stats:funnel:{competition.pk}:{edition.pk}:{today.isoformat()}:{language}:{digest}"
+    key = (
+        f"coordinator_stats:funnel:v{CACHE_VERSION}:{competition.pk}:{edition.pk}:"
+        f"{today.isoformat()}:{language}:{digest}"
+    )
     result = cache.get(key)
     if result is None:
         result = compute(competition, edition, filters, today=today)
