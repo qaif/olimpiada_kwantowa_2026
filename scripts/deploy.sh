@@ -22,6 +22,10 @@
 # postgres, redis, minio, mc, clamav, postfix – `docker compose pull --ignore-buildable`; rejestr
 # niedostępny = ostrzeżenie, nie błąd), a 4b uruchamia znów `minio-init` (polityki bucketów).
 #
+# Edytor LaTeX webTEX (profil `latex` w COMPOSE_PROFILES w .env, docs/OPERACJE.md § 55): krok 4/8
+# buduje obraz `webtex` (albo pobiera WEBTEX_IMAGE z .env), 4b go uruchamia, porządki zostawiają dwa
+# tagi `olimpiada/webtex`. Bez profilu `latex` polecenia dockera są takie jak przed tą zmianą.
+#
 # Gotowy obraz zamiast budowania na serwerze (opcjonalnie, docs/UNIWERSALNY-ETAP-2.md § 1.7.2):
 #   WEB_IMAGE=ghcr.io/qaif/olimpiada-web:v0.24.0 scripts/deploy.sh root@<host>
 # Krok 4/8 pobiera wtedy obraz z rejestru zamiast go budować, a wartość trafia do <REMOTE_DIR>/.env,
@@ -625,6 +629,20 @@ if [ "$DJCMS_ON" = "1" ]; then
     APT_REFRESH="$(date -u +%F)" docker compose --profile djcms build --pull djcms
   fi
 fi
+# Obraz webTEX (profil `latex`, OPERACJE § 55) – do 19.10.2026 wdrożenie go nie budowało ani nie
+# uruchamiało, więc edytor zostawał na obrazie z ręcznego `up -d --build webtex` (v0.51.2 wciąż na
+# v0.51.0). Przed stroną prac technicznych, jak build `web`. Bez `--pull`: baza
+# `texlive/texlive:latest-full` to tag pływający na ~9 GB, więc świeży TeX Live = ręczne
+# `docker compose build --pull webtex` (OPERACJE § 55.1), a wdrożenie przebudowuje z cache tylko
+# warstwy edytora. WEBTEX_IMAGE w .env (obraz z rejestru) – pobranie zamiast budowania.
+case ",$(sed -n 's/^COMPOSE_PROFILES=//p' .env | tail -n 1 | tr -d '\r\042\047[:space:]')," in
+  *,latex,*)
+    if grep -qE '^WEBTEX_IMAGE=.' .env; then
+      docker compose --profile latex pull webtex
+    else
+      docker compose --profile latex build webtex
+    fi ;;
+esac
 # Obrazy cudze (caddy, postgres, redis, minio, mc, clamav, postfix – wszystko bez `build:`; zestaw
 # usług jak przy każdym `docker compose` tutaj, czyli z COMPOSE_FILE/COMPOSE_PROFILES z .env, więc
 # z djcms, gdy jest włączony) – świeże przy każdym wdrożeniu (audyt z 1.10.2026). Bez tego `up -d`
@@ -718,6 +736,11 @@ REMOTE
 DJCMS_FLAG="$("${SSH[@]}" "sed -n 's/^DJCMS_ENABLED=//p' '$REMOTE_DIR/.env' | tail -n 1" | tr -d '\r\042\047[:space:]' | tr '[:upper:]' '[:lower:]')"
 DJCMS_ON=0
 case "$DJCMS_FLAG" in 1|true|yes|on) DJCMS_ON=1 ;; esac
+# To samo dla edytora webTEX: profil `latex` w COMPOSE_PROFILES (krok 4/8 zbudował już jego obraz).
+# Od niego zależy start w 4b i porządki obrazów; bez profilu polecenia są takie jak przed tą zmianą.
+LATEX_PROFILES="$("${SSH[@]}" "sed -n 's/^COMPOSE_PROFILES=//p' '$REMOTE_DIR/.env' | tail -n 1" | tr -d '\r\042\047[:space:]')"
+LATEX_ON=0
+case ",$LATEX_PROFILES," in *,latex,*) LATEX_ON=1 ;; esac
 
 log "4a/8 Kopia bazy przed migracjami (pg_dump -Fc)"
 # Format `custom` (-Fc), a nie zwykły SQL: pozwala odtworzyć wybraną tabelę zamiast całej bazy,
@@ -804,6 +827,11 @@ log "4b/8 Start usług (migracje wykonuje entrypoint kontenera web)"
 # Przy DJCMS_ENABLED=1 lista dostaje `djcms` na końcu; bez niego polecenie jest znak w znak dzisiejsze.
 DJCMS_SVC=""
 [ "$DJCMS_ON" = "1" ] && DJCMS_SVC=" djcms"
+# webTEX na końcu listy, z profilem `latex`. Nic od niego nie zależy (`service_healthy`), więc edytor,
+# który nie wstaje, nie psuje `up -d` i nie wyzwala wycofania aplikacji – widać go w kroku 5/8 jako
+# ostrzeżenie i w `docker compose ps webtex`.
+LATEX_SVC=""
+[ "$LATEX_ON" = "1" ] && LATEX_SVC=" webtex"
 NEW_STARTED=1
 # Najczęstsze złe wydanie – nowy web, który nie wstaje (błąd importu, migracja, crash-loop) – kończy
 # TO polecenie błędem: proxy zależy od `web: service_healthy`, więc compose zwraca kod ≠ 0. Pod
@@ -812,7 +840,7 @@ NEW_STARTED=1
 # strona prac technicznych) są wtedy pomijane, a 5b/8 idzie prosto do kontroli i `rollback.sh auto`
 # (który wycofa wyłącznie wtedy, gdy nie przybyły migracje) – niezależnie od DEPLOY_SMOKE.
 UP_RC=0
-"${SSH[@]}" "cd '$REMOTE_DIR' && docker compose up -d --remove-orphans db redis minio minio-init clamav mail web worker beat proxy$DJCMS_SVC" || UP_RC=$?
+"${SSH[@]}" "cd '$REMOTE_DIR' && docker compose up -d --remove-orphans db redis minio minio-init clamav mail web worker beat proxy$DJCMS_SVC$LATEX_SVC" || UP_RC=$?
 if [ "$UP_RC" -ne 0 ]; then
   printf '\n!!! docker compose up -d zakończył się kodem %s (zwykle: nowy web nie staje się healthy –\n' "$UP_RC" >&2
   printf '!!! docker compose logs web). Pomijam kroki 4c–5a; kontrola dymna i decyzja o wycofaniu (5b/8).\n' >&2
@@ -846,6 +874,13 @@ for i in \$(seq 1 60); do
   sleep 5
 done
 REMOTE
+# webTEX poza warunkiem wyżej: edytor, który nie wstaje, nie zatrzymuje wdrożenia aplikacji ani jej
+# kontroli dymnej – tylko ostrzeżenie (healthcheck co 30 s, więc domyślnie do 18 × 5 s = 90 s czekania;
+# WEBTEX_WAIT_TRIES – liczba prób, test skraca ją do jednej).
+if [ "$LATEX_ON" = "1" ]; then
+  WEBTEX_WAIT_TRIES="${WEBTEX_WAIT_TRIES:-18}"
+  "${SSH[@]}" "cd '$REMOTE_DIR' && for i in \$(seq 1 $WEBTEX_WAIT_TRIES); do docker compose ps --format '{{.Service}}={{.Health}}' webtex | grep -qx 'webtex=healthy' && { echo 'webtex: healthy'; exit 0; }; sleep 5; done; echo 'UWAGA: webtex nie jest healthy po $((WEBTEX_WAIT_TRIES * 5)) s – edytor LaTeX może nie działać (docker compose logs webtex)'" || true
+fi
 
 if [ "$MAINTENANCE" = "1" ]; then
   log "5a/8 Kontrola z przepustką operatora i wyłączenie strony „Prace techniczne”"
@@ -1206,6 +1241,11 @@ log "Porządki: stare obrazy"
 # jest kasowany: to on, a nie tag wersji, trzyma obraz, do którego wraca `rollback.sh run` – także
 # wtedy, gdy wdrożenie tej samej wersji przebudowało jej tag.
 "${SSH[@]}" "docker images --filter=reference='olimpiada/web' --format '{{.CreatedAt}}|{{.Repository}}:{{.Tag}}' | grep -v '|olimpiada/web:previous\$' | sort -r | tail -n +3 | cut -d'|' -f2 | xargs -r docker rmi" || true
+# Obraz webTEX dostaje tag wersji przy każdym wdrożeniu z profilem `latex` – te same dwa ostatnie
+# zostają (bieżący i poprzedni). Warstwa TeX Live jest wspólna, kasowane są tylko warstwy edytora.
+if [ "$LATEX_ON" = "1" ]; then
+  "${SSH[@]}" "docker images --filter=reference='olimpiada/webtex' --format '{{.CreatedAt}}|{{.Repository}}:{{.Tag}}' | sort -r | tail -n +3 | cut -d'|' -f2 | xargs -r docker rmi" || true
+fi
 # Dangling (warstwy budowania bez tagu – etap `builder` obrazu wielostopniowego, buildy przerwane
 # w połowie): bezpieczne do skasowania zawsze, bo z definicji nic ich nie referencuje.
 "${SSH[@]}" "docker image prune -f"

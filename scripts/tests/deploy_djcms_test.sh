@@ -99,6 +99,8 @@ case "$*" in
   *"exec -T db psql"*"django_migrations"*) cat "$STUB_BOX/migrations" ;;
   *"check_domains --hosts"*) echo olimpiada.example ;;
   *"manage.py page_cache_clear"*) exit "${STUB_PCC_RC:-0}" ;;   # STUB_PCC_RC≠0 – web nie odpowiada
+  # webTEX (profil `latex`): healthy, chyba że STUB_WEBTEX_DOWN=1 (edytor nie wstaje).
+  *"compose ps --format {{.Service}}={{.Health}} webtex"*) [ "${STUB_WEBTEX_DOWN:-0}" = 1 ] || echo webtex=healthy ;;
   *"compose ps"*) printf 'db=healthy\nweb=healthy\nproxy=healthy\ndjcms=healthy\n' ;;
   *"exec -T db psql"*"datname = 'olimpiada_djcms'"*) echo 1 ;;
   *"exec -T db psql"*"ON_ERROR_STOP"*) cat >>"$DOCKER_LOG.sql" ;;   # scripts/djcms_db.sh (SQL na stdin)
@@ -263,9 +265,9 @@ run_deploy() {
   # sync_competitions bez przerw. Atrapa ssh przekazuje środowisko dalej, więc dochodzą do „serwera”.
   ( env -u DJCMS_ENABLE -u DJCMS_IMAGE -u DJCMS_ADMIN_EMAIL -u DJCMS_ADMIN_PASSWORD -u WEB_IMAGE \
       -u STUB_SMOKE_FAIL -u STUB_NEW_MIGRATION -u STUB_SYNC_FAILS -u DEPLOY_SMOKE -u STUB_PCC_RC -u STUB_UP_RC \
-      -u DJCMS_PRIMARY -u STUB_CURL_MODE -u STUB_SYNC_RC -u STUB_SYNC_OLD -u STUB_VALIDATE_RC -u STUB_RELOAD_RC       -u STUB_HEALTHZ_CODE -u STUB_ROUTES_DIFF -u OLIMPIADA_PROXY_LOCK -u NEW_COMPETITION_SLUG -u COORDINATOR_EMAIL -u COORDINATOR_PASSWORD       -u MAINTENANCE_MESSAGE -u MAINTENANCE_MINUTES       PATH="$BIN:$PATH" DOCKER_LOG="$DOCKER_LOG" SSH_LOG="$SSH_LOG" SRC_TAR="${SRC_TAR:-$WORK/tree.tar}" \
+      -u DJCMS_PRIMARY -u STUB_CURL_MODE -u STUB_SYNC_RC -u STUB_SYNC_OLD -u STUB_VALIDATE_RC -u STUB_RELOAD_RC       -u STUB_HEALTHZ_CODE -u STUB_ROUTES_DIFF -u OLIMPIADA_PROXY_LOCK -u NEW_COMPETITION_SLUG -u COORDINATOR_EMAIL -u COORDINATOR_PASSWORD       -u MAINTENANCE_MESSAGE -u MAINTENANCE_MINUTES -u STUB_WEBTEX_DOWN       PATH="$BIN:$PATH" DOCKER_LOG="$DOCKER_LOG" SSH_LOG="$SSH_LOG" SRC_TAR="${SRC_TAR:-$WORK/tree.tar}" \
       STUB_BOX="$BOX" \
-      SMOKE_RETRIES=1 SMOKE_RETRY_DELAY=0 ROLLBACK_WAIT_SECONDS=0 DJCMS_SYNC_RETRY_DELAYS="0 0 0" \
+      SMOKE_RETRIES=1 SMOKE_RETRY_DELAY=0 ROLLBACK_WAIT_SECONDS=0 WEBTEX_WAIT_TRIES=1 DJCMS_SYNC_RETRY_DELAYS="0 0 0" \
       FAKE_HOME="$WORK/home" REMOTE_DIR="$SRV" BACKUP_DIR="$BAK" SSH_KEY=/dev/null \
       APP_VERSION=vtest MAIL_PUBLIC_IP=203.0.113.7 "$@" \
       bash "$script" ${DEPLOY_FLAGS:-} root@test.invalid ) </dev/null >"$OUT" 2>&1
@@ -338,6 +340,8 @@ check "bez DJCMS_ENABLED .env zostaje co do bajtu" $?
 check "ani jedno polecenie docker nie wspomina djcms" $?
 [ "$(grep -c 'DJCMS' "$WORK/off.ssh")" = "1" ] && grep -qFx "sed -n 's/^DJCMS_ENABLED=//p' '$SRV/.env' | tail -n 1" "$WORK/off.ssh"
 check "jedyne polecenie ssh z DJCMS to odczyt przełącznika z .env (bez dockera)" $?
+! grep -qiE 'webtex|latex' "$WORK/off.docker" && ! grep -q 'webtex' "$WORK/off.out"
+check "bez profilu latex ani jedno polecenie docker (ani linijka logu) nie wspomina webTEX" $?
 cmp -s "$ROOT/deploy/Caddyfile" "$SRV/caddy/Caddyfile" && cmp -s "$SRV/caddy/Caddyfile" "$BOX/loaded"
 check "konfiguracja proxy = deploy/Caddyfile bajt w bajt, załadowana w proxy" $?
 ! grep -qE '^==> dj\.' "$WORK/off.out"
@@ -385,10 +389,14 @@ if [ -n "${DEPLOY_BASELINE_REF:-}" ]; then
   [ "$(no_proxy_cfg env <"$WORK/base.env")" = "$(no_proxy_cfg env <"$SRV/.env")" ]
   check "[$DEPLOY_BASELINE_REF] .env po wdrożeniu identyczny (poza CADDYFILE_PATH / CADDY_CONFIG_DIR)" $?
   diff <(no_proxy_cfg ssh <"$WORK/base.ssh") <(no_proxy_cfg ssh <"$WORK/new.ssh") | grep -E '^[<>]' >"$WORK/ssh.diff"
-  [ "$(cat "$WORK/ssh.diff")" = "> sed -n 's/^DJCMS_ENABLED=//p' '$SRV/.env' | tail -n 1" ]
+  # Rewizja sprzed odczytu profilu `latex` różni się też nim (drugie odczytanie .env, bez dockera).
+  grep -vxF "> sed -n 's/^COMPOSE_PROFILES=//p' '$SRV/.env' | tail -n 1" "$WORK/ssh.diff" >"$WORK/ssh.diff2"
+  # Rewizja sprzed DJ-01 nie ma też odczytu DJCMS_ENABLED; późniejsza (np. main) – ma go już sama.
+  grep -vxF "> sed -n 's/^DJCMS_ENABLED=//p' '$SRV/.env' | tail -n 1" "$WORK/ssh.diff2" >"$WORK/ssh.diff3"
+  [ ! -s "$WORK/ssh.diff3" ]
   rc=$?
-  check "[$DEPLOY_BASELINE_REF] polecenia ssh identyczne poza jednym odczytem przełącznika z .env" $rc
-  show_on_fail $rc "$WORK/ssh.diff"
+  check "[$DEPLOY_BASELINE_REF] polecenia ssh identyczne poza odczytami przełączników z .env" $rc
+  show_on_fail $rc "$WORK/ssh.diff3"
   diff <(mask "$WORK/base.out") <(mask "$WORK/new.out") >"$WORK/out.diff"
   rc=$?
   check "[$DEPLOY_BASELINE_REF] wyjście wdrożenia identyczne (po zamaskowaniu czasu)" $rc
@@ -996,6 +1004,64 @@ run_deploy "$DEPLOY" sync-other STUB_SYNC_RC=1
 rc=$?
 [ $rc -ne 0 ] && [ "$(grep -cx 'compose exec -T djcms python manage.py sync_competitions --import-missing' "$WORK/sync-other.docker")" = 1 ]
 check "dj.: inny błąd sync_competitions (np. importu) – bez ponawiania" $?
+
+# ================================================================================================
+# 12. Edytor webTEX (profil `latex`, docs/OPERACJE.md § 55): krok 4/8 buduje obraz `webtex`
+#     (albo pobiera WEBTEX_IMAGE z .env), 4b go uruchamia, 5/8 czeka na jego healthy bez
+#     zatrzymywania wdrożenia, porządki zostawiają dwa tagi. Reszta poleceń – dzisiejsza.
+# ================================================================================================
+# Oczekiwane polecenia = DZISIAJ z czterema wstawkami webTEX (kolejność ma znaczenie).
+LATEX_DZISIAJ="$(printf '%s\n' "$DZISIAJ" | awk '
+  $0 == "compose build --pull web" { print; print "compose --profile latex build webtex"; next }
+  $0 == "compose up -d --remove-orphans db redis minio minio-init clamav mail web worker beat proxy" { print $0 " webtex"; next }
+  $0 == "compose exec -T web python manage.py page_cache_clear" { print "compose ps --format {{.Service}}={{.Health}} webtex" }
+  { print }
+  index($0, "images --filter=reference=olimpiada/web --format ") == 1 { print "images --filter=reference=olimpiada/webtex --format {{.CreatedAt}}|{{.Repository}}:{{.Tag}}" }')"
+latex_env() {  # latex_env <wartość COMPOSE_PROFILES> [dodatkowa linijka .env]
+  { cat "$WORK/env.fixture"; echo "COMPOSE_PROFILES=$1"; [ -z "${2:-}" ] || echo "$2"; } >"$SRV/.env"
+  cp "$SRV/.env" "$WORK/env.latex"
+}
+
+reset_server; installed_proxy_cfg; latex_env latex
+run_deploy "$DEPLOY" latex
+rc=$?
+check "profil latex: wdrożenie kończy się powodzeniem" $rc
+show_on_fail $rc "$WORK/latex.out"
+[ "$(cat "$WORK/latex.docker")" = "$LATEX_DZISIAJ" ]
+rc=$?
+check "profil latex: build webtex w 4/8, webtex w up -d (4b), healthy w 5/8, porządki obrazów webtex" $rc
+[ $rc -eq 0 ] || diff <(printf '%s\n' "$LATEX_DZISIAJ") "$WORK/latex.docker" | sed 's/^/     /'
+cmp -s "$WORK/env.latex" "$SRV/.env"
+check "profil latex: .env zostaje co do bajtu" $?
+grep -qx 'webtex: healthy' "$WORK/latex.out"
+check "profil latex: log mówi, że webtex jest healthy" $?
+
+# Kilka profili, z cudzysłowami i spacją (tak bywa wpisane ręcznie w .env) – to samo.
+reset_server; installed_proxy_cfg; latex_env '"livekit, latex"'
+run_deploy "$DEPLOY" latex-multi
+[ "$(cat "$WORK/latex-multi.docker")" = "$LATEX_DZISIAJ" ]
+check "profil latex wśród innych (\"livekit, latex\"): te same polecenia" $?
+
+# Nazwa tylko podobna (latexdev) – profilu latex nie ma: polecenia dzisiejsze.
+reset_server; installed_proxy_cfg; latex_env latexdev
+run_deploy "$DEPLOY" latex-like
+[ "$(cat "$WORK/latex-like.docker")" = "$DZISIAJ" ]
+check "COMPOSE_PROFILES=latexdev to nie latex – polecenia dzisiejsze" $?
+
+# WEBTEX_IMAGE w .env – pobranie obrazu z rejestru zamiast budowania.
+reset_server; installed_proxy_cfg; latex_env latex WEBTEX_IMAGE=ghcr.io/qaif/olimpiada-webtex:v9
+run_deploy "$DEPLOY" latex-img
+[ "$(cat "$WORK/latex-img.docker")" = "$(printf '%s\n' "$LATEX_DZISIAJ" | sed 's/^compose --profile latex build webtex$/compose --profile latex pull webtex/')" ]
+check "WEBTEX_IMAGE w .env: pull webtex zamiast build, reszta bez zmian" $?
+
+# Edytor nie wstaje – ostrzeżenie; wdrożenie aplikacji i kontrola dymna przechodzą, bez wycofania.
+reset_server; installed_proxy_cfg; latex_env latex
+run_deploy "$DEPLOY" latex-down STUB_WEBTEX_DOWN=1
+rc=$?
+[ $rc -eq 0 ] && grep -q '^UWAGA: webtex nie jest healthy po 5 s' "$WORK/latex-down.out" \
+  && ! grep -q 'rollback.sh auto' "$WORK/latex-down.ssh"
+check "webtex nie healthy: UWAGA w logu, wdrożenie kończy się powodzeniem, bez wycofania" $?
+show_on_fail $rc "$WORK/latex-down.out"
 
 if [ "$failures" -ne 0 ]; then
   printf '\n%d test(ów) nie przeszło.\n' "$failures"

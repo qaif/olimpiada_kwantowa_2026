@@ -7507,6 +7507,17 @@ mailem działają tak samo jak przy wgraniu pliku. Edytor jest osobną aplikacj�
 5. Kontrola: `docker compose logs webtex | grep -i landlock` po pierwszej kompilacji – ma być
    „local compiles sandboxed with Landlock”.
 
+**Aktualizacja edytora przy wdrożeniu** (od wersji następnej po v0.51.3): przy profilu `latex`
+w `COMPOSE_PROFILES` `scripts/deploy.sh` sam buduje obraz `webtex` w kroku 4/8 (z `WEBTEX_IMAGE`
+w `.env` – pobiera go z rejestru), uruchamia go w kroku 4b/8 i w kroku 5/8 czeka do 90 s na
+`webtex=healthy`. Edytor, który nie wstaje, daje tylko `UWAGA: webtex nie jest healthy…` – wdrożenie
+platformy, kontrola dymna i ewentualne wycofanie go nie dotyczą (nic nie zależy od `webtex`). Porządki
+zostawiają dwa ostatnie tagi `olimpiada/webtex`. Do v0.51.3 włącznie wdrożenie edytora nie ruszało
+(v0.51.2 działało jeszcze na obrazie v0.51.0) – po takim wdrożeniu ręcznie:
+`docker compose build webtex && docker compose up -d --wait webtex`. Wdrożenie buduje **bez**
+`--pull`: baza `texlive/texlive:latest-full` (~9 GB) odświeża się tylko ręcznym
+`docker compose build --pull webtex && docker compose up -d webtex`.
+
 ### 55.2. Bezpieczeństwo kompilacji
 
 TeX kompiluje pliki uczniów, więc kontener edytora jest odcięty: sieci `tex_front` (tylko Caddy)
