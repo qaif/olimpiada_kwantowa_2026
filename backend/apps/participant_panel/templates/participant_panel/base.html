@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% load static participant_panel %}
+{% comment %}
+  Rama panelu uczestnika (UX-PANEL-01): menu po lewej (desktop) albo rozwijane „Menu panelu” nad
+  treścią (telefon) i kolumna treści. Ekrany panelu dziedziczą ten szablon i wypełniają:
+
+  - ``panel_content`` – treść strony (dawny ``content``),
+  - ``panel_head`` – dodatkowy arkusz strony. Osobny blok, a nie ``head``: nadpisanie ``head`` bez
+    ``block.super`` zabrałoby ramie jej arkusz.
+
+  Menu stoi **wewnątrz** ``<main>`` i **przed** treścią: skip link „Przejdź do treści” prowadzi na
+  ``#tresc``, a następny Tab trafia w pierwszą pozycję menu – tak jak w panelu koordynatora.
+{% endcomment %}
+{% block head %}{{ block.super }}
+  <link rel="stylesheet" href="{% static 'participant_panel/panel.css' %}">
+  {% block panel_head %}{% endblock %}
+{% endblock %}
+{% block content %}
+<div class="pp">
+  {% participant_nav %}
+  <div class="pp__main">
+    {% block panel_content %}{% endblock %}
+  </div>
+</div>
+{% endblock %}

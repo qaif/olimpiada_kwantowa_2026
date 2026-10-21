@@ -1,0 +1,118 @@
+# UX-PANEL-01 – napisy aplikacji participant_panel (id). Źródło (msgid) po polsku; poza angielskim
+# tłumaczenie maszynowe – do przeglądu native speakera (I18N-01 § 8).
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada participant_panel\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-21 12:00+0200\n"
+"PO-Revision-Date: 2026-10-21 12:00+0200\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: id\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "Powiadomienia"
+msgstr "Notifikasi"
+
+msgid "nowe"
+msgstr "baru"
+
+msgid "Ogłoszenia"
+msgstr "Pengumuman"
+
+msgid "Pulpit"
+msgstr "Dasbor"
+
+msgid "Zadania i moje prace"
+msgstr "Soal dan jawaban saya"
+
+msgid "Archiwum zadań"
+msgstr "Arsip soal"
+
+msgid "Nauka"
+msgstr "Belajar"
+
+msgid "Notatniki Qiskit"
+msgstr "Notebook Qiskit"
+
+msgid "Edytor LaTeX (webTEX)"
+msgstr "Editor LaTeX (webTEX)"
+
+msgid "Profil i dane"
+msgstr "Profil dan data"
+
+msgid "Weryfikacja dwuetapowa"
+msgstr "Verifikasi dua langkah"
+
+msgid "Menu panelu"
+msgstr "Menu panel"
+
+msgid "Menu panelu uczestnika"
+msgstr "Menu panel peserta"
+
+msgid "Powiadomienia – brak nowych"
+msgstr "Notifikasi – tidak ada yang baru"
+
+msgid "Na skróty"
+msgstr "Pintasan"
+
+msgid "Najbliższy termin"
+msgstr "Tenggat berikutnya"
+
+msgid "Przejdź do zadań"
+msgstr "Buka soal"
+
+msgid "Bieżący etap"
+msgstr "Tahap saat ini"
+
+msgid "Najbliższy warsztat"
+msgstr "Lokakarya berikutnya"
+
+msgid "Warsztaty online"
+msgstr "Lokakarya daring"
+
+msgid "Link do spotkania organizator podaje w ogłoszeniu."
+msgstr "Penyelenggara membagikan tautan pertemuan dalam pengumuman."
+
+msgid "Co nowego"
+msgstr "Yang baru"
+
+msgid "brak nowych"
+msgstr "tidak ada yang baru"
+
+msgid "nieprzeczytane rozmowy"
+msgstr "percakapan belum dibaca"
+
+msgid "Narzędzia"
+msgstr "Alat"
+
+msgid "Pracujesz w przeglądarce – nic nie trzeba instalować."
+msgstr "Anda bekerja di peramban – tidak perlu memasang apa pun."
+
+msgid "Edytor LaTeX"
+msgstr "Editor LaTeX"
+
+msgid "(otwiera się w nowej karcie)"
+msgstr "(terbuka di tab baru)"
+
+msgid "Na razie nie ma tu zadań"
+msgstr "Belum ada soal di sini"
+
+msgid "Notatniki pojawiają się przy zadaniach z obliczeń kwantowych, gdy etap, do którego jesteś zapisany, się rozpocznie."
+msgstr "Notebook muncul pada soal komputasi kuantum ketika tahap yang Anda ikuti dimulai."
+
+msgid "Edytor jest dostępny przy zadaniach etapu, do którego jesteś zapisany, od chwili jego rozpoczęcia."
+msgstr "Editor tersedia untuk soal pada tahap yang Anda ikuti sejak tahap itu dimulai."
+
+msgid "Zadania z obliczeń kwantowych rozwiązujesz w notatniku Jupyter z biblioteką Qiskit, uruchamianym w przeglądarce – nic nie trzeba instalować. Notatnik otwiera się w osobnej karcie, z plikiem startowym zadania."
+msgstr "Soal komputasi kuantum dikerjakan di notebook Jupyter dengan pustaka Qiskit yang berjalan di peramban – tidak perlu memasang apa pun. Notebook terbuka di tab terpisah dengan berkas awal soal."
+
+msgid "Rozwiązanie możesz napisać w edytorze LaTeX (webTEX) z podglądem PDF. Edytor otwiera się w nowej karcie z gotowym szablonem; skompilowany PDF złożysz przyciskiem na karcie zadania."
+msgstr "Anda dapat menulis jawaban di editor LaTeX (webTEX) dengan pratinjau PDF. Editor terbuka di tab baru dengan templat siap pakai; PDF hasil kompilasi dikirim dengan tombol pada kartu soal."
+
+#, python-format
+msgid "Powiadomienia, nieprzeczytane: %(number)s"
+msgstr "Notifikasi belum dibaca: %(number)s"

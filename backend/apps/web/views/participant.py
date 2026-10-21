@@ -29,7 +29,7 @@ from django.contrib import messages
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect
 from django.template.response import TemplateResponse
-from django.urls import NoReverseMatch, reverse, reverse_lazy
+from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy
@@ -104,22 +104,9 @@ PANEL_TABS: tuple[tuple[str, object], ...] = (
     (TAB_CONSENTS, gettext_lazy("Zgody")),
 )
 
-#: Ekrany panelu, które są osobnymi adresami, a nie zakładkami pulpitu: mają własną treść i własne
-#: zapytania, a odwiedza się je rzadziej. Stoją w tym samym pasku, bo z punktu widzenia uczestnika
-#: to dalszy ciąg tej samej nawigacji. ``participant-certificates`` przechodzi przez ``reverse``
-#: w bloku ``try``: dyplomy są młodszą częścią panelu i pasek nie może się wywrócić tam, gdzie
-#: tego adresu (jeszcze) nie ma.
-PANEL_LINKS: tuple[tuple[str, object], ...] = (
-    # „Wiadomości” (zadanie CZ-01) – pierwsza, bo to jedyna pozycja paska, przy której może czekać
-    # coś od drugiego człowieka. Szablon pokazuje ją tylko przy włączonym module i dokleja licznik
-    # nieprzeczytanych – oba z procesora kontekstu (``chat_visible``, ``chat_unread``), bez
-    # dodatkowego zapytania w tym widoku.
-    ("web:chat", gettext_lazy("Wiadomości")),
-    ("web:participant-calendar", gettext_lazy("Kalendarz")),
-    ("web:participant-archive", gettext_lazy("Archiwum")),
-    ("web:participant-certificates", gettext_lazy("Dyplomy")),
-    ("web:profile", gettext_lazy("Profil")),
-)
+#: Ekrany panelu z własnymi adresami (Wiadomości, kalendarz, archiwum, dyplomy, profil, webinary)
+#: stały tu jako „odnośniki boczne” paska zakładek. Od UX-PANEL-01 prowadzi do nich menu panelu
+#: (``apps.participant_panel.nav``) – jedno źródło pozycji i warunków ich widoczności.
 
 
 def _entry_for(participant, stage: Stage | None) -> StageEntry | None:
@@ -335,29 +322,6 @@ def _missing_numbers(user, entry, rows=None, competition=None) -> tuple[int, ...
     )
 
 
-#: Webinary (zadanie WEB-01) – pozycja paska **tylko** przy fladze ``webinars`` i serwerze
-#: LiveKit (``apps.webinars.services.available``: pole wiersza konkursu i ustawienia, bez zapytania).
-#: Osobno od ``PANEL_LINKS``, bo tamte stoją zawsze, a ta – wyłącznie w konkursie z webinarami.
-WEBINARS_LINK = ("web:webinars", gettext_lazy("Webinary"))
-
-
-def _panel_links(competition=None) -> list[dict]:
-    """Ekrany panelu wystawione w pasku zakładek jako zwykłe odnośniki."""
-    from apps.webinars.services import available as webinars_available
-
-    entries = list(PANEL_LINKS)
-    if webinars_available(competition):
-        entries.insert(1, WEBINARS_LINK)
-    links = []
-    for name, label in entries:
-        try:
-            url = reverse(name)
-        except NoReverseMatch:  # pragma: no cover - adres dołożony później albo wyłączony
-            continue
-        links.append({"url": url, "label": label, "chat": name == "web:chat"})
-    return links
-
-
 class MeView(ParticipantRequiredMixin, TemplateView):
     """Pulpit uczestnika: nagłówek „Co teraz” i jedna z czterech zakładek.
 
@@ -438,7 +402,6 @@ class MeView(ParticipantRequiredMixin, TemplateView):
                     }
                     for key, label in PANEL_TABS
                 ],
-                "panel_links": _panel_links(self.competition),
                 "can_register": can_register,
                 "stage_opened": stage is not None and stage.has_opened(now),
                 "upload_open": upload_open,

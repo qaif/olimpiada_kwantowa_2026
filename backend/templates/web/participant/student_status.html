@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "participant_panel/base.html" %}
 {% load i18n web_extras %}
 {% comment %}
   „Status ucznia” w panelu uczestnika: stan zaświadczenia, trzy kroki (pobierz wzór → podstempluj
@@ -13,7 +13,7 @@
   sekretariat ma prawo sądzić, że nie może jeszcze wysłać rozwiązania – a może.
 {% endcomment %}
 {% block title %}{% translate "Status ucznia" %}{% endblock %}
-{% block content %}
+{% block panel_content %}
 <div class="page-head">
   <span class="eyebrow"><a href="{% url 'web:me' %}">{% translate "Mój panel" %}</a></span>
   <h1>{% translate "Zaświadczenie o statusie ucznia" %}</h1>

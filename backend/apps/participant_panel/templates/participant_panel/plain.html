@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% comment %}
+  Ten sam układ bloków co ``participant_panel/base.html``, ale **bez** menu panelu. Dla szablonów
+  wspólnych z innymi rolami (``web/account/profile.html`` obsługuje też ``/account/profile/``
+  recenzenta i opiekuna): wybierają ramę w ``{% templatetag openblock %} extends {% templatetag closeblock %}`` po ``is_participant``.
+{% endcomment %}
+{% block head %}{{ block.super }}{% block panel_head %}{% endblock %}{% endblock %}
+{% block content %}{% block panel_content %}{% endblock %}{% endblock %}

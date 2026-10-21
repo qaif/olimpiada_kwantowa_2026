@@ -1,7 +1,7 @@
-{% extends "base.html" %}
+{% extends "participant_panel/base.html" %}
 {% load i18n web_extras %}
 {% block title %}{% translate "Komentarze i miejsce" %} – {{ feedback.stage.display_name }}{% endblock %}
-{% block content %}
+{% block panel_content %}
 <div class="page-head">
   <span class="eyebrow">{% translate "Panel uczestnika" %}</span>
   <h1>{{ feedback.stage.display_name }} – {% translate "Twoja informacja zwrotna" %}</h1>

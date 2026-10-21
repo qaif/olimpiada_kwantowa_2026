@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "participant_panel/base.html" %}
 {% load i18n static %}
 {% comment %}
   Klucz szyfrowania rozmów między uczestnikami (§ 11 zadania).
@@ -12,8 +12,8 @@
   organizatora tego nie odwróci – serwer klucza nie ma.
 {% endcomment %}
 {% block title %}{% translate "Szyfrowanie – Wiadomości" %}{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'css/chat.css' %}">{% endblock %}
-{% block content %}
+{% block panel_head %}<link rel="stylesheet" href="{% static 'css/chat.css' %}">{% endblock %}
+{% block panel_content %}
 <div class="page-head">
   <span class="eyebrow"><a href="{% url 'web:chat' %}">{% translate "Wiadomości" %}</a></span>
   <h1>{% translate "Szyfrowanie rozmów" %}</h1>

@@ -1,0 +1,49 @@
+{% load i18n %}{% comment %}
+  Menu panelu uczestnika. Treść (sekcje, adresy, pozycja bieżąca, liczniki) przychodzi ze znacznika
+  ``participant_nav`` (apps/participant_panel/nav.py) – szablon niczego nie rozstrzyga i nie woła
+  ani jednego ``url``: brak adresu w urlconfie wywracałby każdą stronę panelu.
+
+  Całość w ``<details>``: poniżej 1024 px to rozwijane „Menu panelu” nad treścią, od 1024 px stała
+  kolumna (arkusz otwiera je bez atrybutu ``open`` – ta sama para reguł, co w menu koordynatora).
+  Zero JavaScriptu, więc menu działa przy zablokowanych skryptach i bez wyjątku w CSP.
+
+  Nagłówki sekcji są zwykłym tekstem z ``id``, a listy – ``aria-labelledby``: menu stoi **przed**
+  ``<h1>`` strony, więc nagłówki ``<h2>`` zaburzałyby spis nagłówków czytnika ekranu.
+{% endcomment %}{% include "participant_panel/_icons.html" %}
+<nav class="pp__nav" aria-label="{% translate 'Menu panelu uczestnika' %}">
+  <details class="pp-nav">
+    <summary class="pp-nav__summary">
+      <svg class="pp-icon" aria-hidden="true" focusable="false"><use href="#pp-i-menu"></use></svg>
+      <span class="pp-nav__summary-label">{% translate "Menu panelu" %}</span>
+      {% if nav_current %}<span class="pp-nav__where">{{ nav_current.label }}</span>{% endif %}
+      {% if nav_badge_total %}<span class="pp-badge">{{ nav_badge_total }}<span class="visually-hidden"> {% translate "nowe" %}</span></span>{% endif %}
+    </summary>
+    <div class="pp-nav__body">
+      <div class="pp-nav__head">
+        <span class="pp-nav__title">{% translate "Panel uczestnika" %}</span>
+        {% if nav_notifications_url %}
+          <a class="pp-bell{% if nav_unread_notifications %} pp-bell--unread{% endif %}" href="{{ nav_notifications_url }}">
+            <svg class="pp-icon" aria-hidden="true" focusable="false"><use href="#pp-i-bell"></use></svg>
+            <span class="visually-hidden">{% if nav_unread_notifications %}{% blocktranslate trimmed with number=nav_unread_notifications %}Powiadomienia, nieprzeczytane: {{ number }}{% endblocktranslate %}{% else %}{% translate "Powiadomienia – brak nowych" %}{% endif %}</span>
+            {% if nav_unread_notifications %}<span class="pp-bell__count" aria-hidden="true">{{ nav_unread_notifications }}</span>{% endif %}
+          </a>
+        {% endif %}
+      </div>
+      {% for group in nav_groups %}
+        <p class="pp-nav__heading" id="pp-nav-{{ group.key }}">{{ group.label }}</p>
+        <ul class="pp-nav__list" aria-labelledby="pp-nav-{{ group.key }}">
+          {% for item in group.items %}
+            <li>
+              <a class="pp-nav__link{% if item.active %} pp-nav__link--active{% endif %}" href="{{ item.url }}"
+                 {% if item.active %}aria-current="page"{% endif %} data-nav="{{ item.key }}">
+                <svg class="pp-icon" aria-hidden="true" focusable="false"><use href="#pp-i-{{ item.icon }}"></use></svg>
+                <span class="pp-nav__label">{{ item.label }}</span>
+                {% if item.badge %}<span class="pp-badge">{{ item.badge }}<span class="visually-hidden"> {% translate "nowe" %}</span></span>{% endif %}
+              </a>
+            </li>
+          {% endfor %}
+        </ul>
+      {% endfor %}
+    </div>
+  </details>
+</nav>

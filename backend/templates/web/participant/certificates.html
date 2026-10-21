@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "participant_panel/base.html" %}
 {% load i18n %}
 {% comment %}
   Własne dyplomy i zaświadczenia uczestnika: lista i pobranie, nic więcej.
@@ -8,7 +8,7 @@
   albo go nie ma.
 {% endcomment %}
 {% block title %}{% translate "Moje dyplomy" %}{% endblock %}
-{% block content %}
+{% block panel_content %}
 <div class="page-head">
   <span class="eyebrow"><a href="{% url 'web:me' %}">{% translate "Mój panel" %}</a></span>
   <h1>{% translate "Dyplomy i zaświadczenia" %}</h1>

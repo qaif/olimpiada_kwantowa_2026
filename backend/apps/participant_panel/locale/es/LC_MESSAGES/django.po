@@ -1,0 +1,118 @@
+# UX-PANEL-01 – napisy aplikacji participant_panel (es). Źródło (msgid) po polsku; poza angielskim
+# tłumaczenie maszynowe – do przeglądu native speakera (I18N-01 § 8).
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada participant_panel\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-21 12:00+0200\n"
+"PO-Revision-Date: 2026-10-21 12:00+0200\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: es\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Powiadomienia"
+msgstr "Notificaciones"
+
+msgid "nowe"
+msgstr "nuevo"
+
+msgid "Ogłoszenia"
+msgstr "Anuncios"
+
+msgid "Pulpit"
+msgstr "Inicio"
+
+msgid "Zadania i moje prace"
+msgstr "Problemas y mis trabajos"
+
+msgid "Archiwum zadań"
+msgstr "Archivo de problemas"
+
+msgid "Nauka"
+msgstr "Aprendizaje"
+
+msgid "Notatniki Qiskit"
+msgstr "Cuadernos de Qiskit"
+
+msgid "Edytor LaTeX (webTEX)"
+msgstr "Editor LaTeX (webTEX)"
+
+msgid "Profil i dane"
+msgstr "Perfil y datos"
+
+msgid "Weryfikacja dwuetapowa"
+msgstr "Verificación en dos pasos"
+
+msgid "Menu panelu"
+msgstr "Menú del panel"
+
+msgid "Menu panelu uczestnika"
+msgstr "Menú del panel del participante"
+
+msgid "Powiadomienia – brak nowych"
+msgstr "Notificaciones: nada nuevo"
+
+msgid "Na skróty"
+msgstr "Accesos rápidos"
+
+msgid "Najbliższy termin"
+msgstr "Próximo plazo"
+
+msgid "Przejdź do zadań"
+msgstr "Ir a los problemas"
+
+msgid "Bieżący etap"
+msgstr "Etapa actual"
+
+msgid "Najbliższy warsztat"
+msgstr "Próximo taller"
+
+msgid "Warsztaty online"
+msgstr "Talleres en línea"
+
+msgid "Link do spotkania organizator podaje w ogłoszeniu."
+msgstr "El organizador comparte el enlace de la reunión en un anuncio."
+
+msgid "Co nowego"
+msgstr "Novedades"
+
+msgid "brak nowych"
+msgstr "nada nuevo"
+
+msgid "nieprzeczytane rozmowy"
+msgstr "conversaciones sin leer"
+
+msgid "Narzędzia"
+msgstr "Herramientas"
+
+msgid "Pracujesz w przeglądarce – nic nie trzeba instalować."
+msgstr "Trabajas en el navegador: no hay que instalar nada."
+
+msgid "Edytor LaTeX"
+msgstr "Editor LaTeX"
+
+msgid "(otwiera się w nowej karcie)"
+msgstr "(se abre en una pestaña nueva)"
+
+msgid "Na razie nie ma tu zadań"
+msgstr "Por ahora no hay problemas aquí"
+
+msgid "Notatniki pojawiają się przy zadaniach z obliczeń kwantowych, gdy etap, do którego jesteś zapisany, się rozpocznie."
+msgstr "Los cuadernos aparecen con los problemas de computación cuántica cuando empieza una etapa en la que estás inscrito."
+
+msgid "Edytor jest dostępny przy zadaniach etapu, do którego jesteś zapisany, od chwili jego rozpoczęcia."
+msgstr "El editor está disponible para los problemas de una etapa en la que estás inscrito desde que empieza."
+
+msgid "Zadania z obliczeń kwantowych rozwiązujesz w notatniku Jupyter z biblioteką Qiskit, uruchamianym w przeglądarce – nic nie trzeba instalować. Notatnik otwiera się w osobnej karcie, z plikiem startowym zadania."
+msgstr "Los problemas de computación cuántica se resuelven en un cuaderno Jupyter con la biblioteca Qiskit que se ejecuta en el navegador: no hay que instalar nada. El cuaderno se abre en otra pestaña con el archivo inicial del problema."
+
+msgid "Rozwiązanie możesz napisać w edytorze LaTeX (webTEX) z podglądem PDF. Edytor otwiera się w nowej karcie z gotowym szablonem; skompilowany PDF złożysz przyciskiem na karcie zadania."
+msgstr "Puedes escribir tu solución en el editor LaTeX (webTEX) con vista previa en PDF. El editor se abre en una pestaña nueva con una plantilla lista; el PDF compilado lo envías con el botón de la tarjeta del problema."
+
+#, python-format
+msgid "Powiadomienia, nieprzeczytane: %(number)s"
+msgstr "Notificaciones sin leer: %(number)s"
