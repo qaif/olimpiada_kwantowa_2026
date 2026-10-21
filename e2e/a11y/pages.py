@@ -57,6 +57,11 @@ SCREENS: tuple[Screen, ...] = (
     Screen("oki-quiz-attempt", "/me/test/{main[quiz_attempt]}/", "participant"),
     Screen("oki-chat-inbox", "/me/messages/", "participant"),
     Screen("oki-chat-thread", "/me/messages/{main[conversation]}/", "participant"),
+    # Panel nauczyciela (UX-PANEL-02): Start, postęp klasy z tabelą i filtrami, konta uczniów, szkoła.
+    Screen("oki-teacher-start", "/supervisor/", "teacher"),
+    Screen("oki-teacher-progress", "/supervisor/progress/", "teacher"),
+    Screen("oki-teacher-students", "/supervisor/students/", "teacher"),
+    Screen("oki-teacher-school", "/supervisor/school/", "teacher"),
     Screen("oki-coordinator", "/coordinator/", "coordinator"),
     Screen("oki-coordinator-accounts", "/coordinator/accounts/", "coordinator"),
     Screen("oki-coordinator-participants", "/coordinator/accounts/?role=participant", "coordinator"),
@@ -67,11 +72,6 @@ SCREENS: tuple[Screen, ...] = (
     Screen("oki-coordinator-chat", "/coordinator/chat/", "coordinator"),
     Screen("oki-coordinator-chat-thread", "/coordinator/chat/{main[conversation]}/", "coordinator"),
     Screen("oki-coordinator-2fa-policy", "/coordinator/security/2fa/", "coordinator"),
-    # Panel nauczyciela (UX-PANEL-02): Start, postęp klasy z tabelą i filtrami, konta uczniów, szkoła.
-    Screen("oki-teacher-start", "/supervisor/", "teacher"),
-    Screen("oki-teacher-progress", "/supervisor/progress/", "teacher"),
-    Screen("oki-teacher-students", "/supervisor/students/", "teacher"),
-    Screen("oki-teacher-school", "/supervisor/school/", "teacher"),
     Screen("oki-reviewer", "/review/", "reviewer"),
     Screen("oki-reviewer-detail", "/review/{main[review]}/", "reviewer"),
     # --- IQO, motyw IQO Quantum --------------------------------------------------------------------

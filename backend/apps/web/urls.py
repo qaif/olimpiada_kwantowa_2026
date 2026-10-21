@@ -348,6 +348,8 @@ urlpatterns = [
         supervisor.SupervisorCertificateDownloadView.as_view(),
         name="supervisor-certificate-download",
     ),
+    # Panel nauczyciela (UX-PANEL-02): postęp klasy z eksportem i ekran „Szkoła”.
+    *teacher_panel_urlpatterns,
     # Import listy uczniów i wynikająca z niego lista „kto ma już konto”. Stoją **przed** wzorcem
     # z identyfikatorem ucznia, bo „import” i „students” są zwykłymi segmentami i bez tej
     # kolejności… nic złego by się nie stało (dalej jest ``<int:pk>``), ale czyta się to od
@@ -359,8 +361,6 @@ urlpatterns = [
         supervisor.ResendInvitationView.as_view(),
         name="supervisor-resend-invitation",
     ),
-    # Panel nauczyciela (UX-PANEL-02): postęp klasy z eksportem i ekran „Szkoła”.
-    *teacher_panel_urlpatterns,
     # Publiczna weryfikacja dokumentu po kodzie z papieru. Adres jest po polsku i krótki, bo
     # bywa przepisywany z dyplomu ręcznie; nie wydaje danych osobowych bez zgody na publikację.
     path("dyplomy/<str:code>/", certificates.CertificateVerifyView.as_view(), name="certificate-verify"),
