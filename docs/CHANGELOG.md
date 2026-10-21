@@ -12,6 +12,12 @@ podsekcją `### <tytuł>` wydania `## v<x.y.z> – <data tagu> – <opis tagu>`.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – Pillow 13.0.0 (CVE-2026-112403 i sześć innych)
+
+- Pillow 12.3.0 → 13.0.0 w `backend/uv.lock` i `djcms/uv.lock` (21.10.2026: bramka Trivy i pip-audit zatrzymały
+  wszystkie PR-y na CVE-2026-112403 – CRITICAL – oraz CVE-2026-112397/112400/112404/112895/112896/112897; poprawki
+  wyłącznie w 13.0.0). Wagtail 8.0 i django CMS rozwiązują się z 13.0.0 bez zmiany ograniczeń.
+
 ## [Unreleased] – Edytor LaTeX (webTEX): kontekstowe autouzupełnianie
 
 - Podpowiedzi w edytorze LaTeX zależne od kontekstu: we wzorze symbole, litery greckie, operatory i
