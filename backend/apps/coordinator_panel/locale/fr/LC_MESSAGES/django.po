@@ -1,0 +1,191 @@
+# UX-PANEL-04 – napisy panelu koordynatora (fr): Start, paleta poleceń, okruszki, przypięte,
+# ostatnio używane. Źródło (msgid) po polsku; poza angielskim tłumaczenie
+# maszynowe – do przeglądu native speakera (I18N-01 § 8).
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada coordinator_panel\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-21 18:00+0200\n"
+"PO-Revision-Date: 2026-10-21 18:00+0200\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: fr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+msgid "Wyślij komunikat"
+msgstr "Envoyer un message"
+
+msgid "Obecność na warsztatach"
+msgstr "Présence aux ateliers"
+
+msgid "Zaświadczenia z warsztatów"
+msgstr "Attestations d’ateliers"
+
+msgid "Zdublowane konta"
+msgstr "Comptes en double"
+
+msgid "Eksport danych"
+msgstr "Export des données"
+
+msgid "Zaplanowane wysyłki"
+msgstr "Envois programmés"
+
+msgid "Komunikaty czekające na termin wysyłki."
+msgstr "Messages en attente de leur heure d’envoi."
+
+msgid "Nieudane wysyłki"
+msgstr "Envois échoués"
+
+msgid "Komunikaty z ostatnich 30 dni, których nie udało się wysłać."
+msgstr "Messages des 30 derniers jours qui n’ont pas pu être envoyés."
+
+msgid "Nieprzeczytane rozmowy i kolejka moderacji."
+msgstr "Conversations non lues et file de modération."
+
+msgid "Zaświadczenia do weryfikacji"
+msgstr "Attestations à vérifier"
+
+msgid "Zaświadczenia o statusie ucznia czekają na akceptację."
+msgstr "Les attestations de scolarité attendent une validation."
+
+msgid "Ta sama osoba z kilkoma kontami uczestnika."
+msgstr "La même personne avec plusieurs comptes de participant."
+
+msgid "Forum do moderacji"
+msgstr "Forum à modérer"
+
+msgid "Wątki, wpisy i zgłoszenia czekające na moderatora."
+msgstr "Fils, messages et signalements en attente d’un modérateur."
+
+msgid "Otwarcie etapu"
+msgstr "Ouverture de l’étape"
+
+msgid "Koniec oddawania prac"
+msgstr "Fin du dépôt des copies"
+
+msgid "Koniec recenzji"
+msgstr "Fin de la correction"
+
+msgid "Otwarcie okna reklamacji"
+msgstr "Ouverture des réclamations"
+
+msgid "Zamknięcie okna reklamacji"
+msgstr "Clôture des réclamations"
+
+msgid "Wysyłka komunikatu"
+msgstr "Envoi du message"
+
+msgid "Warsztat"
+msgstr "Atelier"
+
+msgid "Przypiąć można wyłącznie pozycję menu panelu."
+msgstr "Seuls les éléments du menu du panneau peuvent être épinglés."
+
+msgid "Przypięto. Pozycja stoi teraz nad sekcjami menu i na Starcie."
+msgstr "Épinglé. L’élément apparaît désormais au-dessus des sections du menu et sur l’accueil."
+
+msgid "Odpięto pozycję."
+msgstr "Élément désépinglé."
+
+#, python-format
+msgid "Masz już %(limit)s przypiętych pozycji – odepnij którąś, żeby dodać nową."
+msgstr "Vous avez déjà %(limit)s éléments épinglés – désépinglez-en un pour en ajouter un autre."
+
+msgid "Okruszki"
+msgstr "Fil d’Ariane"
+
+msgid "Przypięte"
+msgstr "Épinglés"
+
+msgid "odepnij"
+msgstr "désépingler"
+
+msgid "Komplet przypiętych pozycji – odepnij którąś na Starcie."
+msgstr "Tous les emplacements sont pris – désépinglez-en un sur l’accueil."
+
+msgid "Przypnij"
+msgstr "Épingler"
+
+msgid "Polecenia"
+msgstr "Commandes"
+
+msgid "Ostatnio używane"
+msgstr "Utilisés récemment"
+
+msgid "Szukaj w panelu"
+msgstr "Rechercher dans le panneau"
+
+msgid "Polecenia panelu koordynatora"
+msgstr "Commandes du panneau du coordinateur"
+
+msgid "Dokąd przejść? Ekran, sekcja albo fraza do wyszukania"
+msgstr "Où aller ? Un écran, une section ou une expression à rechercher"
+
+msgid "Dokąd przejść? Ekran, sekcja albo fraza…"
+msgstr "Où aller ? Écran, section ou expression…"
+
+msgid "Zamknij"
+msgstr "Fermer"
+
+msgid "wybór"
+msgstr "choisir"
+
+msgid "przejdź"
+msgstr "ouvrir"
+
+msgid "zamknij"
+msgstr "fermer"
+
+#, python-format
+msgid "Ekrany etapu: %(stage)s"
+msgstr "Écrans de l’étape : %(stage)s"
+
+msgid "Wszystko na bieżąco."
+msgstr "Tout est à jour."
+
+msgid "Nic nie czeka na koordynatora – kolejki są puste."
+msgstr "Rien n’attend le coordinateur – les files sont vides."
+
+msgid "W najbliższych 30 dniach nie ma terminów etapów, warsztatów ani zaplanowanych wysyłek."
+msgstr "Aucune date d’étape, aucun atelier ni envoi programmé dans les 30 prochains jours."
+
+msgid "Wydarzenia linii czasu"
+msgstr "Événements de la frise"
+
+msgid "Harmonogram warsztatów (CMS)"
+msgstr "Programme des ateliers (CMS)"
+
+msgid "Konkurs w liczbach"
+msgstr "Le concours en chiffres"
+
+msgid "W tej edycji"
+msgstr "Dans cette édition"
+
+msgid "Komitet (aktywni)"
+msgstr "Comité (actifs)"
+
+msgid "Etapy otwarte"
+msgstr "Étapes ouvertes"
+
+#, python-format
+msgid "Czeka na decyzję: %(count)s"
+msgstr "En attente de décision : %(count)s"
+
+#, python-format
+msgid "Bez zaległości: %(count)s"
+msgstr "Rien en attente : %(count)s"
+
+#, python-format
+msgid "Stan z %(time)s, liczby odświeżają się co 5 minut. Bez kont usuniętych."
+msgstr "État au %(time)s ; les chiffres sont actualisés toutes les 5 minutes. Comptes supprimés exclus."
+
+#, python-format
+msgid "Odepnij: %(label)s"
+msgstr "Désépingler : %(label)s"
+
+#, python-format
+msgid "Ekrany, po które sięgasz codziennie, przypnij przyciskiem „Przypnij” w nagłówku ekranu – staną tutaj i nad sekcjami menu (najwyżej %(limit)s)."
+msgstr "Épinglez les écrans que vous utilisez chaque jour avec le bouton « Épingler » de l’en-tête – ils apparaîtront ici et au-dessus des sections du menu (jusqu’à %(limit)s)."

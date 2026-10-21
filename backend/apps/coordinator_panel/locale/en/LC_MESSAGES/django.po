@@ -1,0 +1,191 @@
+# UX-PANEL-04 – napisy panelu koordynatora (en): Start, paleta poleceń, okruszki, przypięte,
+# ostatnio używane. Źródło (msgid) po polsku; poza angielskim tłumaczenie
+# maszynowe – do przeglądu native speakera (I18N-01 § 8).
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada coordinator_panel\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-21 18:00+0200\n"
+"PO-Revision-Date: 2026-10-21 18:00+0200\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Wyślij komunikat"
+msgstr "Send a message"
+
+msgid "Obecność na warsztatach"
+msgstr "Workshop attendance"
+
+msgid "Zaświadczenia z warsztatów"
+msgstr "Workshop certificates"
+
+msgid "Zdublowane konta"
+msgstr "Duplicate accounts"
+
+msgid "Eksport danych"
+msgstr "Data export"
+
+msgid "Zaplanowane wysyłki"
+msgstr "Scheduled messages"
+
+msgid "Komunikaty czekające na termin wysyłki."
+msgstr "Messages waiting for their send time."
+
+msgid "Nieudane wysyłki"
+msgstr "Failed messages"
+
+msgid "Komunikaty z ostatnich 30 dni, których nie udało się wysłać."
+msgstr "Messages from the last 30 days that could not be sent."
+
+msgid "Nieprzeczytane rozmowy i kolejka moderacji."
+msgstr "Unread conversations and the moderation queue."
+
+msgid "Zaświadczenia do weryfikacji"
+msgstr "Certificates to verify"
+
+msgid "Zaświadczenia o statusie ucznia czekają na akceptację."
+msgstr "Student status certificates are waiting for approval."
+
+msgid "Ta sama osoba z kilkoma kontami uczestnika."
+msgstr "The same person with several participant accounts."
+
+msgid "Forum do moderacji"
+msgstr "Forum to moderate"
+
+msgid "Wątki, wpisy i zgłoszenia czekające na moderatora."
+msgstr "Threads, posts and reports waiting for a moderator."
+
+msgid "Otwarcie etapu"
+msgstr "Stage opens"
+
+msgid "Koniec oddawania prac"
+msgstr "Submission deadline"
+
+msgid "Koniec recenzji"
+msgstr "Review deadline"
+
+msgid "Otwarcie okna reklamacji"
+msgstr "Appeal window opens"
+
+msgid "Zamknięcie okna reklamacji"
+msgstr "Appeal window closes"
+
+msgid "Wysyłka komunikatu"
+msgstr "Message send-out"
+
+msgid "Warsztat"
+msgstr "Workshop"
+
+msgid "Przypiąć można wyłącznie pozycję menu panelu."
+msgstr "Only panel menu items can be pinned."
+
+msgid "Przypięto. Pozycja stoi teraz nad sekcjami menu i na Starcie."
+msgstr "Pinned. The item now appears above the menu sections and on Start."
+
+msgid "Odpięto pozycję."
+msgstr "Item unpinned."
+
+#, python-format
+msgid "Masz już %(limit)s przypiętych pozycji – odepnij którąś, żeby dodać nową."
+msgstr "You already have %(limit)s pinned items – unpin one to add another."
+
+msgid "Okruszki"
+msgstr "Breadcrumbs"
+
+msgid "Przypięte"
+msgstr "Pinned"
+
+msgid "odepnij"
+msgstr "unpin"
+
+msgid "Komplet przypiętych pozycji – odepnij którąś na Starcie."
+msgstr "All pin slots are used – unpin one on Start."
+
+msgid "Przypnij"
+msgstr "Pin"
+
+msgid "Polecenia"
+msgstr "Commands"
+
+msgid "Ostatnio używane"
+msgstr "Recently used"
+
+msgid "Szukaj w panelu"
+msgstr "Search the panel"
+
+msgid "Polecenia panelu koordynatora"
+msgstr "Coordinator panel commands"
+
+msgid "Dokąd przejść? Ekran, sekcja albo fraza do wyszukania"
+msgstr "Where to? A screen, a section or a phrase to search for"
+
+msgid "Dokąd przejść? Ekran, sekcja albo fraza…"
+msgstr "Where to? A screen, a section or a phrase…"
+
+msgid "Zamknij"
+msgstr "Close"
+
+msgid "wybór"
+msgstr "select"
+
+msgid "przejdź"
+msgstr "go"
+
+msgid "zamknij"
+msgstr "close"
+
+#, python-format
+msgid "Ekrany etapu: %(stage)s"
+msgstr "Stage screens: %(stage)s"
+
+msgid "Wszystko na bieżąco."
+msgstr "All up to date."
+
+msgid "Nic nie czeka na koordynatora – kolejki są puste."
+msgstr "Nothing is waiting for the coordinator – the queues are empty."
+
+msgid "W najbliższych 30 dniach nie ma terminów etapów, warsztatów ani zaplanowanych wysyłek."
+msgstr "No stage dates, workshops or scheduled messages in the next 30 days."
+
+msgid "Wydarzenia linii czasu"
+msgstr "Timeline events"
+
+msgid "Harmonogram warsztatów (CMS)"
+msgstr "Workshop schedule (CMS)"
+
+msgid "Konkurs w liczbach"
+msgstr "The competition in numbers"
+
+msgid "W tej edycji"
+msgstr "In this edition"
+
+msgid "Komitet (aktywni)"
+msgstr "Committee (active)"
+
+msgid "Etapy otwarte"
+msgstr "Open stages"
+
+#, python-format
+msgid "Czeka na decyzję: %(count)s"
+msgstr "Awaiting a decision: %(count)s"
+
+#, python-format
+msgid "Bez zaległości: %(count)s"
+msgstr "Nothing pending: %(count)s"
+
+#, python-format
+msgid "Stan z %(time)s, liczby odświeżają się co 5 minut. Bez kont usuniętych."
+msgstr "As of %(time)s; figures refresh every 5 minutes. Deleted accounts excluded."
+
+#, python-format
+msgid "Odepnij: %(label)s"
+msgstr "Unpin: %(label)s"
+
+#, python-format
+msgid "Ekrany, po które sięgasz codziennie, przypnij przyciskiem „Przypnij” w nagłówku ekranu – staną tutaj i nad sekcjami menu (najwyżej %(limit)s)."
+msgstr "Pin the screens you use every day with the “Pin” button in the screen header – they will appear here and above the menu sections (up to %(limit)s)."

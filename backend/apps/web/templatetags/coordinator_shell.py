@@ -13,7 +13,9 @@ from __future__ import annotations
 
 from django import template
 
-from apps.web.coordinator_nav import navigation
+# Menu liczone raz na żądanie i wzbogacone o ramę UX-PANEL-04 (ikony, przypięte, okruszki) – ta sama
+# struktura sekcji i pozycji, co ``apps.web.coordinator_nav.navigation``.
+from apps.coordinator_panel.shell import navigation
 
 register = template.Library()
 

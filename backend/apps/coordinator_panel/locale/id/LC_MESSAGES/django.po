@@ -1,0 +1,191 @@
+# UX-PANEL-04 – napisy panelu koordynatora (id): Start, paleta poleceń, okruszki, przypięte,
+# ostatnio używane. Źródło (msgid) po polsku; poza angielskim tłumaczenie
+# maszynowe – do przeglądu native speakera (I18N-01 § 8).
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada coordinator_panel\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-21 18:00+0200\n"
+"PO-Revision-Date: 2026-10-21 18:00+0200\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: id\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "Wyślij komunikat"
+msgstr "Kirim pesan"
+
+msgid "Obecność na warsztatach"
+msgstr "Kehadiran lokakarya"
+
+msgid "Zaświadczenia z warsztatów"
+msgstr "Sertifikat lokakarya"
+
+msgid "Zdublowane konta"
+msgstr "Akun ganda"
+
+msgid "Eksport danych"
+msgstr "Ekspor data"
+
+msgid "Zaplanowane wysyłki"
+msgstr "Pengiriman terjadwal"
+
+msgid "Komunikaty czekające na termin wysyłki."
+msgstr "Pesan yang menunggu waktu pengiriman."
+
+msgid "Nieudane wysyłki"
+msgstr "Pengiriman gagal"
+
+msgid "Komunikaty z ostatnich 30 dni, których nie udało się wysłać."
+msgstr "Pesan 30 hari terakhir yang gagal dikirim."
+
+msgid "Nieprzeczytane rozmowy i kolejka moderacji."
+msgstr "Percakapan belum dibaca dan antrean moderasi."
+
+msgid "Zaświadczenia do weryfikacji"
+msgstr "Surat keterangan untuk diverifikasi"
+
+msgid "Zaświadczenia o statusie ucznia czekają na akceptację."
+msgstr "Surat keterangan status siswa menunggu persetujuan."
+
+msgid "Ta sama osoba z kilkoma kontami uczestnika."
+msgstr "Orang yang sama dengan beberapa akun peserta."
+
+msgid "Forum do moderacji"
+msgstr "Forum untuk dimoderasi"
+
+msgid "Wątki, wpisy i zgłoszenia czekające na moderatora."
+msgstr "Utas, kiriman, dan laporan yang menunggu moderator."
+
+msgid "Otwarcie etapu"
+msgstr "Tahap dibuka"
+
+msgid "Koniec oddawania prac"
+msgstr "Batas pengumpulan"
+
+msgid "Koniec recenzji"
+msgstr "Batas penilaian"
+
+msgid "Otwarcie okna reklamacji"
+msgstr "Masa banding dibuka"
+
+msgid "Zamknięcie okna reklamacji"
+msgstr "Masa banding ditutup"
+
+msgid "Wysyłka komunikatu"
+msgstr "Pengiriman pesan"
+
+msgid "Warsztat"
+msgstr "Lokakarya"
+
+msgid "Przypiąć można wyłącznie pozycję menu panelu."
+msgstr "Hanya item menu panel yang dapat disematkan."
+
+msgid "Przypięto. Pozycja stoi teraz nad sekcjami menu i na Starcie."
+msgstr "Disematkan. Item kini tampil di atas bagian menu dan di Beranda."
+
+msgid "Odpięto pozycję."
+msgstr "Sematan dilepas."
+
+#, python-format
+msgid "Masz już %(limit)s przypiętych pozycji – odepnij którąś, żeby dodać nową."
+msgstr "Anda sudah menyematkan %(limit)s item – lepas salah satu untuk menambah yang baru."
+
+msgid "Okruszki"
+msgstr "Remah roti"
+
+msgid "Przypięte"
+msgstr "Disematkan"
+
+msgid "odepnij"
+msgstr "lepas sematan"
+
+msgid "Komplet przypiętych pozycji – odepnij którąś na Starcie."
+msgstr "Semua slot sematan terpakai – lepas satu di Beranda."
+
+msgid "Przypnij"
+msgstr "Sematkan"
+
+msgid "Polecenia"
+msgstr "Perintah"
+
+msgid "Ostatnio używane"
+msgstr "Baru dipakai"
+
+msgid "Szukaj w panelu"
+msgstr "Cari di panel"
+
+msgid "Polecenia panelu koordynatora"
+msgstr "Perintah panel koordinator"
+
+msgid "Dokąd przejść? Ekran, sekcja albo fraza do wyszukania"
+msgstr "Mau ke mana? Layar, bagian, atau frasa untuk dicari"
+
+msgid "Dokąd przejść? Ekran, sekcja albo fraza…"
+msgstr "Mau ke mana? Layar, bagian, atau frasa…"
+
+msgid "Zamknij"
+msgstr "Tutup"
+
+msgid "wybór"
+msgstr "pilih"
+
+msgid "przejdź"
+msgstr "buka"
+
+msgid "zamknij"
+msgstr "tutup"
+
+#, python-format
+msgid "Ekrany etapu: %(stage)s"
+msgstr "Layar tahap: %(stage)s"
+
+msgid "Wszystko na bieżąco."
+msgstr "Semua sudah beres."
+
+msgid "Nic nie czeka na koordynatora – kolejki są puste."
+msgstr "Tidak ada yang menunggu koordinator – antrean kosong."
+
+msgid "W najbliższych 30 dniach nie ma terminów etapów, warsztatów ani zaplanowanych wysyłek."
+msgstr "Tidak ada tanggal tahap, lokakarya, atau pengiriman terjadwal dalam 30 hari ke depan."
+
+msgid "Wydarzenia linii czasu"
+msgstr "Acara linimasa"
+
+msgid "Harmonogram warsztatów (CMS)"
+msgstr "Jadwal lokakarya (CMS)"
+
+msgid "Konkurs w liczbach"
+msgstr "Kompetisi dalam angka"
+
+msgid "W tej edycji"
+msgstr "Di edisi ini"
+
+msgid "Komitet (aktywni)"
+msgstr "Komite (aktif)"
+
+msgid "Etapy otwarte"
+msgstr "Tahap terbuka"
+
+#, python-format
+msgid "Czeka na decyzję: %(count)s"
+msgstr "Menunggu keputusan: %(count)s"
+
+#, python-format
+msgid "Bez zaległości: %(count)s"
+msgstr "Tanpa tunggakan: %(count)s"
+
+#, python-format
+msgid "Stan z %(time)s, liczby odświeżają się co 5 minut. Bez kont usuniętych."
+msgstr "Per %(time)s; angka diperbarui tiap 5 menit. Tanpa akun yang dihapus."
+
+#, python-format
+msgid "Odepnij: %(label)s"
+msgstr "Lepas sematan: %(label)s"
+
+#, python-format
+msgid "Ekrany, po które sięgasz codziennie, przypnij przyciskiem „Przypnij” w nagłówku ekranu – staną tutaj i nad sekcjami menu (najwyżej %(limit)s)."
+msgstr "Sematkan layar yang Anda pakai setiap hari dengan tombol “Sematkan” di kepala layar – layar itu akan tampil di sini dan di atas bagian menu (maksimal %(limit)s)."

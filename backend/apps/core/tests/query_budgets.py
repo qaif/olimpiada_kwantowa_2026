@@ -100,7 +100,14 @@ QUERY_BUDGETS: dict[str, int] = {
     # +1 od 5.10.2026: kafelek „Uczestnicy z brakującymi zgodami” (CONS-01, ``apps.consent_gate.report``)
     # – jedno zapytanie (profile + wpisy zgód w ``ArraySubquery``) na zimno, potem minutowa pamięć;
     # nie rośnie z liczbą uczestników (``test_panel_query_count_does_not_grow_with_participants``).
-    "/coordinator/": 54,
+    # +7 od 21.10.2026 (UX-PANEL-04, Start panelu koordynatora; ``apps.coordinator_panel.start``) – na zimno:
+    # przypięte pozycje menu (1, potem 5 min w pamięci podręcznej), rola w serwisie Startu (1), komunikaty
+    # zaplanowane i nieudane (1 ``aggregate``), strona „Warsztaty” dla najbliższych terminów (2: korzeń
+    # witryny i strona), grupy zdublowanych kont (1 ``values_list``, 10 min w pamięci), liczby konkursu
+    # (1 ``aggregate`` + aktywny komitet, 5 min). Pakiety są per konkurs w pamięci podręcznej, więc na ciepło
+    # zostaje wyłącznie rola – koszt nie rośnie z liczbą uczestników
+    # (``test_panel_query_count_does_not_grow_with_participants``). Zmierzone 61 na zimno – sufit = pomiar.
+    "/coordinator/": 61,
     # --- karty i listy panelu koordynatora ---------------------------------------------------------
     # Bezpieczniki „rzędu wielkości” obok asercji o niezmienności kosztu względem danych: sama
     # asercja porównuje dwa pomiary ze sobą, sufit łapie regresję, która podniosła oba naraz.
