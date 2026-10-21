@@ -74,6 +74,9 @@ SCREENS: tuple[Screen, ...] = (
     Screen("oki-coordinator-2fa-policy", "/coordinator/security/2fa/", "coordinator"),
     Screen("oki-reviewer", "/review/", "reviewer"),
     Screen("oki-reviewer-detail", "/review/{main[review]}/", "reviewer"),
+    Screen("oki-committee-start", "/committee/", "reviewer"),  # UX-PANEL-03
+    Screen("oki-committee-materials", "/committee/materials/", "reviewer"),  # UX-PANEL-03
+    Screen("oki-committee-notifications", "/committee/notifications/", "reviewer"),  # UX-PANEL-03
     # --- IQO, motyw IQO Quantum --------------------------------------------------------------------
     Screen("iqo-home", "/iqo/"),
     Screen("iqo-news", "/iqo/aktualnosci/"),

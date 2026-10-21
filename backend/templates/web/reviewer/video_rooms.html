@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "committee_panel/base.html" %}
 {% load web_extras coordinator_extras %}
 {% comment %}
   Własne pokoje wideo członka komisji (v0.39.0, ``apps.web.views.video.CommitteeVideoRoomsView``).
@@ -8,7 +8,7 @@
   pokazuje dopiero przycisk „Pokaż linki” (POST, ``no-store``, audyt).
 {% endcomment %}
 {% block title %}Pokoje wideo – panel komisji{% endblock %}
-{% block content %}
+{% block panel_content %}
 <div class="page-head">
   <span class="eyebrow">Panel komisji</span>
   <h1>Moje pokoje wideo</h1>

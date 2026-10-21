@@ -84,6 +84,8 @@ RESERVED_SLUGS = frozenset(
         "appeals",
         "captcha",
         "cms",
+        # Panel członka komisji: Start, materiały, powiadomienia (UX-PANEL-03, ``apps/committee_panel``).
+        "committee",
         "coordinator",
         # Panel opiekuna drużyny narodowej i przyjęcie jego zaproszenia (DEL-01).
         "delegation",

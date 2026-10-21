@@ -1,0 +1,305 @@
+# UX-PANEL-03 – napisy panelu komisji (zh_Hans): rama i menu, Start, materiały, powiadomienia komisji,
+# kolejka recenzenta i komisji odwoławczej. Źródło (msgid) po polsku; poza angielskim tłumaczenie
+# maszynowe – do przeglądu native speakera (I18N-01 § 8).
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada committee_panel\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-21 18:00+0200\n"
+"PO-Revision-Date: 2026-10-21 18:00+0200\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: zh_Hans\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "Ocenianie"
+msgstr "评分"
+
+msgid "Komisja odwoławcza"
+msgstr "申诉委员会"
+
+msgid "Spotkania"
+msgstr "会议"
+
+msgid "Wiadomości i materiały"
+msgstr "消息与资料"
+
+msgid "Do oceny"
+msgstr "待评分"
+
+msgid "Ocenione"
+msgstr "已评分"
+
+msgid "Druga ocena (runda rozjemcza)"
+msgstr "第二次评分（仲裁轮）"
+
+msgid "Materiały dla komisji"
+msgstr "委员会资料"
+
+msgid "Reklamacje do rozpatrzenia"
+msgstr "待处理的申诉"
+
+msgid "Rozmowy i pokoje komisji"
+msgstr "面试与委员会会议室"
+
+msgid "Moje pokoje wideo"
+msgstr "我的视频会议室"
+
+msgid "Nawigacja panelu komisji"
+msgstr "委员会面板导航"
+
+msgid "Menu komisji"
+msgstr "委员会菜单"
+
+msgid "czeka"
+msgstr "待处理"
+
+msgid "Panel komisji"
+msgstr "委员会面板"
+
+msgid "Prace do oceny, terminy i materiały komisji w jednym miejscu. Ocenianie jest anonimowe: prace są oznaczone wyłącznie kodem publicznym."
+msgstr "待评分作品、截止日期和委员会资料集中在一处。评分为匿名：作品仅以公开代码标识。"
+
+msgid "Reklamacje do rozpatrzenia, terminy i spotkania komisji w jednym miejscu."
+msgstr "待处理的申诉、截止日期和委员会会议集中在一处。"
+
+msgid "do oceny (nowe i w toku)"
+msgstr "待评分（新的和进行中的）"
+
+msgid "Przejdź do oceniania"
+msgstr "前往评分"
+
+msgid "Postęp oceniania"
+msgstr "评分进度"
+
+msgid "Druga ocena"
+msgstr "第二次评分"
+
+msgid "do oceny w rundzie rozjemczej"
+msgstr "仲裁轮待评分"
+
+msgid "Oceny rundy 1 się rozjechały – rozstrzygasz spór o pracę, nie między osobami."
+msgstr "第一轮评分出现分歧——你裁决的是关于作品的争议，而不是人与人之间的争议。"
+
+msgid "Pokaż prace rundy 2"
+msgstr "显示第二轮作品"
+
+msgid "w kolejce komisji odwoławczej"
+msgstr "在申诉委员会队列中"
+
+msgid "Kolejka pomija sprawy, w których jesteś w konflikcie interesów."
+msgstr "队列会跳过你存在利益冲突的案件。"
+
+msgid "Otwórz kolejkę"
+msgstr "打开队列"
+
+msgid "Najbliższe terminy"
+msgstr "近期截止日期"
+
+msgid "Nic nie czeka na termin."
+msgstr "没有待截止的事项。"
+
+msgid "Twoja rola"
+msgstr "你的角色"
+
+msgid "Recenzent (komitet oceniający)"
+msgstr "评审（评分委员会）"
+
+msgid "Członek komisji odwoławczej"
+msgstr "申诉委员会成员"
+
+msgid "Nie dostajesz prac uczestników ze swojego województwa ani regionu (konflikt interesów)."
+msgstr "你不会收到来自本省或本地区参赛者的作品（利益冲突）。"
+
+msgid "Prace do oceny według etapów"
+msgstr "按阶段的待评分作品"
+
+msgid "Koniec oceniania etapu"
+msgstr "本阶段评分截止"
+
+msgid "Czynność"
+msgstr "操作"
+
+msgid "Oceniaj"
+msgstr "评分"
+
+msgid "Spotkania komisji"
+msgstr "委员会会议"
+
+msgid "Rozmowy kwalifikacyjne"
+msgstr "资格面试"
+
+msgid "Zapisanych"
+msgstr "已预约"
+
+msgid "Wejście"
+msgstr "进入"
+
+msgid "Dołącz jako gospodarz"
+msgstr "以主持人身份加入"
+
+msgid "Adres pokoju podaje koordynator."
+msgstr "会议室地址由协调员提供。"
+
+#, python-format
+msgid "%(done)s z %(total)s ocenionych"
+msgstr "已评分 %(done)s / %(total)s"
+
+#, python-format
+msgid "Termin Twoich ocen · %(stage)s"
+msgstr "你的评分截止 · %(stage)s"
+
+#, python-format
+msgid "Koniec oceniania etapu · %(stage)s"
+msgstr "本阶段评分截止 · %(stage)s"
+
+#, python-format
+msgid "Rozmowa kwalifikacyjna · %(stage)s"
+msgstr "资格面试 · %(stage)s"
+
+#, python-format
+msgid "Webinar · %(title)s"
+msgstr "网络研讨会 · %(title)s"
+
+#, python-format
+msgid "runda 2: %(count)s"
+msgstr "第二轮：%(count)s"
+
+#, python-format
+msgid "Postęp oceniania – %(stage)s"
+msgstr "评分进度 – %(stage)s"
+
+#, python-format
+msgid "%(done)s z %(total)s"
+msgstr "%(done)s / %(total)s"
+
+#, python-format
+msgid "pokój otwiera się %(when)s"
+msgstr "会议室开放时间 %(when)s"
+
+msgid "Rubryki, uwagi dla recenzentów, rozwiązania wzorcowe i wspólne szablony komentarzy – dla zadań, które masz do oceny. Materiał wyłącznie dla komitetu."
+msgstr "评分细则、评审须知、标准答案和共享评语模板——适用于你负责评分的题目。仅限委员会使用。"
+
+msgid "Uwagi dla recenzentów"
+msgstr "评审须知"
+
+msgid "Rubryka"
+msgstr "评分细则"
+
+msgid "Kryterium"
+msgstr "标准"
+
+msgid "Maks. punktów"
+msgstr "最高分"
+
+msgid "Koordynator nie dodał do tego zadania materiałów – oceniasz według skali etapu."
+msgstr "协调员未为此题添加资料——请按阶段评分标准评分。"
+
+msgid "Materiały pojawią się tu razem z pierwszym przydziałem prac do oceny."
+msgstr "首次分配评分作品后，资料将显示在这里。"
+
+#, python-format
+msgid "Wspólne szablony komentarzy: %(count)s"
+msgstr "共享评语模板：%(count)s"
+
+msgid "Pojawią się tu nowe przydziały prac, prace w rundzie rozjemczej, przypomnienia o terminie oceniania i reklamacje do rozpatrzenia."
+msgstr "新的作品分配、仲裁轮作品、评分截止提醒和待处理的申诉将显示在这里。"
+
+#, python-format
+msgid "Nowe prace do oceny, przypomnienia o terminach i reklamacje do rozpatrzenia – w jednym miejscu. Powiadomienia starsze niż %(days)s dni usuwamy automatycznie."
+msgstr "新的待评分作品、截止提醒和待处理的申诉集中在一处。超过 %(days)s 天的通知将被自动删除。"
+
+msgid "Nowe prace do oceny"
+msgstr "新的待评分作品"
+
+msgid "Praca w rundzie rozjemczej"
+msgstr "仲裁轮作品"
+
+msgid "Termin oceniania"
+msgstr "评分截止日期"
+
+msgid "Reklamacja do rozpatrzenia"
+msgstr "待处理的申诉"
+
+#, python-format
+msgid "Nowe prace do oceny: %(stage)s"
+msgstr "新的待评分作品：%(stage)s"
+
+#, python-format
+msgid "Praca czeka na Twoją ocenę w rundzie rozjemczej: %(stage)s"
+msgstr "有作品在仲裁轮等待你评分：%(stage)s"
+
+#, python-format
+msgid "Mija termin oceniania – prace po terminie albo tuż przed nim: %(count)s"
+msgstr "评分即将截止——已逾期或即将到期的作品：%(count)s"
+
+#, python-format
+msgid "Nowa reklamacja do rozpatrzenia: %(stage)s"
+msgstr "新的待处理申诉：%(stage)s"
+
+msgid "Filtr kolejki"
+msgstr "队列筛选"
+
+msgid "wszystkie etapy"
+msgstr "所有阶段"
+
+msgid "wszystkie zadania"
+msgstr "所有题目"
+
+msgid "wszystkie rundy"
+msgstr "所有轮次"
+
+msgid "runda 2 (rozjemcza)"
+msgstr "第二轮（仲裁）"
+
+msgid "Wyczyść filtr"
+msgstr "清除筛选"
+
+msgid "Zakładki pokazują tylko prace pasujące do filtra; podsumowanie i paczka ZIP obejmują całą kolejkę."
+msgstr "选项卡仅显示符合筛选条件的作品；汇总和 ZIP 包涵盖整个队列。"
+
+#, python-format
+msgid "runda %(number)s"
+msgstr "第 %(number)s 轮"
+
+msgid "Kolejka pomija sprawy, w których jesteś w konflikcie interesów (recenzowałeś tę pracę)."
+msgstr "队列会跳过你存在利益冲突的案件（你评审过该作品）。"
+
+msgid "Ocena wstępna"
+msgstr "初步评分"
+
+msgid "Złożona"
+msgstr "提交时间"
+
+msgid "Argument uczestnika"
+msgstr "参赛者的理由"
+
+msgid "Oceny rundy 1"
+msgstr "第一轮评分"
+
+msgid "Pobierz pracę"
+msgstr "下载作品"
+
+msgid "Zapisać decyzję komisji? Rozstrzygnięcie jest ostateczne."
+msgstr "保存委员会的决定？该裁决为最终决定。"
+
+msgid "Zapisz decyzję"
+msgstr "保存决定"
+
+msgid "Kolejka pusta"
+msgstr "队列为空"
+
+msgid "Brak reklamacji do rozpatrzenia."
+msgstr "没有待处理的申诉。"
+
+msgid "Rozstrzygnięcie"
+msgstr "裁决"
+
+msgid "Nowa punktacja"
+msgstr "新分数"
+
+msgid "Uzasadnienie"
+msgstr "理由"

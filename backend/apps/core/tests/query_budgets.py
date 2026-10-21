@@ -110,6 +110,12 @@ QUERY_BUDGETS: dict[str, int] = {
     "coordinator/participant-card": 60,
     # --- rejestracja uczestnika (ścieżka, którą przechodzi każdy) ----------------------------------
     "registration/without-regions": 40,
+    # --- panel komisji (UX-PANEL-03) ----------------------------------------------------------------
+    # Start recenzenta: rama strony + menu komisji (licznik przydziałów – jedno ``aggregate``, licznik
+    # powiadomień – jedno ``COUNT``, oba zapamiętane na żądaniu) + zestawienie per etap (``GROUP BY``)
+    # i etapy. Mierzone w ``apps/committee_panel/tests/test_panel.py`` po rozgrzewce (21.10.2026: 20),
+    # razem z asercją, że koszt nie rośnie z liczbą przydziałów i etapów. Sufit = pomiar.
+    "committee/start": 20,
 }
 
 

@@ -1,0 +1,7 @@
+{% extends is_reviewer|default:is_appeals_committee|yesno:"committee_panel/base.html,participant_panel/plain.html" %}
+{% comment %}
+  Wybór ramy dla ekranów konta wspólnych z innymi rolami (``web/account/profile.html`` dla kont bez
+  profilu uczestnika): członek komisji dostaje ramę komisji z menu, każdy inny – ramę bez menu
+  (``participant_panel/plain.html``, jak dotąd). Szablon niczego nie dodaje – bloki strony przechodzą
+  przez niego do wybranej ramy.
+{% endcomment %}

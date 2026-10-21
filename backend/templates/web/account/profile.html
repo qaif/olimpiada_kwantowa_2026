@@ -1,4 +1,4 @@
-{% extends is_participant|yesno:"participant_panel/base.html,participant_panel/plain.html" %}
+{% extends is_participant|yesno:"participant_panel/base.html,committee_panel/account.html" %}
 {% load i18n static %}
 {% comment %}
   Edycja własnych danych. Jeden szablon obsługuje oba widoki (``/me/profile/`` dla uczestnika

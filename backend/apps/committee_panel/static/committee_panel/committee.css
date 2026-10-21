@@ -1,0 +1,150 @@
+/* =================================================================================================
+   Panel komisji (UX-PANEL-03) – dodatki do ramy panelu uczestnika.
+
+   Rama, menu, kafle i lista powiadomień to klasy ``pp-*`` z ``participant_panel/panel.css`` (ładowany
+   przez ``committee_panel/base.html`` przed tym plikiem). Tu wyłącznie to, czego panel uczestnika nie ma:
+   liczba w kaflu, pasek postępu, filtr kolejki, karta materiałów. Tylko tokeny ról z ``app.css``
+   (``--surface``, ``--line``, ``--accent``…) – tryb ciemny, motyw IQO i wysoki kontrast bez osobnych
+   reguł; właściwości logiczne dla RTL.
+   ============================================================================================== */
+
+/* --- liczba w kaflu ------------------------------------------------------------------------- */
+
+.cp-stat {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin: 0;
+}
+
+.cp-stat__value {
+  font-family: var(--font-serif);
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+.cp-stat__label {
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+
+/* --- pasek postępu (``<progress>`` z opisem tekstowym obok – kolor nie jest jedynym nośnikiem) ---- */
+
+.cp-progress {
+  width: 100%;
+  min-width: 6rem;
+  height: 0.625rem;
+  appearance: none;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+  color: var(--accent);
+}
+
+.cp-progress::-webkit-progress-bar {
+  background: var(--surface-2);
+  border-radius: 999px;
+}
+
+.cp-progress::-webkit-progress-value {
+  background: var(--accent);
+  border-radius: 999px;
+}
+
+.cp-progress::-moz-progress-bar {
+  background: var(--accent);
+  border-radius: 999px;
+}
+
+.cp-meter {
+  display: grid;
+  gap: var(--sp-1);
+  min-width: 8rem;
+}
+
+/* Termin pod opisem, a nie obok: polska data z godziną („20 października 2026, 18:55”) nie mieści się
+   obok opisu w kaflu o szerokości 15 rem i ściskała opis do jednego słowa w wierszu. */
+.cp-dates > li {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+}
+
+/* --- filtr kolejki ``/review/`` --------------------------------------------------------------- */
+
+.cp-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--sp-3) var(--sp-4);
+  margin: 0 0 var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+}
+
+.cp-filter__field {
+  display: grid;
+  gap: var(--sp-1);
+  min-width: min(100%, 12rem);
+  margin: 0;
+}
+
+.cp-filter__field label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.cp-filter__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.cp-filter__active {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+
+/* --- materiały i spotkania -------------------------------------------------------------------- */
+
+.cp-material h4 {
+  margin: var(--sp-4) 0 var(--sp-2);
+  font-size: 0.9375rem;
+}
+
+.cp-snippets > summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.cp-meetings:focus {
+  outline: none;
+}
+
+.cp-meetings:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 4px;
+}
+
+@media (forced-colors: active) {
+  .cp-progress {
+    border-color: CanvasText;
+  }
+}
+
+@media print {
+  .cp-filter {
+    display: none;
+  }
+}
