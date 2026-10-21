@@ -118,7 +118,7 @@
   „Anuluj” to osobny formularz POST z CSRF na wiersz – anulowanie zmienia stan, więc nie jest odnośnikiem.
 {% endcomment %}
 {% if scheduled %}
-<section class="section">
+<section class="section" id="zaplanowane">
   <div class="section__head">
     <h2 class="mt-0">{% translate "Zaplanowane" %}</h2>
     <p class="hint">{% translate "Komunikat wychodzi w ciągu minuty od terminu. Odbiorców liczymy w chwili wysyłki." %}</p>
@@ -155,7 +155,7 @@
 </section>
 {% endif %}
 
-<section class="section">
+<section class="section" id="wyslane">
   <div class="section__head">
     <h2 class="mt-0">Wysłane komunikaty</h2>
     <p class="hint">„Przekazana do wysyłki” znaczy, że listy trafiły do kolejki – o doręczeniu

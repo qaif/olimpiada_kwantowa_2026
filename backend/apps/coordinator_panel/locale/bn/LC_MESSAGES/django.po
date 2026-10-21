@@ -1,0 +1,191 @@
+# UX-PANEL-04 – napisy panelu koordynatora (bn): Start, paleta poleceń, okruszki, przypięte,
+# ostatnio używane. Źródło (msgid) po polsku; poza angielskim tłumaczenie
+# maszynowe – do przeglądu native speakera (I18N-01 § 8).
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada coordinator_panel\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-21 18:00+0200\n"
+"PO-Revision-Date: 2026-10-21 18:00+0200\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: bn\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Wyślij komunikat"
+msgstr "বার্তা পাঠান"
+
+msgid "Obecność na warsztatach"
+msgstr "কর্মশালায় উপস্থিতি"
+
+msgid "Zaświadczenia z warsztatów"
+msgstr "কর্মশালার সনদ"
+
+msgid "Zdublowane konta"
+msgstr "দ্বৈত অ্যাকাউন্ট"
+
+msgid "Eksport danych"
+msgstr "ডেটা রপ্তানি"
+
+msgid "Zaplanowane wysyłki"
+msgstr "নির্ধারিত বার্তা"
+
+msgid "Komunikaty czekające na termin wysyłki."
+msgstr "পাঠানোর সময়ের অপেক্ষায় থাকা বার্তা।"
+
+msgid "Nieudane wysyłki"
+msgstr "ব্যর্থ বার্তা"
+
+msgid "Komunikaty z ostatnich 30 dni, których nie udało się wysłać."
+msgstr "গত ৩০ দিনের বার্তা যা পাঠানো যায়নি।"
+
+msgid "Nieprzeczytane rozmowy i kolejka moderacji."
+msgstr "অপঠিত কথোপকথন ও মডারেশনের সারি।"
+
+msgid "Zaświadczenia do weryfikacji"
+msgstr "যাচাইয়ের অপেক্ষায় সনদ"
+
+msgid "Zaświadczenia o statusie ucznia czekają na akceptację."
+msgstr "শিক্ষার্থী-অবস্থার সনদ অনুমোদনের অপেক্ষায়।"
+
+msgid "Ta sama osoba z kilkoma kontami uczestnika."
+msgstr "একই ব্যক্তির একাধিক অংশগ্রহণকারী অ্যাকাউন্ট।"
+
+msgid "Forum do moderacji"
+msgstr "মডারেশনের অপেক্ষায় ফোরাম"
+
+msgid "Wątki, wpisy i zgłoszenia czekające na moderatora."
+msgstr "মডারেটরের অপেক্ষায় থ্রেড, পোস্ট ও অভিযোগ।"
+
+msgid "Otwarcie etapu"
+msgstr "পর্ব শুরু"
+
+msgid "Koniec oddawania prac"
+msgstr "জমা দেওয়ার শেষ সময়"
+
+msgid "Koniec recenzji"
+msgstr "পর্যালোচনার শেষ সময়"
+
+msgid "Otwarcie okna reklamacji"
+msgstr "আপিলের সময় শুরু"
+
+msgid "Zamknięcie okna reklamacji"
+msgstr "আপিলের সময় শেষ"
+
+msgid "Wysyłka komunikatu"
+msgstr "বার্তা প্রেরণ"
+
+msgid "Warsztat"
+msgstr "কর্মশালা"
+
+msgid "Przypiąć można wyłącznie pozycję menu panelu."
+msgstr "শুধু প্যানেল মেনুর আইটেম পিন করা যায়।"
+
+msgid "Przypięto. Pozycja stoi teraz nad sekcjami menu i na Starcie."
+msgstr "পিন করা হয়েছে। আইটেমটি এখন মেনু বিভাগের উপরে ও স্টার্টে থাকবে।"
+
+msgid "Odpięto pozycję."
+msgstr "আইটেম আনপিন করা হয়েছে।"
+
+#, python-format
+msgid "Masz już %(limit)s przypiętych pozycji – odepnij którąś, żeby dodać nową."
+msgstr "আপনার ইতিমধ্যে %(limit)sটি আইটেম পিন করা – নতুন যোগ করতে একটি আনপিন করুন।"
+
+msgid "Okruszki"
+msgstr "ব্রেডক্রাম্ব"
+
+msgid "Przypięte"
+msgstr "পিন করা"
+
+msgid "odepnij"
+msgstr "আনপিন"
+
+msgid "Komplet przypiętych pozycji – odepnij którąś na Starcie."
+msgstr "সব পিনের জায়গা ভরা – স্টার্টে একটি আনপিন করুন।"
+
+msgid "Przypnij"
+msgstr "পিন করুন"
+
+msgid "Polecenia"
+msgstr "কমান্ড"
+
+msgid "Ostatnio używane"
+msgstr "সম্প্রতি ব্যবহৃত"
+
+msgid "Szukaj w panelu"
+msgstr "প্যানেলে খুঁজুন"
+
+msgid "Polecenia panelu koordynatora"
+msgstr "সমন্বয়ক প্যানেলের কমান্ড"
+
+msgid "Dokąd przejść? Ekran, sekcja albo fraza do wyszukania"
+msgstr "কোথায় যাবেন? স্ক্রিন, বিভাগ বা খোঁজার শব্দ"
+
+msgid "Dokąd przejść? Ekran, sekcja albo fraza…"
+msgstr "কোথায় যাবেন? স্ক্রিন, বিভাগ বা শব্দ…"
+
+msgid "Zamknij"
+msgstr "বন্ধ করুন"
+
+msgid "wybór"
+msgstr "বাছাই"
+
+msgid "przejdź"
+msgstr "যান"
+
+msgid "zamknij"
+msgstr "বন্ধ"
+
+#, python-format
+msgid "Ekrany etapu: %(stage)s"
+msgstr "পর্বের স্ক্রিন: %(stage)s"
+
+msgid "Wszystko na bieżąco."
+msgstr "সব হালনাগাদ।"
+
+msgid "Nic nie czeka na koordynatora – kolejki są puste."
+msgstr "সমন্বয়কের জন্য কিছু অপেক্ষমাণ নেই – সারি খালি।"
+
+msgid "W najbliższych 30 dniach nie ma terminów etapów, warsztatów ani zaplanowanych wysyłek."
+msgstr "আগামী ৩০ দিনে কোনো পর্বের তারিখ, কর্মশালা বা নির্ধারিত বার্তা নেই।"
+
+msgid "Wydarzenia linii czasu"
+msgstr "টাইমলাইনের ঘটনা"
+
+msgid "Harmonogram warsztatów (CMS)"
+msgstr "কর্মশালার সূচি (CMS)"
+
+msgid "Konkurs w liczbach"
+msgstr "সংখ্যায় প্রতিযোগিতা"
+
+msgid "W tej edycji"
+msgstr "এই সংস্করণে"
+
+msgid "Komitet (aktywni)"
+msgstr "কমিটি (সক্রিয়)"
+
+msgid "Etapy otwarte"
+msgstr "খোলা পর্ব"
+
+#, python-format
+msgid "Czeka na decyzję: %(count)s"
+msgstr "সিদ্ধান্তের অপেক্ষায়: %(count)s"
+
+#, python-format
+msgid "Bez zaległości: %(count)s"
+msgstr "বকেয়া নেই: %(count)s"
+
+#, python-format
+msgid "Stan z %(time)s, liczby odświeżają się co 5 minut. Bez kont usuniętych."
+msgstr "%(time)s অনুযায়ী; সংখ্যা প্রতি ৫ মিনিটে হালনাগাদ হয়। মুছে ফেলা অ্যাকাউন্ট বাদে।"
+
+#, python-format
+msgid "Odepnij: %(label)s"
+msgstr "আনপিন: %(label)s"
+
+#, python-format
+msgid "Ekrany, po które sięgasz codziennie, przypnij przyciskiem „Przypnij” w nagłówku ekranu – staną tutaj i nad sekcjami menu (najwyżej %(limit)s)."
+msgstr "প্রতিদিন ব্যবহৃত স্ক্রিন শিরোনামের “পিন করুন” বোতাম দিয়ে পিন করুন – সেগুলো এখানে ও মেনু বিভাগের উপরে থাকবে (সর্বোচ্চ %(limit)s)।"

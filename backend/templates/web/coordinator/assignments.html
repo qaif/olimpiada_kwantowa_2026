@@ -19,8 +19,8 @@
 {% endcomment %}
 {% block title %}Przydziały i oceny: {{ stage.display_name }} – panel koordynatora{% endblock %}
 
-{# ``panel_head`` – hak szkieletu panelu na arkusze jednego ekranu; ``head`` zostaje nietknięty,
-   więc ``coordinator.css`` ładuje się dalej tam, gdzie ustawił je szkielet. #}
+{% comment %} ``panel_head`` – hak szkieletu panelu na arkusze jednego ekranu; ``head`` zostaje nietknięty,
+   więc ``coordinator.css`` ładuje się dalej tam, gdzie ustawił je szkielet. {% endcomment %}
 {% block panel_head %}
   <link rel="stylesheet" href="{% static 'css/assignments.css' %}">
 {% endblock %}
@@ -350,9 +350,9 @@
                   {% endif %}
                   <span class="asg-chip__actions">
                     {% if row.score_widget %}
-                      {# Punkty ze skali **zadania** (a w jej braku – etapu), nie wolne pole:
+                      {% comment %} Punkty ze skali **zadania** (a w jej braku – etapu), nie wolne pole:
                          ocena spoza skali i tak nie przejdzie przez serwis. W etapie z dowolnymi
-                         wartościami (0.35.0) – pole liczbowe z zakresem zadania, co 0,01. #}
+                         wartościami (0.35.0) – pole liczbowe z zakresem zadania, co 0,01. {% endcomment %}
                       <details class="asg-edit">
                         <summary class="asg-edit__summary">Zmień punkty</summary>
                         <form method="post" action="{% url 'web:coordinator-review-score' review.pk %}"

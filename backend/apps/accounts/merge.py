@@ -157,6 +157,8 @@ RULES: dict[str, Rule] = {
     # decyzje i wyniki przechodzą na konto docelowe własnymi regułami, a przepięte powiadomienia kopii
     # zderzałyby się z więzem „jedno nieprzeczytane na klucz” i prowadziły do zdarzeń już widocznych.
     "notifications.Notification.user": Rule(STAYS),
+    # Przypięte pozycje menu koordynatora (UX-PANEL-04) – ustawienie konta personelu, nie aktywność.
+    "coordinator_panel.PinnedItem.user": Rule(STAYS),
     "socialaccount.SocialAccount.user": Rule(STAYS),
     "core.AuditLog.actor": Rule(AUDIT_LOG),
 }

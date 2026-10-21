@@ -1,14 +1,20 @@
 {% extends "web/coordinator/base.html" %}
-{% load web_extras consent_gate %}
+{% load i18n web_extras consent_gate %}
 {% comment %}
-  Pulpit odpowiada na **jedno** pytanie: czym trzeba się teraz zająć. Wszystko, co jest kolejką
-  albo formularzem (moderacja, aktywacje, komitet, zaproszenia, podgląd wyników), wyprowadziło się
-  na własne adresy (apps/web/views/coordinator_pages.py) – tutaj zostaje z nich sama liczba.
+  Start panelu koordynatora (UX-PANEL-04 § 2, D4). Pulpit odpowiada na **jedno** pytanie: czym trzeba się teraz
+  zająć. Wszystko, co jest kolejką albo formularzem (moderacja, aktywacje, komitet, zaproszenia, podgląd
+  wyników), ma własny adres (apps/web/views/coordinator_pages.py) – tutaj zostaje z nich sama liczba.
+
+  Kolejność: sprawy niezerowe (kafle, każdy jest odnośnikiem w całości), sprawy bez zaległości (jedna zwinięta
+  linia – zero nie jest informacją, ale „gdzie to jest” bywa), potem cztery karty: najbliższe terminy, konkurs
+  w liczbach, przypięte, szybkie skróty; na końcu karty etapów (bez zmian).
 
   Karta etapu pokazuje stan, najbliższy termin, dwie liczby i **jedną** akcję główną wynikającą ze
   stanu etapu; reszta narzędzi tego etapu stoi pod „Więcej”. Wcześniej każda karta miała
   jedenaście odnośników i sześć przycisków obok siebie, przez co żaden z nich nie był ważniejszy
   od pozostałych – a w danym tygodniu sensowny jest zwykle dokładnie jeden.
+
+  Dane Startu: ``apps/coordinator_panel/start.py`` (pakiety w pamięci podręcznej per konkurs).
 {% endcomment %}
 {% block title %}Panel koordynatora{% endblock %}
 {% block panel_title %}Prowadzenie edycji{% if edition %} {{ edition.year_label }}{% endif %}{% endblock %}
@@ -19,37 +25,137 @@
 {% block panel_content %}
 {% include "mail_domains/_sender_warnings.html" %}
 
-<section class="section">
-  <div class="section__head"><h2 class="mt-0">Co wymaga uwagi</h2></div>
+<section class="section kp-start" aria-labelledby="kp-attention-title">
+  <div class="section__head">
+    <h2 class="mt-0" id="kp-attention-title">Co wymaga uwagi</h2>
+    <p class="hint">{% if start_due %}{% blocktranslate trimmed with count=start_due|length %}Czeka na decyzję: {{ count }}{% endblocktranslate %}{% else %}{% translate "Wszystko na bieżąco." %}{% endif %}</p>
+  </div>
   {% comment %}
-    Kafelek z niezerową liczbą jest wyróżniony i jest odnośnikiem w całości: jedyne, co się z tą
-    liczbą robi, to przejście do kolejki. Kafelek bez adresu (ekranu jeszcze nie ma) zostaje samą
-    liczbą, zamiast prowadzić donikąd.
+    Kafelek z niezerową liczbą jest odnośnikiem w całości: jedyne, co się z tą liczbą robi, to przejście do
+    kolejki. Kafelek bez adresu (ekranu jeszcze nie ma) zostaje samą liczbą, zamiast prowadzić donikąd.
   {% endcomment %}
-  <ul class="attention">
-    {% for row in attention %}
-      <li class="attention__item{% if row.value %} attention__item--due{% endif %}">
-        {% if row.url %}
-          <a class="attention__link" href="{{ row.url }}">
-            <span class="attention__value">{{ row.value }}</span>
+  {% if start_due %}
+    <ul class="attention kp-attention">
+      {% for row in start_due %}
+        <li class="attention__item attention__item--due" data-attention="{{ row.key }}">
+          {% if row.url %}<a class="attention__link" href="{{ row.url }}">{% else %}<span class="attention__link">{% endif %}
+            <span class="kp-attention__top">
+              <svg class="kp-icon" aria-hidden="true" focusable="false"><use href="#kp-i-{{ row.icon }}"></use></svg>
+              <span class="attention__value">{{ row.value }}</span>
+            </span>
             <span class="attention__label">{{ row.label }}</span>
             <span class="attention__hint">{{ row.hint }}</span>
-          </a>
-        {% else %}
-          <span class="attention__link">
-            <span class="attention__value">{{ row.value }}</span>
-            <span class="attention__label">{{ row.label }}</span>
-            <span class="attention__hint">{{ row.hint }}</span>
-          </span>
-        {% endif %}
-      </li>
-    {% endfor %}
-  </ul>
+          {% if row.url %}</a>{% else %}</span>{% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="kp-allclear"><svg class="kp-icon" aria-hidden="true" focusable="false"><use href="#kp-i-check"></use></svg>
+      {% translate "Nic nie czeka na koordynatora – kolejki są puste." %}</p>
+  {% endif %}
+  {% if start_quiet %}
+    <details class="kp-quiet">
+      <summary>{% blocktranslate trimmed with count=start_quiet|length %}Bez zaległości: {{ count }}{% endblocktranslate %}</summary>
+      <ul class="kp-quiet__list">
+        {% for row in start_quiet %}
+          <li data-attention="{{ row.key }}">
+            {% if row.url %}<a href="{{ row.url }}">{{ row.label }}</a>{% else %}<span>{{ row.label }}</span>{% endif %}
+            <span class="kp-quiet__value">{{ row.value }}</span>
+          </li>
+        {% endfor %}
+      </ul>
+    </details>
+  {% endif %}
 </section>
 {# CONS-01: uczestnicy, których bramka zgód odsyła do ekranu „Uzupełnij zgody”, i ich lista CSV. #}
 {% consent_gap_tile %}
 
-<section class="section">
+<div class="kp-start-grid">
+  <section class="kp-card" aria-labelledby="kp-deadlines-title">
+    <h2 class="kp-card__title" id="kp-deadlines-title"><svg class="kp-icon" aria-hidden="true" focusable="false"><use href="#kp-i-clock"></use></svg>{% translate "Najbliższe terminy" %}</h2>
+    {% if start_deadlines %}
+      <ul class="kp-dates">
+        {% for row in start_deadlines %}
+          <li class="kp-dates__row kp-dates__row--{{ row.kind }}">
+            <time class="kp-dates__when" datetime="{% if row.date_only %}{{ row.at|date:'Y-m-d' }}{% else %}{{ row.at|date:'c' }}{% endif %}">{% if row.date_only %}{{ row.at|date:"j E" }}{% if row.time %}, {{ row.time }}{% endif %}{% else %}{{ row.at|local_datetime }}{% endif %}</time>
+            <span class="kp-dates__what">
+              <span class="kp-dates__label">{{ row.label }}</span>
+              {% if row.url %}<a href="{{ row.url }}">{{ row.title }}</a>{% else %}{{ row.title }}{% endif %}
+            </span>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="kp-card__empty">{% translate "W najbliższych 30 dniach nie ma terminów etapów, warsztatów ani zaplanowanych wysyłek." %}</p>
+    {% endif %}
+    <p class="kp-card__foot">
+      <a href="{% url 'web:coordinator-events' %}">{% translate "Wydarzenia linii czasu" %}</a>
+      {% if start_workshops_edit_url %}<a href="{{ start_workshops_edit_url }}">{% translate "Harmonogram warsztatów (CMS)" %}</a>{% endif %}
+    </p>
+  </section>
+
+  <section class="kp-card" aria-labelledby="kp-summary-title">
+    <h2 class="kp-card__title" id="kp-summary-title"><svg class="kp-icon" aria-hidden="true" focusable="false"><use href="#kp-i-chart"></use></svg>{% translate "Konkurs w liczbach" %}</h2>
+    {% if start_summary %}
+      <dl class="kp-stats">
+        <div class="kp-stats__item"><dt>{% translate "Uczestnicy" %}</dt><dd>{{ start_summary.participants }}</dd></div>
+        <div class="kp-stats__item"><dt>{% translate "W tej edycji" %}</dt><dd>{{ start_summary.in_edition }}</dd></div>
+        <div class="kp-stats__item"><dt>{% translate "Szkoły" %}</dt><dd>{{ start_summary.schools }}</dd></div>
+        <div class="kp-stats__item"><dt>{% translate "Komitet (aktywni)" %}</dt><dd>{{ start_summary.committee }}</dd></div>
+        <div class="kp-stats__item"><dt>{% translate "Etapy otwarte" %}</dt><dd>{{ start_stages.open }}<span class="kp-stats__of"> / {{ start_stages.total }}</span></dd></div>
+      </dl>
+      <p class="kp-card__foot kp-card__foot--muted">{% blocktranslate trimmed with time=start_summary.computed_at|local_time %}Stan z {{ time }}, liczby odświeżają się co 5 minut. Bez kont usuniętych.{% endblocktranslate %}</p>
+    {% endif %}
+  </section>
+
+  <section class="kp-card" aria-labelledby="kp-pins-title">
+    <h2 class="kp-card__title" id="kp-pins-title"><svg class="kp-icon" aria-hidden="true" focusable="false"><use href="#kp-i-pin"></use></svg>{% translate "Przypięte" %}</h2>
+    {% if start_pins %}
+      <ul class="kp-pinlist">
+        {% for pin in start_pins %}
+          <li class="kp-pinlist__row">
+            <a class="kp-pinlist__link" href="{{ pin.url }}"><span class="kp-pinlist__group">{{ pin.group }}</span> {{ pin.label }}</a>
+            <form method="post" action="{% url 'web:coordinator-pin-toggle' %}">
+              {% csrf_token %}
+              <input type="hidden" name="path" value="{{ pin.path }}">
+              <input type="hidden" name="next" value="{{ request.get_full_path }}">
+              <button type="submit" class="kp-pinlist__unpin"><svg class="kp-icon" aria-hidden="true" focusable="false"><use href="#kp-i-close"></use></svg><span class="visually-hidden">{% blocktranslate trimmed with label=pin.label %}Odepnij: {{ label }}{% endblocktranslate %}</span></button>
+            </form>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="kp-card__empty">{% blocktranslate trimmed with limit=start_pin_limit %}Ekrany, po które sięgasz codziennie, przypnij przyciskiem „Przypnij” w nagłówku ekranu – staną tutaj i nad sekcjami menu (najwyżej {{ limit }}).{% endblocktranslate %}</p>
+    {% endif %}
+  </section>
+
+  <section class="kp-card" aria-labelledby="kp-shortcuts-title">
+    <h2 class="kp-card__title" id="kp-shortcuts-title"><svg class="kp-icon" aria-hidden="true" focusable="false"><use href="#kp-i-arrow"></use></svg>Szybkie skróty</h2>
+    {% comment %}
+      Najczęstsze zadania (audyt UX-PANEL-04 § 1) – wysyłka, uczestnicy, warsztaty, zaświadczenia, duplikaty,
+      lejek, wiadomości, eksport. Pod nimi dotychczasowe skróty do narzędzi całej edycji: to samo, co w menu,
+      ale pod ręką na wąskim ekranie, gdzie menu jest zwinięte. Dwa ekrany RODO stoją wśród skrótów, bo sięga
+      się po nie dokładnie wtedy, co po audyt – gdy ktoś z zewnątrz zadaje pytanie o dane.
+    {% endcomment %}
+    <ul class="kp-shortcuts">
+      {% for row in start_shortcuts %}
+        <li><a class="kp-shortcuts__link" href="{{ row.url }}" data-shortcut="{{ row.key }}"><svg class="kp-icon" aria-hidden="true" focusable="false"><use href="#kp-i-{{ row.icon }}"></use></svg>{{ row.label }}</a></li>
+      {% endfor %}
+    </ul>
+    <ul class="shortcuts kp-shortcuts-more">
+      <li><a class="btn btn--secondary btn--small" href="{% url 'web:coordinator-accounts' %}">Konta</a></li>
+      <li><a class="btn btn--secondary btn--small" href="{% url 'web:coordinator-committee' %}">Komitet</a></li>
+      <li><a class="btn btn--secondary btn--small" href="{% url 'web:coordinator-messages' %}">Komunikaty</a></li>
+      <li><a class="btn btn--secondary btn--small" href="{% url 'web:coordinator-events' %}">Wydarzenia (linia czasu)</a></li>
+      <li><a class="btn btn--secondary btn--small" href="{% url 'web:coordinator-export' %}">Eksport danych</a></li>
+      <li><a class="btn btn--secondary btn--small" href="{% url 'web:coordinator-audit' %}">Audyt</a></li>
+      <li><a class="btn btn--secondary btn--small" href="{% url 'web:coordinator-retention' %}">Retencja danych</a></li>
+      <li><a class="btn btn--secondary btn--small" href="{% url 'web:coordinator-processing-register' %}">Rejestr czynności</a></li>
+    </ul>
+  </section>
+</div>
+
+<section class="section kp-stages" id="etapy">
   <div class="section__head">
     <h2 class="mt-0">Etapy {% if edition %}({{ edition.year_label }}){% endif %}</h2>
     <p class="hint">
@@ -166,8 +272,8 @@
             {% else %}
               <a href="{% url 'web:coordinator-stage-problems' row.stage.pk %}">Zadania ({{ row.stage.problem_count }})</a>
             {% endif %}
-            {# Skala punktacji wyszła z adminu: panel pilnuje przy niej reguły, której admin nie zna –
-               wartości już wystawionej w ocenach nie wolno usunąć. Próg kwalifikacji zostaje. #}
+            {% comment %} Skala punktacji wyszła z adminu: panel pilnuje przy niej reguły, której admin nie zna –
+               wartości już wystawionej w ocenach nie wolno usunąć. Próg kwalifikacji zostaje. {% endcomment %}
             <a href="{% url 'web:coordinator-stage-scale' row.stage.pk %}">Skala punktacji</a>
             <a href="{% url 'admin:competitions_stage_change' row.stage.pk %}">Próg kwalifikacji (admin)</a>
             <a href="{% url 'web:coordinator-stage-assignments' row.stage.pk %}">Przydziały i oceny</a>
@@ -212,27 +318,5 @@
         Bieżąca edycja nie ma jeszcze zdefiniowanych etapów – zacznij od „Dodaj etap”.</p>
     {% endfor %}
   </div>
-</section>
-
-{% comment %}
-  Skróty do narzędzi obejmujących całą edycję – w odróżnieniu od narzędzi etapu, które stoją na
-  jego karcie. To samo, co w menu bocznym, ale pod ręką na wąskim ekranie, gdzie menu jest zwinięte.
-{% endcomment %}
-<section class="section">
-  <div class="section__head"><h2 class="mt-0">Szybkie skróty</h2></div>
-  <ul class="shortcuts">
-    <li><a class="btn btn--secondary btn--small" href="{% url 'web:coordinator-accounts' %}">Konta</a></li>
-    <li><a class="btn btn--secondary btn--small" href="{% url 'web:coordinator-committee' %}">Komitet</a></li>
-    <li><a class="btn btn--secondary btn--small" href="{% url 'web:coordinator-messages' %}">Komunikaty</a></li>
-    <li><a class="btn btn--secondary btn--small" href="{% url 'web:coordinator-events' %}">Wydarzenia (linia czasu)</a></li>
-    <li><a class="btn btn--secondary btn--small" href="{% url 'web:coordinator-export' %}">Eksport danych</a></li>
-    <li><a class="btn btn--secondary btn--small" href="{% url 'web:coordinator-audit' %}">Audyt</a></li>
-    {% comment %}
-      Dwa ekrany RODO stoją wśród skrótów, a nie w osobnej sekcji: sięga się po nie dokładnie
-      wtedy, co po audyt – gdy ktoś z zewnątrz zadaje pytanie o dane, a nie o zawody.
-    {% endcomment %}
-    <li><a class="btn btn--secondary btn--small" href="{% url 'web:coordinator-retention' %}">Retencja danych</a></li>
-    <li><a class="btn btn--secondary btn--small" href="{% url 'web:coordinator-processing-register' %}">Rejestr czynności</a></li>
-  </ul>
 </section>
 {% endblock %}

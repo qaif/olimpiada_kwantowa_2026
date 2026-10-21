@@ -6,6 +6,7 @@ from apps.alumni.urls import urlpatterns as alumni_urlpatterns
 from apps.calendar_feed.urls import urlpatterns as calendar_feed_urlpatterns  # CAL-01
 from apps.committee_panel.urls import urlpatterns as committee_panel_urlpatterns  # UX-PANEL-03
 from apps.consent_gate.urls import urlpatterns as consent_gate_urlpatterns  # CONS-01
+from apps.coordinator_panel.urls import urlpatterns as coordinator_panel_urlpatterns  # UX-PANEL-04
 from apps.coordinator_stats.urls import urlpatterns as coordinator_stats_urlpatterns  # STATS-02
 from apps.delegation_logistics.urls import urlpatterns as final_logistics_urlpatterns
 from apps.email_delivery.urls import urlpatterns as email_delivery_urlpatterns  # MAIL-02: odbicia
@@ -424,6 +425,8 @@ urlpatterns = [
         coordinator_pages.CoordinatorSearchView.as_view(),
         name="coordinator-search",
     ),
+    # Przypinanie pozycji menu koordynatora (UX-PANEL-04): POST, ustawienie konta.
+    *coordinator_panel_urlpatterns,
     # Trzy ekrany, które wyprowadziły się z pulpitu (apps/web/views/coordinator_pages.py).
     # Czynności zostały tam, gdzie były – te adresy wyłącznie pokazują.
     path(

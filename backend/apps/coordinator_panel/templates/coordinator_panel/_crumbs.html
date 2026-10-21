@@ -1,0 +1,19 @@
+{% load i18n %}{% comment %}
+  Okruszki panelu koordynatora (UX-PANEL-04 D8): Start › sekcja › pozycja (› ekran etapu). Źródłem jest pozycja
+  bieżąca menu (``apps.coordinator_panel.shell``), więc okruszki i podświetlenie w menu nie mogą się rozjechać.
+  Sekcja nie ma własnego ekranu – jest tekstem, nie odnośnikiem. Ostatni okruszek nosi ``aria-current``.
+  Na Starcie i na ekranach bez pozycji bieżącej okruszków nie ma (zostaje dotychczasowy „eyebrow”).
+{% endcomment %}{% if trail %}
+<nav class="kp-crumbs" aria-label="{% translate 'Okruszki' %}">
+  <ol class="kp-crumbs__list">
+    <li class="kp-crumbs__item"><a href="{% url 'web:coordinator' %}">{% translate "Start" %}</a></li>
+    {% for crumb in trail %}
+      <li class="kp-crumbs__item">
+        {% if forloop.last %}<span aria-current="page">{{ crumb.label }}</span>
+        {% elif crumb.url %}<a href="{{ crumb.url }}">{{ crumb.label }}</a>
+        {% else %}<span>{{ crumb.label }}</span>{% endif %}
+      </li>
+    {% endfor %}
+  </ol>
+</nav>
+{% endif %}

@@ -1,0 +1,191 @@
+# UX-PANEL-04 – napisy panelu koordynatora (zh_Hans): Start, paleta poleceń, okruszki, przypięte,
+# ostatnio używane. Źródło (msgid) po polsku; poza angielskim tłumaczenie
+# maszynowe – do przeglądu native speakera (I18N-01 § 8).
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada coordinator_panel\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-21 18:00+0200\n"
+"PO-Revision-Date: 2026-10-21 18:00+0200\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: zh_Hans\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "Wyślij komunikat"
+msgstr "发送通知"
+
+msgid "Obecność na warsztatach"
+msgstr "工作坊出勤"
+
+msgid "Zaświadczenia z warsztatów"
+msgstr "工作坊证书"
+
+msgid "Zdublowane konta"
+msgstr "重复账户"
+
+msgid "Eksport danych"
+msgstr "数据导出"
+
+msgid "Zaplanowane wysyłki"
+msgstr "已计划的发送"
+
+msgid "Komunikaty czekające na termin wysyłki."
+msgstr "等待发送时间的通知。"
+
+msgid "Nieudane wysyłki"
+msgstr "发送失败"
+
+msgid "Komunikaty z ostatnich 30 dni, których nie udało się wysłać."
+msgstr "最近 30 天内未能发送的通知。"
+
+msgid "Nieprzeczytane rozmowy i kolejka moderacji."
+msgstr "未读会话和审核队列。"
+
+msgid "Zaświadczenia do weryfikacji"
+msgstr "待核验的证明"
+
+msgid "Zaświadczenia o statusie ucznia czekają na akceptację."
+msgstr "学生身份证明等待审批。"
+
+msgid "Ta sama osoba z kilkoma kontami uczestnika."
+msgstr "同一人拥有多个参赛者账户。"
+
+msgid "Forum do moderacji"
+msgstr "待审核的论坛内容"
+
+msgid "Wątki, wpisy i zgłoszenia czekające na moderatora."
+msgstr "等待版主处理的主题、帖子和举报。"
+
+msgid "Otwarcie etapu"
+msgstr "阶段开放"
+
+msgid "Koniec oddawania prac"
+msgstr "提交截止"
+
+msgid "Koniec recenzji"
+msgstr "评审截止"
+
+msgid "Otwarcie okna reklamacji"
+msgstr "申诉窗口开放"
+
+msgid "Zamknięcie okna reklamacji"
+msgstr "申诉窗口关闭"
+
+msgid "Wysyłka komunikatu"
+msgstr "通知发送"
+
+msgid "Warsztat"
+msgstr "工作坊"
+
+msgid "Przypiąć można wyłącznie pozycję menu panelu."
+msgstr "只能固定面板菜单项。"
+
+msgid "Przypięto. Pozycja stoi teraz nad sekcjami menu i na Starcie."
+msgstr "已固定。该项现显示在菜单分组上方和首页。"
+
+msgid "Odpięto pozycję."
+msgstr "已取消固定。"
+
+#, python-format
+msgid "Masz już %(limit)s przypiętych pozycji – odepnij którąś, żeby dodać nową."
+msgstr "您已固定 %(limit)s 项——请先取消一项再添加。"
+
+msgid "Okruszki"
+msgstr "面包屑导航"
+
+msgid "Przypięte"
+msgstr "已固定"
+
+msgid "odepnij"
+msgstr "取消固定"
+
+msgid "Komplet przypiętych pozycji – odepnij którąś na Starcie."
+msgstr "固定位已满——请在首页取消固定一项。"
+
+msgid "Przypnij"
+msgstr "固定"
+
+msgid "Polecenia"
+msgstr "命令"
+
+msgid "Ostatnio używane"
+msgstr "最近使用"
+
+msgid "Szukaj w panelu"
+msgstr "在面板中搜索"
+
+msgid "Polecenia panelu koordynatora"
+msgstr "协调员面板命令"
+
+msgid "Dokąd przejść? Ekran, sekcja albo fraza do wyszukania"
+msgstr "前往哪里？屏幕、分组或要搜索的词"
+
+msgid "Dokąd przejść? Ekran, sekcja albo fraza…"
+msgstr "前往哪里？屏幕、分组或词语…"
+
+msgid "Zamknij"
+msgstr "关闭"
+
+msgid "wybór"
+msgstr "选择"
+
+msgid "przejdź"
+msgstr "前往"
+
+msgid "zamknij"
+msgstr "关闭"
+
+#, python-format
+msgid "Ekrany etapu: %(stage)s"
+msgstr "阶段页面：%(stage)s"
+
+msgid "Wszystko na bieżąco."
+msgstr "一切都已处理。"
+
+msgid "Nic nie czeka na koordynatora – kolejki są puste."
+msgstr "没有待协调员处理的事项——队列为空。"
+
+msgid "W najbliższych 30 dniach nie ma terminów etapów, warsztatów ani zaplanowanych wysyłek."
+msgstr "未来 30 天内没有阶段日期、工作坊或计划发送。"
+
+msgid "Wydarzenia linii czasu"
+msgstr "时间线事件"
+
+msgid "Harmonogram warsztatów (CMS)"
+msgstr "工作坊日程（CMS）"
+
+msgid "Konkurs w liczbach"
+msgstr "竞赛数据一览"
+
+msgid "W tej edycji"
+msgstr "本届"
+
+msgid "Komitet (aktywni)"
+msgstr "委员会（在职）"
+
+msgid "Etapy otwarte"
+msgstr "开放的阶段"
+
+#, python-format
+msgid "Czeka na decyzję: %(count)s"
+msgstr "待决定：%(count)s"
+
+#, python-format
+msgid "Bez zaległości: %(count)s"
+msgstr "无待办：%(count)s"
+
+#, python-format
+msgid "Stan z %(time)s, liczby odświeżają się co 5 minut. Bez kont usuniętych."
+msgstr "截至 %(time)s；数据每 5 分钟刷新一次，不含已删除账户。"
+
+#, python-format
+msgid "Odepnij: %(label)s"
+msgstr "取消固定：%(label)s"
+
+#, python-format
+msgid "Ekrany, po które sięgasz codziennie, przypnij przyciskiem „Przypnij” w nagłówku ekranu – staną tutaj i nad sekcjami menu (najwyżej %(limit)s)."
+msgstr "用页面标题中的“固定”按钮固定每天使用的页面——它们会显示在这里和菜单分组上方（最多 %(limit)s 个）。"

@@ -1,24 +1,35 @@
-{% comment %}
+{% load i18n %}{% comment %}
   Menu boczne panelu koordynatora. Treść (sekcje, adresy, liczniki) przychodzi ze znacznika
   ``{% templatetag openblock %} coordinator_nav {% templatetag closeblock %}``
-  (apps/web/coordinator_nav.py) – szablon niczego nie rozstrzyga i nie woła ani jednego ``{% templatetag openblock %} url {% templatetag closeblock %}``:
+  (apps/web/coordinator_nav.py, z dodatkami ramy z apps/coordinator_panel/shell.py) – szablon niczego nie
+  rozstrzyga i nie woła ani jednego ``{% templatetag openblock %} url {% templatetag closeblock %}``:
   adresy ekranów budowanych równolegle bywają jeszcze nieobecne w urlconfie, a brak wpisu
   wywracałby **każdą** stronę panelu.
 
   Całość stoi w ``<details>``, bo poniżej 900 px menu jest rozwijanym „Menu panelu” na górze
   strony, a od 900 px – stałą kolumną (arkusz otwiera je wtedy bez atrybutu ``open``, tą samą
-  parą reguł, co rozwijane „Dokumenty” w nagłówku serwisu). Zero JavaScriptu, więc menu działa
-  też przy zablokowanych skryptach i nie potrzebuje wyjątku w polityce CSP.
-{% endcomment %}
-<details class="panel-nav">
-  <summary class="panel-nav__summary">Menu panelu</summary>
+  parą reguł, co rozwijane „Dokumenty” w nagłówku serwisu). Menu działa bez JavaScriptu;
+  skrypty (``js/coordinator-nav.js``, ``coordinator_panel/shell.js``) tylko dokładają pamięć zwiniętych
+  sekcji, „ostatnio używane” i paletę poleceń – i nie potrzebują wyjątku w polityce CSP.
+
+  UX-PANEL-04: ikony nagłówków, bieżąca pozycja i suma liczników na zwiniętym menu, przypięte i ostatnio
+  używane nad sekcjami, dzieci etapu zwinięte poza etapem bieżącym. Sekcje i pozycje – bez zmian.
+{% endcomment %}{% include "coordinator_panel/_icons.html" %}
+<details class="panel-nav" data-kp-recent-key="{{ nav_recent_key }}">
+  <summary class="panel-nav__summary">
+    <svg class="kp-icon" aria-hidden="true" focusable="false"><use href="#kp-i-menu"></use></svg>
+    <span class="kp-summary__label">Menu panelu</span>
+    {% if nav_current %}<span class="kp-summary__where">{{ nav_current.label }}</span>{% endif %}
+    {% if nav_badge_total %}<span class="panel-nav__badge kp-summary__badge">{{ nav_badge_total }}<span class="visually-hidden">
+      spraw czeka</span></span>{% endif %}
+  </summary>
   <div class="panel-nav__body">
     {% if nav_search_url %}
       {% comment %}
         Wyszukiwarka stoi na samej górze menu, bo jest najkrótszą drogą do wszystkiego, co ma
-        nazwisko, kod albo numer: uczestnika, członka komisji, zadania, etapu i zgłoszenia.
-        Formularz GET – wynik ma dać się odświeżyć, wkleić w wiadomości i cofnąć przyciskiem
-        „wstecz”.
+        nazwisko, kod albo numer: uczestnika, członka komisji, zadania, etapu i zgłoszenia – a od UX-PANEL-04
+        także ekranu panelu. Formularz GET – wynik ma dać się odświeżyć, wkleić w wiadomości i cofnąć
+        przyciskiem „wstecz”.
       {% endcomment %}
       <form class="panel-nav__search" method="get" action="{{ nav_search_url }}" role="search">
         <label class="visually-hidden" for="panel-search">Szukaj w panelu koordynatora</label>
@@ -27,7 +38,35 @@
                autocomplete="off">
         <button type="submit" class="btn btn--small btn--secondary panel-nav__go">Szukaj</button>
       </form>
+      {% comment %}
+        Paleta poleceń (UX-PANEL-04 D6). Przycisk jest ukryty, dopóki skrypt go nie odsłoni – bez JS nie ma
+        martwego przycisku, a pole wyszukiwania wyżej robi to samo pełnym przeładowaniem.
+      {% endcomment %}
+      <button type="button" class="kp-palette-open" data-kp-palette-open hidden aria-haspopup="dialog">
+        <svg class="kp-icon" aria-hidden="true" focusable="false"><use href="#kp-i-command"></use></svg>
+        <span class="kp-palette-open__label">{% translate "Polecenia" %}</span>
+        <kbd class="kp-kbd" data-kp-shortcut>Ctrl K</kbd>
+      </button>
     {% endif %}
+    {% if nav_pins %}
+      <div class="kp-quick" data-kp-pins>
+        <p class="kp-quick__heading" id="kp-pins-heading">
+          <svg class="kp-icon" aria-hidden="true" focusable="false"><use href="#kp-i-pin"></use></svg>{% translate "Przypięte" %}
+        </p>
+        <ul class="kp-quick__list" aria-labelledby="kp-pins-heading">
+          {% for pin in nav_pins %}
+            <li><a class="kp-quick__link" href="{{ pin.url }}" data-kp-group="{{ pin.group }}">{{ pin.label }}</a></li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+    {# Ostatnio używane (UX-PANEL-04 D10) – wypełnia skrypt z pamięci przeglądarki; bez JS blok jest ukryty. #}
+    <div class="kp-quick" data-kp-recent hidden>
+      <p class="kp-quick__heading" id="kp-recent-heading">
+        <svg class="kp-icon" aria-hidden="true" focusable="false"><use href="#kp-i-history"></use></svg>{% translate "Ostatnio używane" %}
+      </p>
+      <ul class="kp-quick__list" aria-labelledby="kp-recent-heading" data-kp-recent-list></ul>
+    </div>
     {% for group in nav_groups %}
       {% comment %}
         Każda sekcja jest rozwijana (``<details>``): sekcja z pozycją aktywną i pierwsza (pulpit)
@@ -37,6 +76,7 @@
       {% endcomment %}
       <details class="panel-nav__group" data-nav-group="{{ group.slug }}"{% if group.active or forloop.first %} data-nav-pinned="1"{% endif %} open>
         <summary class="panel-nav__heading">
+          <svg class="kp-icon kp-icon--heading" aria-hidden="true" focusable="false"><use href="#kp-i-{{ group.icon|default:'dot' }}"></use></svg>
           <span class="panel-nav__heading-label">{{ group.label }}</span>
           {% if group.badge %}
             <span class="panel-nav__badge panel-nav__badge--group">{{ group.badge }}<span class="visually-hidden">
@@ -45,7 +85,7 @@
         </summary>
         <ul class="panel-nav__list">
           {% for item in group.items %}
-            <li class="panel-nav__item">
+            <li class="panel-nav__item{% if item.children %} kp-has-sub{% endif %}">
               <a class="panel-nav__link{% if item.active %} panel-nav__link--active{% endif %}"
                  href="{{ item.url }}"{% if item.active %} aria-current="page"{% endif %}>
                 <span class="panel-nav__label">{{ item.label }}</span>
@@ -60,14 +100,21 @@
                 {% endif %}
               </a>
               {% if item.children %}
-                <ul class="panel-nav__sublist">
-                  {% for child in item.children %}
-                    <li>
-                      <a class="panel-nav__sublink{% if child.active %} panel-nav__sublink--active{% endif %}"
-                         href="{{ child.url }}"{% if child.active %} aria-current="page"{% endif %}>{{ child.label }}</a>
-                    </li>
-                  {% endfor %}
-                </ul>
+                {% comment %}
+                  Ekrany etapu (UX-PANEL-04 D3) – rozwinięte przy etapie z pozycją bieżącą albo, gdy żadna nie
+                  świeci, przy etapie „w ognisku”. Przełącznikiem jest ``<summary>`` obok nazwy etapu.
+                {% endcomment %}
+                <details class="kp-sub"{% if item.expanded %} open{% endif %}>
+                  <summary class="kp-sub__toggle"><span class="visually-hidden">{% blocktranslate trimmed with stage=item.label %}Ekrany etapu: {{ stage }}{% endblocktranslate %}</span></summary>
+                  <ul class="panel-nav__sublist">
+                    {% for child in item.children %}
+                      <li>
+                        <a class="panel-nav__sublink{% if child.active %} panel-nav__sublink--active{% endif %}"
+                           href="{{ child.url }}"{% if child.active %} aria-current="page"{% endif %}>{{ child.label }}</a>
+                      </li>
+                    {% endfor %}
+                  </ul>
+                </details>
               {% endif %}
             </li>
           {% endfor %}
@@ -82,6 +129,7 @@
       {% endcomment %}
       <details class="panel-nav__group" data-nav-group="konkursy-platformy" open>
         <summary class="panel-nav__heading">
+          <svg class="kp-icon kp-icon--heading" aria-hidden="true" focusable="false"><use href="#kp-i-globe"></use></svg>
           <span class="panel-nav__heading-label">Konkursy platformy</span>
         </summary>
         <ul class="panel-nav__list">
@@ -98,3 +146,37 @@
     {% endif %}
   </div>
 </details>
+{% if nav_search_url %}
+  {% comment %}
+    Okno palety poleceń – szablon, który skrypt klonuje do ``<body>`` przy pierwszym otwarciu. Napisy stoją tu,
+    a nie w skrypcie, bo tylko szablon zna język oglądającego. Wzorzec ARIA: pole ``combobox`` + ``listbox``,
+    bieżąca pozycja przez ``aria-activedescendant``.
+  {% endcomment %}
+  <template id="kp-palette-template">
+    <dialog class="kp-palette" aria-labelledby="kp-palette-title"
+            data-search-url="{{ nav_search_url }}"
+            data-label-search="{% translate 'Szukaj w panelu' %}"
+            data-label-pinned="{% translate 'Przypięte' %}"
+            data-label-recent="{% translate 'Ostatnio używane' %}"
+            data-label-results="{% translate 'Wyniki' %}">
+      <h2 class="visually-hidden" id="kp-palette-title">{% translate "Polecenia panelu koordynatora" %}</h2>
+      <div class="kp-palette__head">
+        <svg class="kp-icon" aria-hidden="true" focusable="false"><use href="#kp-i-search"></use></svg>
+        <input class="kp-palette__input" type="text" role="combobox" autocomplete="off" spellcheck="false"
+               aria-expanded="true" aria-controls="kp-palette-list" aria-autocomplete="list"
+               aria-label="{% translate 'Dokąd przejść? Ekran, sekcja albo fraza do wyszukania' %}"
+               placeholder="{% translate 'Dokąd przejść? Ekran, sekcja albo fraza…' %}">
+        <button type="button" class="kp-palette__close" data-kp-close>
+          <svg class="kp-icon" aria-hidden="true" focusable="false"><use href="#kp-i-close"></use></svg>
+          <span class="visually-hidden">{% translate "Zamknij" %}</span>
+        </button>
+      </div>
+      <ul class="kp-palette__list" id="kp-palette-list" role="listbox" aria-label="{% translate 'Wyniki' %}"></ul>
+      <p class="kp-palette__hint">
+        <span><kbd class="kp-kbd">↑</kbd> <kbd class="kp-kbd">↓</kbd> {% translate "wybór" %}</span>
+        <span><kbd class="kp-kbd">Enter</kbd> {% translate "przejdź" %}</span>
+        <span><kbd class="kp-kbd">Esc</kbd> {% translate "zamknij" %}</span>
+      </p>
+    </dialog>
+  </template>
+{% endif %}
