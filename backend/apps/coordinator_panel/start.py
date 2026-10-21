@@ -24,7 +24,7 @@ from datetime import datetime, time, timedelta
 
 from django.core.cache import cache
 from django.db import DatabaseError
-from django.db.models import Count, Min, Q, Value
+from django.db.models import Count, Min, Q
 from django.db.models.functions import Lower
 from django.utils import timezone
 from django.utils.translation import gettext as _
@@ -138,10 +138,11 @@ def _summary(competition, edition) -> dict:
     """
     from apps.accounts.models import CommitteeMember, CommitteeStatus, Participant
 
-    in_edition = (
-        Count("pk", distinct=True, filter=Q(stage_entries__stage__edition=edition))
+    # Bez bieżącej edycji nie ma „uczestników tej edycji” – liczby nie dokładamy, zamiast liczyć zero w SQL-u.
+    extra = (
+        {"in_edition": Count("pk", distinct=True, filter=Q(stage_entries__stage__edition=edition))}
         if edition is not None
-        else Value(0)
+        else {}
     )
     totals = (
         Participant.objects.filter(competition=competition)
@@ -155,7 +156,7 @@ def _summary(competition, edition) -> dict:
                 distinct=True,
                 filter=Q(school_ref__isnull=True, custom_institution_ref__isnull=True) & ~Q(school=""),
             ),
-            in_edition=in_edition,
+            **extra,
         )
     )
     committee = (
@@ -164,7 +165,7 @@ def _summary(competition, edition) -> dict:
     return {
         "participants": totals["participants"] or 0,
         "schools": (totals["registry"] or 0) + (totals["custom"] or 0) + (totals["free"] or 0),
-        "in_edition": totals["in_edition"] or 0,
+        "in_edition": totals.get("in_edition") or 0,
         "committee": committee,
         "computed_at": timezone.now(),
     }

@@ -388,3 +388,14 @@ def test_new_strings_have_an_english_catalogue():
     with translation.override("en"):
         assert translation.gettext("Konkurs w liczbach") == "The competition in numbers"
         assert translation.gettext("Przypnij") == "Pin"
+
+
+def test_start_without_a_current_edition(logged, coordinator, competition):
+    """Konkurs bez bieżącej edycji (świeżo założony) – Start się rysuje, liczby bez „tej edycji”."""
+    ParticipantFactory(competition=competition)
+
+    response = logged(coordinator).get(START)
+
+    assert response.status_code == 200
+    assert response.context["start_summary"]["in_edition"] == 0
+    assert response.context["start_stages"] == {"total": 0, "open": 0, "closed": 0}
