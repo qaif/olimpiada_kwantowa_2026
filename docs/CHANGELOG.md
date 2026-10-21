@@ -12,9 +12,9 @@ podsekcją `### <tytuł>` wydania `## v<x.y.z> – <data tagu> – <opis tagu>`.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
-## [Unreleased] – pypdf 6.20.1 (GHSA-qfv9-64jg-mh7p, GHSA-9mx8-4j7g-633p)
+## [Unreleased] – pypdf 6.21.2 (GHSA-qfv9-64jg-mh7p, GHSA-9mx8-4j7g-633p)
 
-- pypdf 6.20.0 → 6.20.1 w `backend/uv.lock` (pip-audit 21.10.2026).
+- pypdf 6.20.0 → 6.21.2 w `backend/uv.lock` (pip-audit 21.10.2026; poprawka od 6.20.1).
 
 ## [Unreleased] – Panel nauczyciela: menu, Start, postęp klasy, eksport klasy (UX-PANEL-02)
 
