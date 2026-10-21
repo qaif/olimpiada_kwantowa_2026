@@ -47,11 +47,11 @@ msgstr "الملف الشخصي والبيانات"
 msgid "Weryfikacja dwuetapowa"
 msgstr "التحقق بخطوتين"
 
-msgid "Menu panelu"
-msgstr "قائمة اللوحة"
+msgid "Menu uczestnika"
+msgstr "قائمة المشارك"
 
-msgid "Menu panelu uczestnika"
-msgstr "قائمة لوحة المشارك"
+msgid "Nawigacja panelu uczestnika"
+msgstr "تنقّل لوحة المشارك"
 
 msgid "Powiadomienia – brak nowych"
 msgstr "الإشعارات – لا جديد"

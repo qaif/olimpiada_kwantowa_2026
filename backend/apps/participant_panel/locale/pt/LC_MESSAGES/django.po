@@ -47,11 +47,11 @@ msgstr "Perfil e dados"
 msgid "Weryfikacja dwuetapowa"
 msgstr "Verificação em dois passos"
 
-msgid "Menu panelu"
-msgstr "Menu do painel"
+msgid "Menu uczestnika"
+msgstr "Menu do participante"
 
-msgid "Menu panelu uczestnika"
-msgstr "Menu do painel do participante"
+msgid "Nawigacja panelu uczestnika"
+msgstr "Navegação do painel do participante"
 
 msgid "Powiadomienia – brak nowych"
 msgstr "Notificações – nada de novo"

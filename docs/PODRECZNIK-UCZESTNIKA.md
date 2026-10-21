@@ -103,7 +103,7 @@ Google/Facebooka) i **jest nieodwracalna**.
 
 ## 2. Panel — `/me/`
 
-**Menu panelu.** Każdy ekran panelu ma po lewej stronie menu (na telefonie – rozwijane **„Menu panelu”**
+**Menu panelu.** Każdy ekran panelu ma po lewej stronie menu (na telefonie – rozwijane **„Menu uczestnika”**
 nad treścią). Pozycja, na której jesteś, jest podświetlona. Menu ma pięć części:
 
 | Część | Pozycje |

@@ -47,11 +47,11 @@ msgstr "Профиль и данные"
 msgid "Weryfikacja dwuetapowa"
 msgstr "Двухэтапная проверка"
 
-msgid "Menu panelu"
-msgstr "Меню панели"
+msgid "Menu uczestnika"
+msgstr "Меню участника"
 
-msgid "Menu panelu uczestnika"
-msgstr "Меню панели участника"
+msgid "Nawigacja panelu uczestnika"
+msgstr "Навигация панели участника"
 
 msgid "Powiadomienia – brak nowych"
 msgstr "Уведомления — новых нет"

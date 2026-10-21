@@ -47,11 +47,11 @@ msgstr "Profile and details"
 msgid "Weryfikacja dwuetapowa"
 msgstr "Two-step verification"
 
-msgid "Menu panelu"
-msgstr "Panel menu"
+msgid "Menu uczestnika"
+msgstr "Participant menu"
 
-msgid "Menu panelu uczestnika"
-msgstr "Participant panel menu"
+msgid "Nawigacja panelu uczestnika"
+msgstr "Participant panel navigation"
 
 msgid "Powiadomienia – brak nowych"
 msgstr "Notifications – nothing new"

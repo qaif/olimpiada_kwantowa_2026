@@ -60,9 +60,11 @@ def page(client, path=ME) -> str:
 def test_menu_has_the_sections_and_is_a_details_on_the_phone(client):
     html = page(client)
 
-    assert 'aria-label="Menu panelu uczestnika"' in html
+    assert 'aria-label="Nawigacja panelu uczestnika"' in html
     assert '<details class="pp-nav">' in html
-    assert "Menu panelu" in html
+    assert "Menu uczestnika" in html
+    # „Menu panelu” to podpis menu koordynatora – uczestnik go nie widzi (test_coordinator_shell).
+    assert "Menu panelu" not in html
     for label in ("Start", "Zawody", "Nauka", "Wiadomości", "Konto"):
         assert f">{label}</p>" in html
     assert {"dashboard", "notifications", "tasks", "results", "calendar", "profile", "consents"} <= set(
@@ -260,3 +262,19 @@ def test_latex_hub_links_to_the_sso_view(client, competition, alice, settings):
 
     assert reverse("web:problem-latex", args=[stage.pk, problem.number]) in html
     assert 'rel="noopener noreferrer"' in html
+
+
+def test_hubs_skip_stages_closed_by_the_proctoring_gate(client, competition, alice, monkeypatch):
+    from apps.notebooks.models import NotebookTask
+    from apps.proctoring import services as proctoring
+
+    flag(competition, "quantum_notebooks")
+    flag(competition, "proctoring")
+    stage = StageFactory(competition=competition, edition=CurrentEditionFactory(competition=competition))
+    StageEntryFactory(stage=stage, participant=alice)
+    NotebookTask.objects.create(problem=ProblemFactory(stage=stage, number=1, title="Pod nadzorem"))
+    monkeypatch.setattr(proctoring, "gate_decision", lambda *args, **kwargs: proctoring.GATE_CONSOLE)
+
+    html = page(client, reverse("web:participant-notebooks"))
+
+    assert "Pod nadzorem" not in html

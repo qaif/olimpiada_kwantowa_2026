@@ -47,11 +47,11 @@ msgstr "Profil et coordonnées"
 msgid "Weryfikacja dwuetapowa"
 msgstr "Validation en deux étapes"
 
-msgid "Menu panelu"
-msgstr "Menu du panneau"
+msgid "Menu uczestnika"
+msgstr "Menu du participant"
 
-msgid "Menu panelu uczestnika"
-msgstr "Menu du panneau du participant"
+msgid "Nawigacja panelu uczestnika"
+msgstr "Navigation du panneau du participant"
 
 msgid "Powiadomienia – brak nowych"
 msgstr "Notifications – rien de nouveau"

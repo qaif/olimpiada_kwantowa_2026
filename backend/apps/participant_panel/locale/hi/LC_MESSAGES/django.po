@@ -47,11 +47,11 @@ msgstr "प्रोफ़ाइल और विवरण"
 msgid "Weryfikacja dwuetapowa"
 msgstr "दो-चरणीय सत्यापन"
 
-msgid "Menu panelu"
-msgstr "पैनल मेनू"
+msgid "Menu uczestnika"
+msgstr "प्रतिभागी मेनू"
 
-msgid "Menu panelu uczestnika"
-msgstr "प्रतिभागी पैनल मेनू"
+msgid "Nawigacja panelu uczestnika"
+msgstr "प्रतिभागी पैनल नेविगेशन"
 
 msgid "Powiadomienia – brak nowych"
 msgstr "सूचनाएँ – कोई नई नहीं"

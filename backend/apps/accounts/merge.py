@@ -153,6 +153,10 @@ RULES: dict[str, Rule] = {
     "staff_mfa.PreviousEmail.user": Rule(STAYS),
     "staff_mfa.TrustRevocation.user": Rule(STAYS),
     "account.EmailAddress.user": Rule(STAYS),
+    # Powiadomienia w panelu (UX-PANEL-01) są drogowskazem do aktywności, a nie aktywnością: rozmowy,
+    # decyzje i wyniki przechodzą na konto docelowe własnymi regułami, a przepięte powiadomienia kopii
+    # zderzałyby się z więzem „jedno nieprzeczytane na klucz” i prowadziły do zdarzeń już widocznych.
+    "notifications.Notification.user": Rule(STAYS),
     "socialaccount.SocialAccount.user": Rule(STAYS),
     "core.AuditLog.actor": Rule(AUDIT_LOG),
 }

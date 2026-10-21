@@ -3,18 +3,18 @@
   ``participant_nav`` (apps/participant_panel/nav.py) – szablon niczego nie rozstrzyga i nie woła
   ani jednego ``url``: brak adresu w urlconfie wywracałby każdą stronę panelu.
 
-  Całość w ``<details>``: poniżej 1024 px to rozwijane „Menu panelu” nad treścią, od 1024 px stała
+  Całość w ``<details>``: poniżej 1024 px to rozwijane „Menu uczestnika” nad treścią, od 1024 px stała
   kolumna (arkusz otwiera je bez atrybutu ``open`` – ta sama para reguł, co w menu koordynatora).
   Zero JavaScriptu, więc menu działa przy zablokowanych skryptach i bez wyjątku w CSP.
 
   Nagłówki sekcji są zwykłym tekstem z ``id``, a listy – ``aria-labelledby``: menu stoi **przed**
   ``<h1>`` strony, więc nagłówki ``<h2>`` zaburzałyby spis nagłówków czytnika ekranu.
 {% endcomment %}{% include "participant_panel/_icons.html" %}
-<nav class="pp__nav" aria-label="{% translate 'Menu panelu uczestnika' %}">
+<nav class="pp__nav" aria-label="{% translate 'Nawigacja panelu uczestnika' %}">
   <details class="pp-nav">
     <summary class="pp-nav__summary">
       <svg class="pp-icon" aria-hidden="true" focusable="false"><use href="#pp-i-menu"></use></svg>
-      <span class="pp-nav__summary-label">{% translate "Menu panelu" %}</span>
+      <span class="pp-nav__summary-label">{% translate "Menu uczestnika" %}</span>
       {% if nav_current %}<span class="pp-nav__where">{{ nav_current.label }}</span>{% endif %}
       {% if nav_badge_total %}<span class="pp-badge">{{ nav_badge_total }}<span class="visually-hidden"> {% translate "nowe" %}</span></span>{% endif %}
     </summary>

@@ -47,11 +47,11 @@ msgstr "个人资料"
 msgid "Weryfikacja dwuetapowa"
 msgstr "两步验证"
 
-msgid "Menu panelu"
-msgstr "面板菜单"
+msgid "Menu uczestnika"
+msgstr "参赛者菜单"
 
-msgid "Menu panelu uczestnika"
-msgstr "参赛者面板菜单"
+msgid "Nawigacja panelu uczestnika"
+msgstr "参赛者面板导航"
 
 msgid "Powiadomienia – brak nowych"
 msgstr "通知——暂无新通知"

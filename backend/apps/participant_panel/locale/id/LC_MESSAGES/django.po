@@ -47,11 +47,11 @@ msgstr "Profil dan data"
 msgid "Weryfikacja dwuetapowa"
 msgstr "Verifikasi dua langkah"
 
-msgid "Menu panelu"
-msgstr "Menu panel"
+msgid "Menu uczestnika"
+msgstr "Menu peserta"
 
-msgid "Menu panelu uczestnika"
-msgstr "Menu panel peserta"
+msgid "Nawigacja panelu uczestnika"
+msgstr "Navigasi panel peserta"
 
 msgid "Powiadomienia – brak nowych"
 msgstr "Notifikasi – tidak ada yang baru"

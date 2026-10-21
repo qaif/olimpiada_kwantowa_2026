@@ -16,7 +16,7 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
 
 - Menu panelu uczestnika (`apps/participant_panel/nav.py`, odpowiednik `coordinator_nav.py`): sekcje
   Start, Zawody, Nauka, Wiadomości, Konto, pozycja bieżąca z `aria-current`, na desktopie kolumna z lewej,
-  na telefonie `<details>` „Menu panelu” (bez JS). Pozycje warunkowe z istniejących przełączników.
+  na telefonie `<details>` „Menu uczestnika” (bez JS). Pozycje warunkowe z istniejących przełączników.
   Ramę (`participant_panel/base.html`) dostały: pulpit, kalendarz, archiwum, dyplomy, informacja zwrotna,
   status ucznia, profil, Wiadomości (skrzynka, katalog, szyfrowanie). Pasek zakładek pulpitu bez
   „odnośników bocznych” (są w menu).

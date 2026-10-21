@@ -23,7 +23,7 @@ from apps.web.mixins import ParticipantRequiredMixin
 from .nav import latex_available, notebooks_available
 
 
-def _open_stages(participant, competition, now):
+def _open_stages(participant, competition, now, user=None):
     """Etapy bieżącej edycji z wpisem uczestnika (bez dyskwalifikacji), które już się zaczęły."""
     edition = current_edition(competition)
     if edition is None:
@@ -34,12 +34,20 @@ def _open_stages(participant, competition, now):
         .select_related("stage")
         .order_by("stage__opens_at", "stage_id")
     )
+    from apps.proctoring.services import enabled as proctoring_enabled
+    from apps.proctoring.services import gate_decision
     from apps.time_windows.access import enabled as time_windows_enabled
     from apps.time_windows.access import statements_visible
 
     windows = time_windows_enabled(competition)
+    proctored = proctoring_enabled(competition)
 
     def opened(stage) -> bool:
+        # Nadzór zdalny (PROC-01): w oknie etapu z nadzorem bez gotowej sesji tytuły zadań i wejścia
+        # nie wychodzą poza konsolę nadzoru – etap znika z listy (adres nie ma etapu, więc bramka
+        # adresów ``GATED_VIEWS`` go nie złapie). Bez flagi – zero zapytań.
+        if proctored and gate_decision(user, stage, competition, now=now) is not None:
+            return False
         # Okno ucznia (TZ-01): tytuły zadań są jawne od startu **jego** okna, nie ramy etapu – ta sama
         # reguła, co bramka edytora LaTeX (``webtex.services.check_access``).
         if windows:
@@ -68,7 +76,7 @@ class _ToolHubView(ParticipantRequiredMixin, TemplateView):
         if not self.available():
             raise Http404
         context = super().get_context_data(**kwargs)
-        stages = _open_stages(self.participant, self.competition, timezone.now())
+        stages = _open_stages(self.participant, self.competition, timezone.now(), self.request.user)
         # Jedno zapytanie o zadania wszystkich etapów, grupowanie w Pythonie – etapów jest kilka.
         by_stage: dict[int, list[dict]] = {}
         for problem in self.problems(stages) if stages else []:

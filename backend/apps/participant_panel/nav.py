@@ -366,7 +366,7 @@ def navigation(context) -> dict:
         "nav_current": current,
         "nav_unread_notifications": counters["notifications"],
         "nav_notifications_url": resolve(("web:participant-notifications",)) or "",
-        # Suma na zwiniętym „Menu panelu” (telefon) – zwinięcie nie może chować tego, co czeka.
+        # Suma na zwiniętym „Menu uczestnika” (telefon) – zwinięcie nie może chować tego, co czeka.
         "nav_badge_total": (counters["notifications"] or 0)
         + (counters["chat"] if context.get("chat_visible") else 0),
     }

@@ -50,6 +50,10 @@ UNGATED_WITH_REASON = {
     "web:participant-feedback": "informacja zwrotna po publikacji wyników",
     "web:participant-notebook-starter": "token bez zadania w ścieżce – bramkę sprawdza sam widok (QC-01)",
     "web:notebook-submission-view": "podgląd oddanej pracy .ipynb – wyłącznie personel",
+    # UX-PANEL-01: lista zadań z notatnikiem (i bliźniacza ``web:participant-latex``) – adres bez etapu,
+    # więc bramki adresu nie ma; etapy, których bramka nie przepuszcza, widok pomija sam
+    # (``participant_panel.views._open_stages`` → ``proctoring.services.gate_decision``).
+    "web:participant-notebooks": "lista bez treści zadań; etapy zamknięte bramką nadzoru pomija widok",
 }
 #: Przestrzenie i prefiksy wyłącznie dla personelu (panel koordynatora, admin, API komisji) – oraz
 #: dwie drogi, które treści zadań **uczniowi** nie dają: edytor tłumaczeń opiekuna drużyny (TR-01,
