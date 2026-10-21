@@ -994,6 +994,10 @@ def _deliver(message: Message, now, request=None) -> None:
             recipients = recipients.exclude(participant__user_id=message.sender_id)
         recipients.update(unread_since=now)
     notifications.message_delivered(message, now)
+    # Powiadomienie w panelu uczestnika (UX-PANEL-01) – jedno na rozmowę, bez treści wiadomości.
+    from apps.notifications.hooks import chat_message_delivered
+
+    chat_message_delivered(message)
 
 
 def _encrypted_payload(
@@ -1477,6 +1481,10 @@ def mark_read(member: ConversationMember, now=None) -> None:
     ConversationMember.objects.filter(pk=member.pk).update(unread_since=None, last_read_at=now)
     member.unread_since = None
     member.last_read_at = now
+    # Otwarty wątek gasi też powiadomienie o tej rozmowie w panelu (UX-PANEL-01).
+    from apps.notifications.hooks import chat_thread_read
+
+    chat_thread_read(member)
 
 
 def mark_organizer_read(conversation: Conversation, now=None) -> None:

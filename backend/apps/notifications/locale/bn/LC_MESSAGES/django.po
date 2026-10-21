@@ -1,0 +1,105 @@
+# UX-PANEL-01 – napisy aplikacji notifications (bn). Źródło (msgid) po polsku; poza angielskim
+# tłumaczenie maszynowe – do przeglądu native speakera (I18N-01 § 8).
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada notifications\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-21 12:00+0200\n"
+"PO-Revision-Date: 2026-10-21 12:00+0200\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: bn\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Wiadomość od organizatora"
+msgstr "আয়োজকের বার্তা"
+
+msgid "Wiadomość od uczestnika"
+msgstr "অংশগ্রহণকারীর বার্তা"
+
+msgid "Ogłoszenie organizatora"
+msgstr "আয়োজকের ঘোষণা"
+
+msgid "Zaświadczenie zaakceptowane"
+msgstr "সনদ গৃহীত"
+
+msgid "Zaświadczenie odrzucone"
+msgstr "সনদ প্রত্যাখ্যাত"
+
+msgid "Odpowiedź na forum"
+msgstr "ফোরামে উত্তর"
+
+msgid "Decyzja moderatora forum"
+msgstr "ফোরাম মডারেটরের সিদ্ধান্ত"
+
+msgid "Ogłoszone wyniki"
+msgstr "প্রকাশিত ফলাফল"
+
+msgid "Decyzja w sprawie reklamacji"
+msgstr "আপিলের সিদ্ধান্ত"
+
+msgid "Nowa wiadomość od organizatora"
+msgstr "আয়োজকের নতুন বার্তা"
+
+msgid "Nowa wiadomość w rozmowie z innym uczestnikiem"
+msgstr "অন্য অংশগ্রহণকারীর সঙ্গে কথোপকথনে নতুন বার্তা"
+
+#, python-format
+msgid "Nowe ogłoszenie organizatora: %(title)s"
+msgstr "আয়োজকের নতুন ঘোষণা: %(title)s"
+
+msgid "Zaświadczenie o statusie ucznia zostało zaakceptowane"
+msgstr "তোমার ছাত্র-অবস্থার সনদ গৃহীত হয়েছে"
+
+msgid "Zaświadczenie o statusie ucznia zostało odrzucone – sprawdź powód"
+msgstr "তোমার ছাত্র-অবস্থার সনদ প্রত্যাখ্যাত হয়েছে – কারণ দেখো"
+
+msgid "Nowa odpowiedź w obserwowanym wątku na forum"
+msgstr "তোমার অনুসরণ করা ফোরাম থ্রেডে নতুন উত্তর"
+
+msgid "Moderator forum podjął decyzję w sprawie Twojego wpisu"
+msgstr "ফোরাম মডারেটর তোমার পোস্ট সম্পর্কে সিদ্ধান্ত নিয়েছেন"
+
+#, python-format
+msgid "Ogłoszono wyniki: %(stage)s"
+msgstr "ফলাফল প্রকাশিত: %(stage)s"
+
+msgid "Komisja rozpatrzyła Twoją reklamację"
+msgstr "কমিটি তোমার আপিলের সিদ্ধান্ত নিয়েছে"
+
+msgid "Nowe powiadomienie"
+msgstr "নতুন বিজ্ঞপ্তি"
+
+msgid "Wszystkie powiadomienia oznaczono jako przeczytane."
+msgstr "সব বিজ্ঞপ্তি পড়া হয়েছে বলে চিহ্নিত করা হয়েছে।"
+
+msgid "Powiadomienia"
+msgstr "বিজ্ঞপ্তি"
+
+msgid "Oznacz wszystkie jako przeczytane"
+msgstr "সব পড়া হয়েছে চিহ্নিত করো"
+
+msgid "nowe"
+msgstr "নতুন"
+
+msgid "Nowsze"
+msgstr "নতুনতর"
+
+msgid "Starsze"
+msgstr "পুরোনো"
+
+msgid "Nie masz jeszcze powiadomień"
+msgstr "তোমার এখনো কোনো বিজ্ঞপ্তি নেই"
+
+msgid "Pojawią się tu nowe wiadomości, ogłoszenia organizatora, decyzje w sprawie zaświadczenia i reklamacji oraz ogłoszone wyniki."
+msgstr "নতুন বার্তা, আয়োজকের ঘোষণা, সনদ ও আপিল নিয়ে সিদ্ধান্ত এবং প্রকাশিত ফলাফল এখানে দেখা যাবে।"
+
+msgid "Strony powiadomień"
+msgstr "বিজ্ঞপ্তির পাতা"
+
+#, python-format
+msgid "Nowe wiadomości, ogłoszenia organizatora, decyzje i wyniki – w jednym miejscu. Powiadomienia starsze niż %(days)s dni usuwamy automatycznie."
+msgstr "নতুন বার্তা, আয়োজকের ঘোষণা, সিদ্ধান্ত ও ফলাফল – এক জায়গায়। %(days)s দিনের বেশি পুরোনো বিজ্ঞপ্তি আপনা থেকে মুছে যায়।"

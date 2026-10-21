@@ -93,7 +93,16 @@ def _send(certificate, subject_template, subject_fallback, message) -> None:
 
 def notify_accepted(certificate) -> None:
     _send(certificate, ACCEPTED_SUBJECT_TEMPLATE, ACCEPTED_SUBJECT, accepted_message)
+    _panel_notification(certificate, accepted=True)
 
 
 def notify_rejected(certificate) -> None:
     _send(certificate, REJECTED_SUBJECT_TEMPLATE, REJECTED_SUBJECT, rejected_message)
+    _panel_notification(certificate, accepted=False)
+
+
+def _panel_notification(certificate, *, accepted: bool) -> None:
+    """Powiadomienie w panelu uczestnika (UX-PANEL-01) – bez powodu odrzucenia (ten jest na stronie)."""
+    from apps.notifications.hooks import student_status_decided
+
+    student_status_decided(certificate, accepted=accepted)

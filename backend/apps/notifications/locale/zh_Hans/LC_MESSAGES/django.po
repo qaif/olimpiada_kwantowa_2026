@@ -1,0 +1,105 @@
+# UX-PANEL-01 – napisy aplikacji notifications (zh_Hans). Źródło (msgid) po polsku; poza angielskim
+# tłumaczenie maszynowe – do przeglądu native speakera (I18N-01 § 8).
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada notifications\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-21 12:00+0200\n"
+"PO-Revision-Date: 2026-10-21 12:00+0200\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: zh_Hans\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "Wiadomość od organizatora"
+msgstr "来自主办方的消息"
+
+msgid "Wiadomość od uczestnika"
+msgstr "来自参赛者的消息"
+
+msgid "Ogłoszenie organizatora"
+msgstr "主办方公告"
+
+msgid "Zaświadczenie zaakceptowane"
+msgstr "证明已通过"
+
+msgid "Zaświadczenie odrzucone"
+msgstr "证明被退回"
+
+msgid "Odpowiedź na forum"
+msgstr "论坛回复"
+
+msgid "Decyzja moderatora forum"
+msgstr "论坛版主的决定"
+
+msgid "Ogłoszone wyniki"
+msgstr "已公布的成绩"
+
+msgid "Decyzja w sprawie reklamacji"
+msgstr "申诉决定"
+
+msgid "Nowa wiadomość od organizatora"
+msgstr "主办方发来新消息"
+
+msgid "Nowa wiadomość w rozmowie z innym uczestnikiem"
+msgstr "与其他参赛者的对话中有新消息"
+
+#, python-format
+msgid "Nowe ogłoszenie organizatora: %(title)s"
+msgstr "主办方新公告：%(title)s"
+
+msgid "Zaświadczenie o statusie ucznia zostało zaakceptowane"
+msgstr "你的在校生证明已通过审核"
+
+msgid "Zaświadczenie o statusie ucznia zostało odrzucone – sprawdź powód"
+msgstr "你的在校生证明被退回——请查看原因"
+
+msgid "Nowa odpowiedź w obserwowanym wątku na forum"
+msgstr "你关注的论坛主题有新回复"
+
+msgid "Moderator forum podjął decyzję w sprawie Twojego wpisu"
+msgstr "论坛版主已对你的帖子作出决定"
+
+#, python-format
+msgid "Ogłoszono wyniki: %(stage)s"
+msgstr "成绩已公布：%(stage)s"
+
+msgid "Komisja rozpatrzyła Twoją reklamację"
+msgstr "委员会已处理你的申诉"
+
+msgid "Nowe powiadomienie"
+msgstr "新通知"
+
+msgid "Wszystkie powiadomienia oznaczono jako przeczytane."
+msgstr "所有通知已标记为已读。"
+
+msgid "Powiadomienia"
+msgstr "通知"
+
+msgid "Oznacz wszystkie jako przeczytane"
+msgstr "全部标为已读"
+
+msgid "nowe"
+msgstr "新"
+
+msgid "Nowsze"
+msgstr "较新"
+
+msgid "Starsze"
+msgstr "较早"
+
+msgid "Nie masz jeszcze powiadomień"
+msgstr "你还没有通知"
+
+msgid "Pojawią się tu nowe wiadomości, ogłoszenia organizatora, decyzje w sprawie zaświadczenia i reklamacji oraz ogłoszone wyniki."
+msgstr "新消息、主办方公告、关于证明和申诉的决定以及公布的成绩都会显示在这里。"
+
+msgid "Strony powiadomień"
+msgstr "通知分页"
+
+#, python-format
+msgid "Nowe wiadomości, ogłoszenia organizatora, decyzje i wyniki – w jednym miejscu. Powiadomienia starsze niż %(days)s dni usuwamy automatycznie."
+msgstr "新消息、主办方公告、决定和成绩——尽在一处。超过 %(days)s 天的通知会被自动删除。"

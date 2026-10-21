@@ -700,6 +700,10 @@ def anonymise_account(user: User, *, actor: User | None = None, request=None) ->
     from apps.translation_review.services import erase_for_user as erase_translation_review
 
     erase_translation_review(user)
+    # Powiadomienia w panelu (UX-PANEL-01): drogowskazy do rozmów i decyzji tej osoby – znikają całe.
+    from apps.notifications.services import erase_for_user as erase_panel_notifications
+
+    erase_panel_notifications(user)
 
     _drop_credentials(user)
     audit(actor or user, "account.anonymised", user, {"user_id": user.pk}, request=request)

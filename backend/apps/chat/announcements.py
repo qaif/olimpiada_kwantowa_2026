@@ -196,6 +196,11 @@ def set_published(
     announcement.updated_at = now
     announcement.save(update_fields=["is_published", "published_at", "updated_at"])
     _audit(actor, AUDIT_PUBLISHED if published else AUDIT_UNPUBLISHED, announcement, request)
+    if published:
+        # Powiadomienia w panelu uczestnika (UX-PANEL-01) – rozesłanie po commicie, zadaniem.
+        from apps.notifications.hooks import announcement_published
+
+        announcement_published(announcement)
     return announcement
 
 
