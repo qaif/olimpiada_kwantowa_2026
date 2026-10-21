@@ -135,9 +135,6 @@ msgstr "Embudo de participantes"
 msgid "panel koordynatora"
 msgstr "panel del coordinador"
 
-msgid "Ilu uczestników przechodzi kolejne kroki – od rejestracji, przez aktywację konta i zapis do etapu, do pierwszej pracy, zaświadczenia i warsztatów."
-msgstr "Cuántos participantes pasan cada paso: desde el registro, la activación de la cuenta y la inscripción en la etapa hasta el primer trabajo, el certificado y los talleres."
-
 msgid "Liczby dotyczą uczestników wybranej edycji: zapisanych do jej etapu albo zarejestrowanych w czasie jej trwania. Konta usunięte nie są liczone."
 msgstr "Las cifras se refieren a los participantes de la edición seleccionada: inscritos en alguna de sus etapas o registrados durante ella. Las cuentas eliminadas no se cuentan."
 
@@ -159,29 +156,17 @@ msgstr "Mostrar"
 msgid "Wyczyść filtry"
 msgstr "Borrar filtros"
 
-msgid "Kroki lejka"
-msgstr "Pasos del embudo"
-
 msgid "Krok"
 msgstr "Paso"
 
 msgid "Uczestnicy"
 msgstr "Participantes"
 
-msgid "względem poprzedniego kroku"
-msgstr "respecto al paso anterior"
-
 msgid "względem rejestracji"
 msgstr "respecto a los registros"
 
 msgid "brak takiego etapu w tej edycji"
 msgstr "no hay tal etapa en esta edición"
-
-msgid "Lejek ścisły: krok liczy osoby, które przeszły także wszystkie poprzednie kroki. Wiersze „w tym” rozbijają zapis do etapu i liczą się względem kroku zgód."
-msgstr "Embudo estricto: cada paso cuenta a las personas que también han superado todos los anteriores. Las filas «de ellos» desglosan la inscripción en la etapa y se calculan respecto al paso de consentimientos."
-
-msgid "Kroki niezależne: każdy krok liczy wszystkich, którzy spełniają jego warunek – także bez poprzednich kroków (np. obecni na warsztacie bez zaakceptowanego zaświadczenia)."
-msgstr "Pasos independientes: cada paso cuenta a todos los que cumplen su condición, también sin los pasos anteriores (p. ej., presentes en un taller sin certificado aceptado)."
 
 msgid "Zgoda opiekuna jest wymagana od niepełnoletnich według tej samej reguły wieku, co przy rejestracji."
 msgstr "Se exige el consentimiento del tutor a los menores según la misma regla de edad que en el registro."
@@ -250,17 +235,8 @@ msgstr "Registro desde"
 msgid "Rejestracja do"
 msgstr "Registro hasta"
 
-msgid "Sposób liczenia"
-msgstr "Forma de cálculo"
-
 msgid "Początek okresu rejestracji jest późniejszy niż jego koniec."
 msgstr "El inicio del periodo de registro es posterior a su final."
-
-msgid "lejek ścisły – krok wymaga wszystkich poprzednich"
-msgstr "embudo estricto: cada paso exige todos los anteriores"
-
-msgid "kroki niezależne"
-msgstr "pasos independientes"
 
 msgid "Rejestracja (profil uczestnika)"
 msgstr "Registro (perfil de participante)"
@@ -304,9 +280,6 @@ msgstr "sin voivodato"
 msgid "Filtry"
 msgstr "Filtros"
 
-msgid "Lejek"
-msgstr "Embudo"
-
 msgid "Sekcja"
 msgstr "Sección"
 
@@ -316,8 +289,17 @@ msgstr "Elemento"
 msgid "Liczba"
 msgstr "Cantidad"
 
-msgid "Odsetek względem poprzedniego kroku (%)"
-msgstr "Porcentaje respecto al paso anterior (%)"
-
 msgid "Odsetek względem rejestracji (%)"
 msgstr "Porcentaje respecto a los registros (%)"
+
+msgid "Ilu uczestników spełnia każdy z warunków aktywności – rejestracja, aktywacja konta, logowanie, zgody, zapis do etapu, pierwsza praca, zaświadczenie i warsztaty. Każdy krok jest liczony osobno, bez kolejności: liczy wszystkich, którzy spełniają jego warunek, także bez pozostałych kroków."
+msgstr "Cuántos participantes cumplen cada condición de actividad: registro, activación de la cuenta, inicio de sesión, consentimientos, inscripción en la etapa, primer trabajo, certificado y talleres. Cada paso se cuenta por separado, sin orden: cuenta a todos los que cumplen su condición, también sin los demás pasos."
+
+msgid "Kroki aktywności"
+msgstr "Pasos de actividad"
+
+msgid "Kroki są niezależne: liczba w wierszu nie zależy od wierszy powyżej (np. zaświadczenie może być zaakceptowane, zanim uczestnik wyśle pierwszą pracę). Odsetek i słupek – względem rejestracji; wiersze „w tym” rozbijają zapis do etapu."
+msgstr "Los pasos son independientes: el número de una fila no depende de las filas anteriores (p. ej., un certificado puede aceptarse antes de que el participante envíe su primer trabajo). Porcentaje y barra respecto a los registros; las filas «de ellos» desglosan la inscripción en la etapa."
+
+msgid "Odsetek aktywowanych kont w grupie (%)"
+msgstr "Porcentaje de cuentas activadas en el grupo (%)"

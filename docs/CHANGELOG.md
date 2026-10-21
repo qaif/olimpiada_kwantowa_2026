@@ -12,6 +12,19 @@ podsekcją `### <tytuł>` wydania `## v<x.y.z> – <data tagu> – <opis tagu>`.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – Lejek uczestnika: kroki liczone niezależnie (STATS-02a)
+
+- Decyzja organizatora z 21.10.2026: ekran `/coordinator/stats/funnel/` nie uwzględnia kolejności
+  kroków. Usunięty tryb „lejek ścisły” (był domyślny i pokazywał np. 0 zaakceptowanych zaświadczeń,
+  bo przed Etapem I nikt nie wysłał jeszcze pracy) – każdy krok liczy, kto spełnia jego warunek.
+- Zostaje wyłącznie odsetek względem rejestracji (ekran, słupki, podwiersze „w tym”, CSV); kolumna
+  „względem poprzedniego kroku” usunięta – przy krokach niezależnych przekraczała 100 %. W CSV
+  odsetek aktywacji z tabel „gdzie odpadają” ma osobną kolumnę.
+- Menu i adres bez zmian („Lejek uczestnika”); tabela to „Kroki aktywności”, opis mówi wprost, że
+  kroki są niezależne. Stary `?mode=strict` w zakładce jest pomijany. Nowa wersja klucza pamięci
+  podręcznej (wynik sprzed zmiany nie wraca). Opis: `docs/tasks/STATS-02.md`,
+  `PODRECZNIK-ORGANIZATORA.md` § 10c.1.
+
 ## [Unreleased] – Edytor LaTeX (webTEX): kontekstowe autouzupełnianie
 
 - Podpowiedzi w edytorze LaTeX zależne od kontekstu: we wzorze symbole, litery greckie, operatory i

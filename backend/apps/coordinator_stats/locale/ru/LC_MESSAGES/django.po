@@ -135,9 +135,6 @@ msgstr "Воронка участников"
 msgid "panel koordynatora"
 msgstr "панель координатора"
 
-msgid "Ilu uczestników przechodzi kolejne kroki – od rejestracji, przez aktywację konta i zapis do etapu, do pierwszej pracy, zaświadczenia i warsztatów."
-msgstr "Сколько участников проходит каждый шаг – от регистрации, активации аккаунта и записи на этап до первой работы, справки и мастер-классов."
-
 msgid "Liczby dotyczą uczestników wybranej edycji: zapisanych do jej etapu albo zarejestrowanych w czasie jej trwania. Konta usunięte nie są liczone."
 msgstr "Числа касаются участников выбранного сезона: записанных на один из его этапов или зарегистрированных во время него. Удалённые аккаунты не учитываются."
 
@@ -159,29 +156,17 @@ msgstr "Показать"
 msgid "Wyczyść filtry"
 msgstr "Сбросить фильтры"
 
-msgid "Kroki lejka"
-msgstr "Шаги воронки"
-
 msgid "Krok"
 msgstr "Шаг"
 
 msgid "Uczestnicy"
 msgstr "Участники"
 
-msgid "względem poprzedniego kroku"
-msgstr "от предыдущего шага"
-
 msgid "względem rejestracji"
 msgstr "от регистраций"
 
 msgid "brak takiego etapu w tej edycji"
 msgstr "в этом сезоне нет такого этапа"
-
-msgid "Lejek ścisły: krok liczy osoby, które przeszły także wszystkie poprzednie kroki. Wiersze „w tym” rozbijają zapis do etapu i liczą się względem kroku zgód."
-msgstr "Строгая воронка: шаг учитывает тех, кто прошёл и все предыдущие шаги. Строки «в том числе» разбивают запись на этап и считаются от шага согласий."
-
-msgid "Kroki niezależne: każdy krok liczy wszystkich, którzy spełniają jego warunek – także bez poprzednich kroków (np. obecni na warsztacie bez zaakceptowanego zaświadczenia)."
-msgstr "Независимые шаги: каждый шаг учитывает всех, кто выполняет его условие, – и без предыдущих шагов (например, присутствовал на мастер-классе без принятой справки)."
 
 msgid "Zgoda opiekuna jest wymagana od niepełnoletnich według tej samej reguły wieku, co przy rejestracji."
 msgstr "Согласие опекуна требуется от несовершеннолетних по тому же правилу возраста, что и при регистрации."
@@ -250,17 +235,8 @@ msgstr "Регистрация с"
 msgid "Rejestracja do"
 msgstr "Регистрация по"
 
-msgid "Sposób liczenia"
-msgstr "Способ подсчёта"
-
 msgid "Początek okresu rejestracji jest późniejszy niż jego koniec."
 msgstr "Начало периода регистрации позже его конца."
-
-msgid "lejek ścisły – krok wymaga wszystkich poprzednich"
-msgstr "строгая воронка – шаг требует всех предыдущих"
-
-msgid "kroki niezależne"
-msgstr "независимые шаги"
 
 msgid "Rejestracja (profil uczestnika)"
 msgstr "Регистрация (профиль участника)"
@@ -304,9 +280,6 @@ msgstr "без воеводства"
 msgid "Filtry"
 msgstr "Фильтры"
 
-msgid "Lejek"
-msgstr "Воронка"
-
 msgid "Sekcja"
 msgstr "Раздел"
 
@@ -316,8 +289,17 @@ msgstr "Позиция"
 msgid "Liczba"
 msgstr "Количество"
 
-msgid "Odsetek względem poprzedniego kroku (%)"
-msgstr "Доля от предыдущего шага (%)"
-
 msgid "Odsetek względem rejestracji (%)"
 msgstr "Доля от регистраций (%)"
+
+msgid "Ilu uczestników spełnia każdy z warunków aktywności – rejestracja, aktywacja konta, logowanie, zgody, zapis do etapu, pierwsza praca, zaświadczenie i warsztaty. Każdy krok jest liczony osobno, bez kolejności: liczy wszystkich, którzy spełniają jego warunek, także bez pozostałych kroków."
+msgstr "Сколько участников выполняет каждое условие активности – регистрация, активация аккаунта, вход, согласия, запись на этап, первая работа, справка и мастер-классы. Каждый шаг считается отдельно, без порядка: он учитывает всех, кто выполняет его условие, даже без остальных шагов."
+
+msgid "Kroki aktywności"
+msgstr "Шаги активности"
+
+msgid "Kroki są niezależne: liczba w wierszu nie zależy od wierszy powyżej (np. zaświadczenie może być zaakceptowane, zanim uczestnik wyśle pierwszą pracę). Odsetek i słupek – względem rejestracji; wiersze „w tym” rozbijają zapis do etapu."
+msgstr "Шаги независимы: число в строке не зависит от строк выше (например, справка может быть принята до того, как участник отправит первую работу). Доля и полоса – от регистраций; строки «в том числе» разбивают запись на этап."
+
+msgid "Odsetek aktywowanych kont w grupie (%)"
+msgstr "Доля активированных аккаунтов в группе (%)"

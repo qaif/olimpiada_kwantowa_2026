@@ -135,9 +135,6 @@ msgstr "参赛者漏斗"
 msgid "panel koordynatora"
 msgstr "协调员面板"
 
-msgid "Ilu uczestników przechodzi kolejne kroki – od rejestracji, przez aktywację konta i zapis do etapu, do pierwszej pracy, zaświadczenia i warsztatów."
-msgstr "有多少参赛者完成各个步骤——从注册、账户激活和报名阶段，到首次提交作品、证明和工作坊。"
-
 msgid "Liczby dotyczą uczestników wybranej edycji: zapisanych do jej etapu albo zarejestrowanych w czasie jej trwania. Konta usunięte nie są liczone."
 msgstr "数字涉及所选届次的参赛者：报名其某一阶段或在其期间注册的人。已删除的账户不计入。"
 
@@ -159,29 +156,17 @@ msgstr "显示"
 msgid "Wyczyść filtry"
 msgstr "清除筛选"
 
-msgid "Kroki lejka"
-msgstr "漏斗步骤"
-
 msgid "Krok"
 msgstr "步骤"
 
 msgid "Uczestnicy"
 msgstr "参赛者"
 
-msgid "względem poprzedniego kroku"
-msgstr "相对上一步"
-
 msgid "względem rejestracji"
 msgstr "相对注册数"
 
 msgid "brak takiego etapu w tej edycji"
 msgstr "本届没有该阶段"
-
-msgid "Lejek ścisły: krok liczy osoby, które przeszły także wszystkie poprzednie kroki. Wiersze „w tym” rozbijają zapis do etapu i liczą się względem kroku zgód."
-msgstr "严格漏斗：每一步只统计也通过了之前所有步骤的人。“其中”行细分阶段报名，并相对于同意步骤计算。"
-
-msgid "Kroki niezależne: każdy krok liczy wszystkich, którzy spełniają jego warunek – także bez poprzednich kroków (np. obecni na warsztacie bez zaakceptowanego zaświadczenia)."
-msgstr "独立步骤：每一步统计满足其条件的所有人——即使未完成之前的步骤（例如参加了工作坊但证明未被接受）。"
 
 msgid "Zgoda opiekuna jest wymagana od niepełnoletnich według tej samej reguły wieku, co przy rejestracji."
 msgstr "未成年人需要监护人同意，年龄规则与注册时相同。"
@@ -250,17 +235,8 @@ msgstr "注册起始"
 msgid "Rejestracja do"
 msgstr "注册截止"
 
-msgid "Sposób liczenia"
-msgstr "计算方式"
-
 msgid "Początek okresu rejestracji jest późniejszy niż jego koniec."
 msgstr "注册期的开始晚于结束。"
-
-msgid "lejek ścisły – krok wymaga wszystkich poprzednich"
-msgstr "严格漏斗——每一步都要求完成之前所有步骤"
-
-msgid "kroki niezależne"
-msgstr "独立步骤"
 
 msgid "Rejestracja (profil uczestnika)"
 msgstr "注册（参赛者资料）"
@@ -304,9 +280,6 @@ msgstr "无省份"
 msgid "Filtry"
 msgstr "筛选"
 
-msgid "Lejek"
-msgstr "漏斗"
-
 msgid "Sekcja"
 msgstr "部分"
 
@@ -316,8 +289,17 @@ msgstr "项目"
 msgid "Liczba"
 msgstr "数量"
 
-msgid "Odsetek względem poprzedniego kroku (%)"
-msgstr "相对上一步的比例（%）"
-
 msgid "Odsetek względem rejestracji (%)"
 msgstr "相对注册数的比例（%）"
+
+msgid "Ilu uczestników spełnia każdy z warunków aktywności – rejestracja, aktywacja konta, logowanie, zgody, zapis do etapu, pierwsza praca, zaświadczenie i warsztaty. Każdy krok jest liczony osobno, bez kolejności: liczy wszystkich, którzy spełniają jego warunek, także bez pozostałych kroków."
+msgstr "有多少参赛者满足各项活动条件——注册、账户激活、登录、同意、报名阶段、首次提交作品、证明和工作坊。每一步单独统计，不分先后：统计所有满足该条件的人，即使未完成其他步骤。"
+
+msgid "Kroki aktywności"
+msgstr "活动步骤"
+
+msgid "Kroki są niezależne: liczba w wierszu nie zależy od wierszy powyżej (np. zaświadczenie może być zaakceptowane, zanim uczestnik wyśle pierwszą pracę). Odsetek i słupek – względem rejestracji; wiersze „w tym” rozbijają zapis do etapu."
+msgstr "各步骤相互独立：某一行的数字不取决于上面的行（例如证明可能在参赛者提交首份作品之前就已被接受）。比例和条形均相对于注册数；“其中”行细分阶段报名。"
+
+msgid "Odsetek aktywowanych kont w grupie (%)"
+msgstr "组内已激活账户的比例（%）"
