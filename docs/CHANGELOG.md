@@ -12,6 +12,27 @@ podsekcją `### <tytuł>` wydania `## v<x.y.z> – <data tagu> – <opis tagu>`.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – Panel członka komisji: menu, Start, filtr kolejki, materiały, powiadomienia (UX-PANEL-03)
+
+- Nowa aplikacja `apps/committee_panel`: menu panelu komisji (`nav.py`, wzorem panelu uczestnika – ta sama
+  rama i arkusz `participant_panel/panel.css`, bez zmian w plikach panelu uczestnika), na telefonie
+  `<details>` „Menu komisji”. Sekcje Start, Ocenianie (recenzent), Komisja odwoławcza, Spotkania,
+  Wiadomości i materiały, Konto; pozycje według roli i istniejących przełączników, liczniki prac do oceny,
+  rundy rozjemczej, reklamacji i powiadomień.
+- Start `/committee/` (cel po zalogowaniu recenzenta i komisji odwoławczej zamiast `/review/` / `/appeals/`):
+  kafle bez danych uczestników – do oceny, postęp, druga ocena, reklamacje, najbliższe terminy, rola
+  (województwo / region), skróty; tabela etapów; rozmowy kwalifikacyjne bez imion, pokoje i webinary.
+- Kolejka `/review/` w ramie: `?tab=` (pozycje „Do oceny” / „Ocenione”) i filtr etapu / zadania / rundy
+  (formularz GET, bez JS); ocenianie bez zmian. Ramę dostały też `/appeals/` (napisy i formularz decyzji
+  przez gettext), `/review/video-rooms/` i `/account/profile/` członka komisji.
+- `/committee/materials/` – rubryki, uwagi dla recenzentów, wzorcówki i wspólne szablony komentarzy zadań
+  z przydziałów. `/committee/notifications/` – powiadomienia komisji: nowe prace do oceny (przydział
+  automatyczny, ręczny, z reguły zadania), runda rozjemcza, termin oceniania (obok listu z beat),
+  reklamacja do rozpatrzenia (bez konfliktu interesów); treść bez kodów prac i punktów.
+- Migracja `notifications.0002_committee_kinds` (tylko `choices`); rejestr czynności 1.26 (wiersz „komitet”);
+  budżet zapytań `committee/start` = 20; tłumaczenia 10 języków w `apps/committee_panel/locale`.
+  Opis: `docs/tasks/UX-PANEL-03.md`, PODRĘCZNIK-RECENZENTA § 1a.
+
 ## [Unreleased] – Panel uczestnika: menu, Start, powiadomienia, wejścia do notatników i webTEX (UX-PANEL-01)
 
 - Menu panelu uczestnika (`apps/participant_panel/nav.py`, odpowiednik `coordinator_nav.py`): sekcje

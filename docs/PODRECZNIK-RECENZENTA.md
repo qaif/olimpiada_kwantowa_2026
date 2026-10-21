@@ -35,6 +35,36 @@ województwa może oceniać prace ze wszystkich.
 
 ---
 
+## 1a. Panel komisji — menu, Start i powiadomienia
+
+Po zalogowaniu lądujesz na **Starcie panelu komisji** (`/committee/`). Panel ma to samo menu co panel
+uczestnika: na komputerze kolumna z lewej, na telefonie rozwijane **„Menu komisji”** nad treścią (z sumą
+tego, co czeka). Pozycje pojawiają się według roli — recenzent widzi sekcję **Ocenianie**, członek komisji
+odwoławczej sekcję **Komisja odwoławcza**, a kto pełni obie funkcje, ma obie.
+
+| Pozycja | Dokąd prowadzi |
+|---|---|
+| **Pulpit** | kafle: prace do oceny (z liczbą po terminie), postęp „N z M ocenionych”, druga ocena, reklamacje, najbliższe terminy, Twoja rola (województwo i region – reguła konfliktu interesów), skróty; pod kaflami tabela etapów z przyciskiem **„Oceniaj”** |
+| **Powiadomienia** | `/committee/notifications/` — dzwonek z liczbą nieprzeczytanych |
+| **Do oceny** / **Ocenione** | kolejka `/review/` (§ 2) — zakładka „Do zrobienia” albo „Wystawione” |
+| **Druga ocena (runda rozjemcza)** | kolejka zawężona do rundy 2 — tylko gdy koordynator wyznaczył Cię rozjemcą |
+| **Materiały dla komisji** | `/committee/materials/` — rubryki, uwagi dla recenzentów, rozwiązania wzorcowe i wspólne szablony komentarzy zadań, które masz do oceny |
+| **Reklamacje do rozpatrzenia** | kolejka komisji odwoławczej `/appeals/` |
+| **Rozmowy i pokoje komisji**, **Moje pokoje wideo**, **Webinary** | gdy organizator ma przepustki Jitsi / webinary (§ 9a, § 9b) |
+| **Forum**, **Materiały z warsztatów**, **Tłumaczenia interfejsu**, **Zgłoś problem** | gdy funkcja jest włączona albo masz nadanie tłumacza |
+| **Profil i dane**, **Hasło**, **Weryfikacja dwuetapowa** | ustawienia konta (§ 1) |
+
+Start pokazuje **same liczby** — bez kodów prac i bez danych uczestników; rozmowy kwalifikacyjne stoją
+na nim bez imion (godzina, etap, liczba zapisanych).
+
+**Powiadomienia** w panelu dostajesz, gdy: koordynator przydzieli Ci prace (jedno powiadomienie na etap,
+kolejne przydziały je podbijają), wyznaczy Cię rozjemcą (runda 2), mija termin oceniania (obok listu
+z § 8) albo — w komisji odwoławczej — wpłynie reklamacja, w której nie jesteś w konflikcie interesów.
+Powiadomienie mówi tylko **że** i **gdzie** (nazwa etapu, liczba prac) — nigdy kod pracy ani punkty.
+Starsze niż 90 dni znikają same.
+
+---
+
 ## 2. Kolejka — `/review/`
 
 Ekran **„Moje przydziały”** odpowiada na pytanie „co mam dziś zrobić”. Nad listą pasek podsumowania
@@ -57,6 +87,10 @@ przydziału: zaczyna się od tego, co przepadnie najwcześniej. Wiersz niesie ko
 zgłoszonego problemu i przycisk **„Otwórz”**.
 
 Zwinięte **„Jak oceniać — w pięciu zdaniach”** jest pierwszą pomocą, jeśli oceniasz po raz pierwszy.
+
+Nad zakładkami stoi **filtr** (gdy masz prace z kilku etapów, zadań albo rund): wybierz etap, zadanie
+lub rundę i kliknij **„Pokaż”**. Filtr zawęża zakładki; pasek podsumowania i paczka ZIP dalej liczą całą
+kolejkę. Ten sam filtr otwierają przyciski „Oceniaj” na Starcie i „Prace tego zadania” w materiałach.
 
 **Paczka ZIP** zawiera wszystkie prace z Twoimi nieanulowanymi recenzjami. Nazwy plików są **anonimowe**
 (`<kod>_zad<numer>_v<wersja>`), a w archiwum jest `README.txt` z wierszami `recenzja <id> → <plik>`,
