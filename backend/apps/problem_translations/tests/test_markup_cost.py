@@ -104,6 +104,12 @@ PATHOLOGICAL = {
 }
 
 
+#: Górna granica czasu jednego wejścia patologicznego. Kwadratowy konwerter potrzebował na nich
+#: minut (200 KB `**a ` ≈ 142 s), liniowy – setnych sekundy; 5 s zostawia zapas na obciążony runner CI
+#: (21.10.2026: `nested_math` 1,35 s przy dawnej granicy 1 s) i nadal łapie powrót do kosztu kwadratowego.
+TIME_LIMIT_S = 5
+
+
 @pytest.mark.parametrize("text", PATHOLOGICAL.values(), ids=PATHOLOGICAL.keys())
 def test_pathological_input_is_fast_even_without_the_budget(text):
     # Sam konwerter, z pominięciem bramki – dowód, że koszt jest liniowy, a nie tylko odcięty.
@@ -111,7 +117,7 @@ def test_pathological_input_is_fast_even_without_the_budget(text):
         started = time.perf_counter()
         markup.render(text)
         markup.plain_blocks(text)
-        assert time.perf_counter() - started < 1
+        assert time.perf_counter() - started < TIME_LIMIT_S
 
 
 @pytest.mark.parametrize("text", PATHOLOGICAL.values(), ids=PATHOLOGICAL.keys())
@@ -119,7 +125,7 @@ def test_pathological_input_is_fast_through_the_entry_points(text):
     started = time.perf_counter()
     markup.render(text)
     markup.plain_blocks(text)
-    assert time.perf_counter() - started < 1
+    assert time.perf_counter() - started < TIME_LIMIT_S
 
 
 # --- bramka kosztu ----------------------------------------------------------------------------------
