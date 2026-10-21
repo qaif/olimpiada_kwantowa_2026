@@ -25,6 +25,7 @@ są napisane dla ludzi, którzy z niego korzystają, i dają się rozesłać w c
 | [`docs/PODRECZNIK-ADMINISTRATORA.md`](docs/PODRECZNIK-ADMINISTRATORA.md) | instalacja, wdrożenie, DNS i poczta, kopie zapasowe, aktualizacje, awarie, dane osobowe |
 | [`docs/PODRECZNIK-ORGANIZATORA.md`](docs/PODRECZNIK-ORGANIZATORA.md) | prowadzenie edycji: etapy, zadania, komitet, ocenianie, wyniki, dokumenty, RODO |
 | [`docs/PODRECZNIK-UCZESTNIKA.md`](docs/PODRECZNIK-UCZESTNIKA.md) | rejestracja, panel, wysyłka rozwiązań, wyniki i reklamacje |
+| [`docs/PODRECZNIK-OPIEKUNA-SZKOLNEGO.md`](docs/PODRECZNIK-OPIEKUNA-SZKOLNEGO.md) | nauczyciel: zaproszenia uczniów, postęp klasy, eksport, udział szkoły |
 | [`docs/PODRECZNIK-RECENZENTA.md`](docs/PODRECZNIK-RECENZENTA.md) | kolejka pracy, ekran oceny, rubryka, szablony, terminy |
 | [`docs/API.md`](docs/API.md) | integracje: klucze API i zakresy, `/api/v1/`, webhooki i weryfikacja podpisu, limity, wersjonowanie |
 | [`docs/CHANGELOG.md`](docs/CHANGELOG.md) | historia wydań, po jednej linii na tag |

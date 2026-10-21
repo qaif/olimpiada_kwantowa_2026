@@ -75,6 +75,7 @@ musi mieć wiersz z poprawną wartością domyślną, a każda flaga z tabeli �
 | Rozmowy wideo Jitsi z przepustką JWT | `JITSI_JWT_APP_SECRET` | `.env` | puste | § 25.2 | — |
 | Delegacje krajowe | `Competition.registration_mode` = `DELEGATIONS` | pole konkursu | `OPEN` | § 28 | — |
 | Statystyki szkół | `school_statistics` | flaga konkursu | wył. | § 29 | — |
+| Formalności uczniów w panelu nauczyciela | `supervisor_class_details` | flaga konkursu | wył. | § 29 | — |
 | Motyw serwisu z panelu | `themes` | flaga konkursu | wył. | § 30 | iqo: aktywny motyw IQO Quantum 1.1.2 (motyw działa też bez flagi, § 30) |
 | Logistyka finału / etapu stacjonarnego | `onsite_logistics` | flaga konkursu | wył. | § 8.5, § 31 | kwantowa: wył. (§ 8.5) |
 | Okna czasowe etapu według stref | `stage_time_windows` | flaga konkursu | wył. | § 32 | — |
@@ -4243,6 +4244,18 @@ jak § 26.3). Obraz kompiluje od tego wydania także katalogi aplikacji (`apps/*
 **IQO:** oś grupowania to dziś szkoła z profilu uczestnika (`apps/school_stats/grouping.py`). Oś
 `delegation` (delegacje krajowe z § 28, region = kraj) jest przygotowanym punktem zaczepienia
 (`axis_for`) – dołożenie jej nie zmienia ekranów ani reguł progu.
+
+**Panel nauczyciela (UX-PANEL-02, `docs/tasks/UX-PANEL-02.md`).** Od tego wydania `/supervisor/` to „Start”
+z kaflami, a lista uczniów ze stanem prac jest w „Postępie klasy” (`/supervisor/progress/`, eksport
+`/supervisor/progress/export.csv|xlsx` – wpis `export.generated`, `kind=supervisor_class_progress`).
+Statystyki szkół dostają pozycję w menu nauczyciela („Szkoła → Statystyki szkoły”), gdy flaga
+`school_statistics` jest włączona. Druga flaga, **`supervisor_class_details`** (domyślnie wył.), dokłada
+nauczycielowi stan zaświadczenia o statusie ucznia, zgodę rodzica (niepełnoletni) i liczbę obecności na
+warsztatach. Zapalenie (`{"supervisor_class_details": true}` w `feature_flags`) jest decyzją organizatora
+o poszerzeniu wglądu: zmienia informację dla ucznia (strona zgody, list z prośbą o zgodę, opis pola
+„Adres e-mail opiekuna szkolnego”) i dokłada wiersz rejestru czynności „Panel nauczyciela – formalności
+i obecność uczniów” (wersja 1.26). Uczniów, którzy wskazali nauczyciela wcześniej, organizator informuje
+komunikatem przed zapaleniem. Kroków operatora poza flagą nie ma (bez migracji, bez `.env`).
 
 ## 30. Motywy wizualne (THEME-01, `docs/tasks/THEME-01.md`)
 

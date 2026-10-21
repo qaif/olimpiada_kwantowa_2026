@@ -12,6 +12,26 @@ podsekcją `### <tytuł>` wydania `## v<x.y.z> – <data tagu> – <opis tagu>`.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – Panel nauczyciela: menu, Start, postęp klasy, eksport klasy (UX-PANEL-02)
+
+- Nowa aplikacja `apps/teacher_panel` (bez modeli): menu panelu opiekuna szkolnego (`nav.py`, znacznik
+  `{% teacher_nav %}`) w ramie panelu uczestnika – te same klasy i arkusz `participant_panel/panel.css`
+  (bez zmian), własne dodatki w `teacher_panel/teacher.css`; sekcje Start, Uczniowie, Materiały
+  i warsztaty, Szkoła, Pomoc, Konto, pozycje warunkowe z istniejących przełączników. Ramę dostały: Start,
+  konta uczniów, import (z podglądem), postęp klasy, szkoła, statystyki szkoły.
+- `/supervisor/` to teraz **Start** z kaflami (uczniowie z kontem / zaproszeni, najbliższy termin, bez
+  pracy w otwartym etapie, najbliższy warsztat, udział szkoły); lista uczniów ze stanem prac przeszła do
+  **Postępu klasy** (`/supervisor/progress/`: filtry, sortowanie, stała liczba zapytań), udział szkoły
+  i zaświadczenia – na ekran **Szkoła** (`/supervisor/school/`).
+- Eksport klasy CSV/XLSX (`/supervisor/progress/export.csv|xlsx`) – te same kolumny i filtr, co ekran,
+  bez adresów e-mail, audyt `export.generated` (`kind=supervisor_class_progress`).
+- Nowa flaga konkursu `supervisor_class_details` (domyślnie wył.): zaświadczenie o statusie ucznia, zgoda
+  rodzica i obecność na warsztatach w panelu nauczyciela; z flagą zmienia się informacja dla ucznia
+  (strona zgody, list, opis pola w profilu) i dochodzi wiersz rejestru czynności. Rejestr czynności 1.26
+  (eksport listy klasy w wierszu „opiekunowie”, wiersz warunkowy `apps/teacher_panel/register.py`).
+- Bez migracji. Opis: `docs/tasks/UX-PANEL-02.md`, `docs/PODRECZNIK-OPIEKUNA-SZKOLNEGO.md` (nowy),
+  PODRĘCZNIK-ORGANIZATORA § 10, OPERACJE § 29.
+
 ## [Unreleased] – Panel uczestnika: menu, Start, powiadomienia, wejścia do notatników i webTEX (UX-PANEL-01)
 
 - Menu panelu uczestnika (`apps/participant_panel/nav.py`, odpowiednik `coordinator_nav.py`): sekcje

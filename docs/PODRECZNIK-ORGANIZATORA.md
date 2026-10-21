@@ -2218,6 +2218,18 @@ przypisywania po nazwie szkoły — oba wyglądają porządniej, ale oba znaczy�
 dostęp do danych ucznia bez jego udziału. Opiekun widzi kod, imię, nazwisko, szkołę i klasę ucznia oraz
 ścieżkę statusu pracy; **nie widzi punktów przed ogłoszeniem wyników, prac ani komentarzy recenzentów**.
 
+**Panel nauczyciela (UX-PANEL-02).** Opiekun ma menu jak uczestnik: **Start** (kafle: uczniowie z kontem
+i zaproszeni, najbliższy termin, uczniowie bez pracy w otwartym etapie, najbliższy warsztat, udział
+szkoły), **Moi uczniowie**, import, **Postęp klasy** (`/supervisor/progress/` – tabela uczniów × etapy
+z filtrami i eksportem CSV/XLSX, bez adresów e-mail; pobranie zostaje w audycie jako `export.generated`)
+i **Szkoła** (udział szkoły, zaświadczenia opiekuna, statystyki). Instrukcja do rozesłania nauczycielom:
+`docs/PODRECZNIK-OPIEKUNA-SZKOLNEGO.md`. Flaga konkursu `supervisor_class_details` (domyślnie wyłączona)
+dokłada nauczycielowi stan zaświadczenia o statusie ucznia, zgodę rodzica (niepełnoletni) i liczbę
+obecności na warsztatach. To **poszerzenie wglądu** – uczniowi obiecaliśmy, że nauczyciel jego zgód nie
+zobaczy – więc flaga zmienia razem tekst na stronie zgody, w liście z prośbą o zgodę i w opisie pola
+„Adres e-mail opiekuna szkolnego” oraz dokłada wiersz w rejestrze czynności. Przed włączeniem poinformuj
+uczniów, którzy już wskazali nauczycieli (np. komunikatem do uczestników); zapalenie opisuje OPERACJE § 29.
+
 **Import listy uczniów a konta, które już istnieją (od v0.38.7, decyzja właściciela platformy).**
 Import — nauczyciela (`/supervisor/import/`) i Twój (`/coordinator/accounts/import/`, kolumna
 „e-mail opiekuna szkolnego”) — **zakłada** konta zaproszonych tak jak dotąd: nowy uczeń dostaje adres

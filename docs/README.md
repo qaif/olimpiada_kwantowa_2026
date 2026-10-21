@@ -7,6 +7,7 @@ Opis całego projektu i szybki start: [`../README.md`](../README.md).
 | Czytelnik | Dokument | O czym |
 |---|---|---|
 | Uczestnik | [PODRECZNIK-UCZESTNIKA.md](PODRECZNIK-UCZESTNIKA.md) | konto, wysyłka rozwiązań, wyniki, forum, wiadomości, webinary |
+| Opiekun szkolny (nauczyciel) | [PODRECZNIK-OPIEKUNA-SZKOLNEGO.md](PODRECZNIK-OPIEKUNA-SZKOLNEGO.md) | konto, zaproszenia uczniów, postęp klasy i eksport, udział szkoły |
 | Opiekun drużyny narodowej | [PODRECZNIK-OPIEKUNA-DRUZYNY.md](PODRECZNIK-OPIEKUNA-DRUZYNY.md) | (po angielsku) rejestracja uczniów, okna czasowe, opłaty, tłumaczenia zadań, logistyka finału |
 | Recenzent (komitet) | [PODRECZNIK-RECENZENTA.md](PODRECZNIK-RECENZENTA.md) | kolejka prac, ocena, rozmowy kwalifikacyjne |
 | Organizator (koordynator) | [PODRECZNIK-ORGANIZATORA.md](PODRECZNIK-ORGANIZATORA.md) | panel koordynatora: edycja, etapy, komitet, wyniki, RODO; funkcje dodatkowe w § 10a–10p |
