@@ -12,6 +12,20 @@ podsekcją `### <tytuł>` wydania `## v<x.y.z> – <data tagu> – <opis tagu>`.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – webTEX: kolejka kompilacji na termin składania
+
+- Globalna kolejka kompilacji edytora LaTeX (`webtex/server/compileQueue.js`): najwyżej
+  `WEBTEX_COMPILE_CONCURRENCY` latexmk naraz (domyślnie 6 = vCPU serwera), złożenia z platformy przed
+  kompilacjami z edytora, zlewanie powtórzonych kompilacji projektu, jedna w toku + jedna w kolejce na
+  uczestnika, pełna kolejka albo za długie czekanie → 503 `compiler_busy` (platforma: osobny komunikat
+  „…nie zmieściło się w kolejce…”, 10 języków).
+- Edytor: „W kolejce (n)” na przycisku kompilacji, auto-kompilacja z rosnącą przerwą przy przeciążeniu.
+- Limity każdego procesu TeX-a (`webtex/server/tex/limits.pl`: pamięć, czas procesora, rozmiar pliku,
+  bez zrzutów, `nice 10`), zabijanie całej grupy procesów po przekroczeniu czasu, `init: true` w compose.
+- Stan kolejki w `/api/health` (tylko z wnętrza kontenera) i w podpisanym `/api/integration/health`;
+  ostrzeżenie w logu przy czekaniu > 30 s. Test obciążeniowy `webtex/scripts/load-test.mjs`, wyniki
+  i zalecenia: `docs/OPERACJE.md` § 55.5.
+
 ## [Unreleased] – GitLab CE pod gitlab.<domena>
 
 - Blok `gitlab.{$SITE_DOMAIN}` w `deploy/Caddyfile` (`reverse_proxy gitlab:80`, bez strony prac

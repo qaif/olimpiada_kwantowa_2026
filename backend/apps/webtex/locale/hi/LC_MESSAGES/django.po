@@ -44,6 +44,13 @@ msgid ""
 "– Twoja praca w edytorze jest zapisana."
 msgstr "LaTeX कंपाइलर अभी उपलब्ध नहीं है। कुछ मिनट बाद फिर से कोशिश करें – संपादक में आपका काम सहेजा हुआ है।"
 
+msgid ""
+"Edytor LaTeX kompiluje teraz bardzo wiele rozwiązań naraz i Twoje nie "
+"zmieściło się w kolejce. Spróbuj ponownie za minutę – Twoja praca w edytorze "
+"jest zapisana. Jeśli termin jest blisko, pobierz PDF z edytora i wyślij go "
+"zwykłym formularzem."
+msgstr "LaTeX संपादक इस समय एक साथ बहुत सारे समाधान कंपाइल कर रहा है और आपका समाधान कतार में नहीं आ सका। एक मिनट बाद फिर से कोशिश करें – संपादक में आपका काम सहेजा हुआ है। यदि समय-सीमा नज़दीक है, तो संपादक से PDF डाउनलोड करें और उसे सामान्य फ़ॉर्म से भेजें।"
+
 msgid "Potwierdzam, że to rozwiązanie właściwego zadania"
 msgstr "मैं पुष्टि करता/करती हूँ कि यह सही प्रश्न का हल है"
 
