@@ -79,9 +79,15 @@ webTEX odrzuca (`401`) brak/niepoprawny podpis i `|now - t| > 300 s`. `path` bez
 
 | Metoda i ścieżka | Ciało (JSON) | Odpowiedź |
 |---|---|---|
-| `POST /api/integration/build` | `{"sub": "…", "project": "…"}` | `200 application/pdf` (świeża kompilacja, nagłówki `X-Webtex-Errors: <liczba błędów LaTeX>`, `X-Webtex-Build: <id>`); `404 {"error":"no_project"}` gdy uczestnik nie otwierał edytora; `422 {"error":"compile_failed","issues":[{"file","line","message"}]}` gdy nie powstał PDF (max 20 pozycji); `503 {"error":"compiler_unavailable"}` |
+| `POST /api/integration/build` | `{"sub": "…", "project": "…", "label": "…"}` (`label` opcjonalne, patrz niżej) | `200 application/pdf` (świeża kompilacja, nagłówki `X-Webtex-Errors: <liczba błędów LaTeX>`, `X-Webtex-Build: <id>`); `404 {"error":"no_project"}` gdy uczestnik nie otwierał edytora; `422 {"error":"compile_failed","issues":[{"file","line","message"}]}` gdy nie powstał PDF (max 20 pozycji); `503 {"error":"compiler_unavailable"}` |
 | `POST /api/integration/sharing` | `{"scope": "…", "enabled": bool}` | `200 {"projects": <ile zmieniono>}`; wyłączenie natychmiast rozłącza współpracowników i blokuje dołączanie |
 | `GET /api/integration/health` | – | `200 {"ok": true, "backend": "local"}` (podpis wymagany) |
+
+`label` w `/build` (Uzupełnienie B): opcjonalny napis (do 120 znaków) – podpis wersji, którą webTEX
+zapisuje w historii projektu, gdy kompilacja da PDF. Platforma wysyła „Złożone jako rozwiązanie –
+wersja N” (N = numer, który dostanie to złożenie). Pole jest dodane później i działa w obie strony:
+bez `label` webTEX zapisuje złożenie bez podpisu (panel pokazuje „Złożone jako rozwiązanie” i czas),
+a starszy webTEX nieznane pole pomija. `label` niebędący napisem → `400 {"error":"bad_request"}`.
 
 ## Zachowanie webTEX w trybie integracji (`WEBTEX_INTEGRATION=true`)
 
@@ -109,7 +115,7 @@ webTEX odrzuca (`401`) brak/niepoprawny podpis i `|now - t| > 300 s`. `path` bez
 - Otwarcie: `GET /me/stages/<stage_id>/problems/<number>/latex/` – bramki jak przy uploadzie
   (uczestnik, wpis do etapu, okno, nadzór, nie-kadra) → `302` na `{WEBTEX_URL}/sso#token=…`.
 - Złożenie: `POST /me/stages/<stage_id>/problems/<number>/latex/submit/` – throttle `upload`,
-  `POST /api/integration/build` (timeout ~120 s), potem
+  `POST /api/integration/build` (timeout ~120 s, `label` „Złożone jako rozwiązanie – wersja N”), potem
   `create_submission(user, stage, number, ContentFile(pdf, name="rozwiazanie.pdf"), request=…)`.
   Błędy webTEX → czytelny komunikat na karcie (lista błędów LaTeX przy 422).
 - Koordynator: przełącznik „Udostępnianie linków w edytorze LaTeX” per etap (domyślnie wyłączony),
@@ -131,6 +137,18 @@ Na zawodach asystent AI to pomoc niedozwolona, więc w trybie integracji:
 | D9 | Token SSO dostaje claim `ai` (bool). Brak claimu albo wartość inna niż JSON `true` = wyłączony. Projekt zapisuje `ai_locked = !ai`; każde SSO aktualizuje. |
 | D10 | `POST /api/integration/ai` – ciało `{"scope": "…", "enabled": bool}`, podpis i odpowiedź jak `/api/integration/sharing`; wyłączenie działa natychmiast (serwer odrzuca kolejne żądania AI dla projektów w zakresie, otwarte okna dostają zdarzenie i chowają panel). Caddy blokuje tę ścieżkę z zewnątrz jak pozostałe ścieżki serwer–serwer. |
 | D11 | Serwer webTEX odrzuca żądanie AI (`403 ai_disabled`) dla projektu z `ai_locked`, niezależnie od tego, co pokazuje klient. |
+
+## Uzupełnienie B — historia wersji projektu
+
+Uczestnik, który skasuje pół rozwiązania (albo współpracownik, gdy koordynator włączył udostępnianie),
+odzyskuje je z historii, a przy odwołaniu można pokazać, jak szkic wyglądał w danej chwili.
+
+| # | Decyzja |
+|---|---|
+| D12 | webTEX zapisuje **wersje** projektu sam: po ustaniu zmian (`HISTORY_IDLE_SEC`, 120 s), co `HISTORY_ACTIVE_SEC` (600 s) ciągłej pracy, po każdej udanej kompilacji uruchomionej przez użytkownika i po udanym `/build` (złożenie, z `label`). Wersja = stan Y.Doc (aktualizacja Yjs) + drzewo plików + odwołania do plików binarnych po sha256; identyczna treść zapisana raz. Spis w SQLite (`snapshots`), treść w `/data/projects/<id>/history/` – kopia nocna wolumenu ją obejmuje. |
+| D13 | Przechowywanie: wszystko z 24 h, potem jedna na godzinę do 7 dni, potem jedna na dzień; nic starszego niż `HISTORY_KEEP_DAYS` (365; `0` = bez limitu); limit `HISTORY_MAX_MB` (100) na projekt – najpierw najstarsze automatyczne. Złożenia i wersje z nazwą nie podlegają przerzedzaniu ani limitowi rozmiaru. |
+| D14 | Panel „Historia”: lista z autorami zmian (kto edytował od poprzedniej wersji, kto ją wywołał), różnice plik po pliku względem stanu bieżącego, `.zip` wersji, przywrócenie projektu albo pliku. Przywrócenie to **nowa zmiana** w dokumencie (minimalne edycje wierszy, współpracownicy dostają ją na żywo; historia Yjs nie jest przepisywana), poprzedzona zapisem bieżącego stanu – „Cofnij przywrócenie”. |
+| D15 | Dostęp jak do projektu: właściciel i edytorzy przywracają i zapisują wersje z nazwą, czytelnicy tylko oglądają i pobierają; przy `sharing_locked` członkowie nie widzą historii (404, jak projektu). |
 
 ## Wdrożenie
 

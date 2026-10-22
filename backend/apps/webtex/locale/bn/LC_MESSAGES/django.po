@@ -65,6 +65,10 @@ msgstr "পর্বে নিবন্ধনটি অযোগ্য ঘোষ
 msgid "Zadanie %(number)s. %(title)s"
 msgstr "সমস্যা %(number)s. %(title)s"
 
+#, python-format
+msgid "Złożone jako rozwiązanie – wersja %(version)s"
+msgstr "সমাধান হিসেবে জমা দেওয়া হয়েছে – সংস্করণ %(version)s"
+
 msgid ""
 "To zadanie nie przyjmuje rozwiązań w PDF – edytor LaTeX nie złoży go za "
 "Ciebie."

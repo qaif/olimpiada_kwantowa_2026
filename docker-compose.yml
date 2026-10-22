@@ -1185,6 +1185,9 @@ services:
       SECURE_COOKIES: ${WEBTEX_SECURE_COOKIES:-true}
       MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-25}
       COMPILE_TIMEOUT: ${WEBTEX_COMPILE_TIMEOUT:-90}
+      # Historia wersji projektów (docs/OPERACJE.md § 55.5): ile dni i ile MB na projekt.
+      HISTORY_KEEP_DAYS: ${WEBTEX_HISTORY_KEEP_DAYS:-365}
+      HISTORY_MAX_MB: ${WEBTEX_HISTORY_MAX_MB:-100}
     volumes:
       - webtex_data:/data
     networks: [tex_front, tex_api]

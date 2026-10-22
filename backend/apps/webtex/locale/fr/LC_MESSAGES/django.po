@@ -66,6 +66,10 @@ msgstr "L’inscription à l’étape est disqualifiée."
 msgid "Zadanie %(number)s. %(title)s"
 msgstr "Problème %(number)s. %(title)s"
 
+#, python-format
+msgid "Złożone jako rozwiązanie – wersja %(version)s"
+msgstr "Soumis comme solution – version %(version)s"
+
 msgid ""
 "To zadanie nie przyjmuje rozwiązań w PDF – edytor LaTeX nie złoży go za "
 "Ciebie."
