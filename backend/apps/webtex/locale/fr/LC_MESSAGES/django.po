@@ -45,6 +45,13 @@ msgid ""
 "– Twoja praca w edytorze jest zapisana."
 msgstr "Le compilateur LaTeX est temporairement indisponible. Réessayez dans quelques minutes – votre travail dans l’éditeur est enregistré."
 
+msgid ""
+"Edytor LaTeX kompiluje teraz bardzo wiele rozwiązań naraz i Twoje nie "
+"zmieściło się w kolejce. Spróbuj ponownie za minutę – Twoja praca w edytorze "
+"jest zapisana. Jeśli termin jest blisko, pobierz PDF z edytora i wyślij go "
+"zwykłym formularzem."
+msgstr "L’éditeur LaTeX compile en ce moment un très grand nombre de solutions et la vôtre n’a pas trouvé de place dans la file d’attente. Réessayez dans une minute – votre travail dans l’éditeur est enregistré. Si la date limite est proche, téléchargez le PDF depuis l’éditeur et envoyez-le avec le formulaire habituel."
+
 msgid "Potwierdzam, że to rozwiązanie właściwego zadania"
 msgstr "Je confirme qu’il s’agit de la solution du bon problème"
 
