@@ -80,7 +80,9 @@ def infrastructure_hosts() -> set[str]:
     from urllib.parse import urlsplit
 
     domain = settings.SITE_DOMAIN.lower()
-    hosts = {f"{label}.{domain}" for label in ("www", "dj", "live", "meet", "monitor", "errors", "s3")}
+    hosts = {
+        f"{label}.{domain}" for label in ("www", "dj", "live", "meet", "monitor", "gitlab", "errors", "s3")
+    }
     for url in (getattr(settings, "S3_PUBLIC_ENDPOINT_URL", ""), getattr(settings, "S3_ENDPOINT_URL", "")):
         if url:
             hosts.add((urlsplit(url).hostname or "").lower())

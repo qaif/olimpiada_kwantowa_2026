@@ -350,16 +350,30 @@ check "sieć tex_api: web, webtex, worker [$got]" $?
 siec "$WORK/latex.yml" tex_front | grep -qx '    internal: true' && siec "$WORK/latex.yml" tex_api | grep -qx '    internal: true'
 check "sieci tex_front i tex_api: internal: true" $?
 
+# 14d. GitLab (osobny projekt, deploy/gitlab) widzi wyłącznie proxy: `gitlab_front` ma jednego członka
+#      z tego pliku, jest `internal`, a GitLab dołącza do niej jako do sieci zewnętrznej (nie do `edge`).
+got="$(grep ':gitlab_front$' "$WORK/sieci.txt" | cut -d: -f1 | tr '\n' ' ' | sed 's/ $//')"
+[ "$got" = "proxy" ]
+check "sieć gitlab_front: z usług tego pliku wyłącznie proxy [$got]" $?
+siec "$WORK/pelny.yml" gitlab_front | grep -qx '    internal: true'
+check "sieć gitlab_front: internal: true" $?
+grep -A3 'name: ${PROXY_GITLAB_NETWORK:-olimpiada_gitlab_front}' "$ROOT/deploy/gitlab/docker-compose.gitlab.yml" | grep -q 'external: true' ||
+  grep -B3 'name: ${PROXY_GITLAB_NETWORK:-olimpiada_gitlab_front}' "$ROOT/deploy/gitlab/docker-compose.gitlab.yml" | grep -q 'external: true'
+check "deploy/gitlab: gitlab dołącza do zewnętrznej sieci <projekt>_gitlab_front" $?
+! grep -qE '^  edge:|olimpiada_edge' "$ROOT/deploy/gitlab/docker-compose.gitlab.yml"
+check "deploy/gitlab: bez sieci edge portalu" $?
+
 # Podsieci siedmiu sieci – rozłączne (każda inna /24 z 172.30.x).
 for f in "$WORK/pelny.yml"; do
   awk '/^networks:/ {n=1} n && /subnet: / {print $NF}' "$f" | sort >"$WORK/podsieci.txt"
 done
-# Czternaście: edge, internal, cache, clamav_egress, livekit_signal, errors, errors_ingest, errors_front,
-# errors_egress, mail, mail_egress, meet, tex_front, tex_api (edytor LaTeX, TEX-01). `rc` przed `check` – `$(tr …)` w opisie nadpisałoby `$?`
+# Piętnaście: edge, internal, cache, clamav_egress, livekit_signal, errors, errors_ingest, errors_front,
+# errors_egress, mail, mail_egress, meet, tex_front, tex_api (edytor LaTeX, TEX-01), gitlab_front (GitLab).
+# `rc` przed `check` – `$(tr …)` w opisie nadpisałoby `$?`
 # (do scalenia z main 11.10.2026 ta kontrola przechodziła zawsze, przy każdej liczbie sieci).
-[ "$(sort -u "$WORK/podsieci.txt" | wc -l)" -eq 14 ] && [ "$(wc -l <"$WORK/podsieci.txt")" -eq 14 ]
+[ "$(sort -u "$WORK/podsieci.txt" | wc -l)" -eq 15 ] && [ "$(wc -l <"$WORK/podsieci.txt")" -eq 15 ]
 rc=$?
-check "czternaście sieci, czternaście różnych podsieci [$(tr '\n' ' ' <"$WORK/podsieci.txt")]" $rc
+check "piętnaście sieci, piętnaście różnych podsieci [$(tr '\n' ' ' <"$WORK/podsieci.txt")]" $rc
 
 # 15. Hasło Redisa: bez REDIS_PASSWORD (serwer sprzed zmiany, .env.example) adresy są dotychczasowe
 #     i Redis bez `requirepass`; z hasłem – `:hasło@` w obu adresach, `requirepass` i healthcheck
@@ -413,11 +427,11 @@ check "plik podstawowy: publicznie wyłącznie proxy, mail (25) i mailpit na 127
 E2E_REPO_DIR="$ROOT" docker compose --env-file "$ENV_FILE" -f "$BASE" -f "$DJ_OVERLAY" -f "$ROOT/docker-compose.e2e-djcms.yml" \
   --profile djcms config >"$WORK/e2e.yml" 2>/dev/null
 awk '/^networks:/ {n=1} n && /subnet: / {print $NF}' "$WORK/e2e.yml" | sort >"$WORK/e2e-podsieci.txt"
-# Trzynaście: jak wyżej bez `errors` (baza GlitchTipa – profil `monitoring`, którego E2E nie włącza).
-[ "$(wc -l <"$WORK/e2e-podsieci.txt")" -eq 13 ] && ! grep -q '^172\.30\.' "$WORK/e2e-podsieci.txt" &&
+# Czternaście: jak wyżej bez `errors` (baza GlitchTipa – profil `monitoring`, którego E2E nie włącza).
+[ "$(wc -l <"$WORK/e2e-podsieci.txt")" -eq 14 ] && ! grep -q '^172\.30\.' "$WORK/e2e-podsieci.txt" &&
   [ -z "$(comm -12 "$WORK/podsieci.txt" "$WORK/e2e-podsieci.txt")" ]
 rc=$?
-check "nakładka E2E: trzynaście sieci, żadna na podsieci projektu dev [$(tr '\n' ' ' <"$WORK/e2e-podsieci.txt")]" $rc
+check "nakładka E2E: czternaście sieci, żadna na podsieci projektu dev [$(tr '\n' ' ' <"$WORK/e2e-podsieci.txt")]" $rc
 # …a stałe adresy proxy i mynetworks Postfiksa – w przesuniętych podsieciach (inaczej Docker nie
 # przydzieli adresu spoza podsieci, a relay odrzuci pocztę z web).
 got="$(web_trust "$WORK/e2e.yml" | cut -d'|' -f2-3)|$(awk '/^  mail:$/ {on=1; next} on && /^  [^ ]/ {on=0} on' "$WORK/e2e.yml" | sed -n 's/^      POSTFIX_mynetworks: //p')"

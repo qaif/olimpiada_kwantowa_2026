@@ -1,0 +1,53 @@
+# GitLab CE pod gitlab.<domena> – OSOBNY projekt compose (jak deploy/jitsi), na serwerze w /opt/gitlab
+# (poza /opt/olimpiada: krok 2/8 scripts/deploy.sh kasuje tamten katalog). Instrukcja: README.md obok.
+#
+#   cd /opt/gitlab && docker compose -f docker-compose.gitlab.yml up -d
+#
+# HTTPS kończy Caddy portalu (blok `gitlab.{$SITE_DOMAIN}` w deploy/Caddyfile) – GitLab słucha czystego
+# HTTP na :80 w sieci `<projekt portalu>_gitlab_front` (internal, tylko proxy i GitLab; NIE `edge`, której
+# ufa aplikacja). Do internetu (webhooki, poczta, aktualizacje) GitLab wychodzi własną siecią `default`.
+# Git po SSH: port 2222 hosta (22 zajmuje sshd). Docker dopisuje reguły iptables przed ufw – port jest
+# otwarty bez wpisu w ufw (docs/OPERACJE.md § 36.3).
+name: gitlab
+services:
+  gitlab:
+    # Wersja przypięta: aktualizacja to świadoma zmiana zmiennej (README.md § Aktualizacja), nie `pull`.
+    image: gitlab/gitlab-ce:${GITLAB_VERSION:-19.5.1-ce.0}
+    container_name: gitlab
+    hostname: ${GITLAB_HOST:-gitlab.olimpiadakwantowa.pl}
+    restart: unless-stopped
+    shm_size: 256m
+    # Serwer dzielony z portalem: limit, żeby GitLab nie wypchnął portalu z pamięci (zajmuje ok. 2,7 GiB).
+    mem_limit: ${GITLAB_MEM_LIMIT:-4g}
+    ports:
+      - "2222:22"
+    environment:
+      GITLAB_OMNIBUS_CONFIG: |
+        external_url 'https://${GITLAB_HOST:-gitlab.olimpiadakwantowa.pl}'
+        nginx['listen_port'] = 80
+        nginx['listen_https'] = false
+        nginx['proxy_set_headers'] = { "X-Forwarded-Proto" => "https", "X-Forwarded-Ssl" => "on" }
+        # Adres klienta z X-Forwarded-For – wyłącznie od Caddy'ego (podsieć gitlab_front, docker-compose.yml).
+        nginx['real_ip_trusted_addresses'] = ['${PROXY_GITLAB_SUBNET:-172.30.16.0/24}']
+        nginx['real_ip_header'] = 'X-Forwarded-For'
+        nginx['real_ip_recursive'] = 'on'
+        letsencrypt['enable'] = false
+        gitlab_rails['gitlab_shell_ssh_port'] = 2222
+        # Tryb oszczędny w pamięci (dokumentacja GitLaba „Running GitLab in a memory-constrained environment”).
+        puma['worker_processes'] = 0
+        sidekiq['concurrency'] = 10
+        prometheus_monitoring['enable'] = false
+        gitlab_rails['env'] = { 'MALLOC_CONF' => 'dirty_decay_ms:1000,muzzy_decay_ms:1000' }
+        gitaly['env'] = { 'MALLOC_CONF' => 'dirty_decay_ms:1000,muzzy_decay_ms:1000' }
+    volumes:
+      - ./config:/etc/gitlab
+      - ./logs:/var/log/gitlab
+      - ./data:/var/opt/gitlab
+    networks: [default, proxy_gitlab]
+
+networks:
+  default:
+  # `<projekt portalu>_gitlab_front` – zakłada ją compose portalu (docker-compose.yml), stąd `external`.
+  proxy_gitlab:
+    external: true
+    name: ${PROXY_GITLAB_NETWORK:-olimpiada_gitlab_front}

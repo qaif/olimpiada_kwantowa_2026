@@ -492,7 +492,7 @@ if [ "$GUARD_ON" = "1" ]; then
   # Komentarze przez ENVIRON, a nie `awk -v`: `-v` interpretuje sekwencje z odwrotnym ukośnikiem.
   #
   # Przy PLATFORM_SUBDOMAINS=1 dochodzi jeszcze przypięcie polityki TLS (`tls_pin` niżej) w blokach
-  # nazw dosłownych z pliku źródłowego: `www.`, `meet.`, `monitor.`, `{$S3_PUBLIC_ADDRESS}` (bywa
+  # nazw dosłownych z pliku źródłowego: `www.`, `meet.`, `monitor.`, `gitlab.`, `{$S3_PUBLIC_ADDRESS}` (bywa
   # `s3.<domena>`) – plus `dj.` niżej – i w bloku domeny głównej. Powód: adapter
   # Caddyfile'a (2.8, `consolidateAutomationPolicies`) wcina politykę TLS tych nazw do polityki
   # domyślnej (bez `subjects`), gdy obie są identyczne – a polityka domyślna stoi ZA polityką
@@ -511,7 +511,7 @@ if [ "$GUARD_ON" = "1" ]; then
   # którą „pokrywa” zarządzana nazwa wieloznaczna z konfiguracji (caddyserver/caddy#6959) – a blok
   # `*.{$SITE_DOMAIN}` taką nazwą jest, choć z `on_demand` nigdy nie dostaje certyfikatu
   # wieloznacznego (on-demand wystawia na nazwę z SNI, HTTP-01/TLS-ALPN; DNS-01 nie mamy). Bez tej
-  # opcji `www.`, `meet.`, `monitor.`, `dj.`, `live.`, `errors.`, `lab.` nie miałyby certyfikatu
+  # opcji `www.`, `meet.`, `monitor.`, `gitlab.`, `dj.`, `live.`, `errors.`, `lab.` nie miałyby certyfikatu
   # wcale (ich polityka nie jest on-demand) – sprawdzone na żywym caddy:2.10 w djcms_routing_test.sh.
   # Domena główna i `<domena>:9000` nie są pod `*.`, opcja jest tam bez skutku, ale nieszkodliwa.
   # Caddy 2.8 przeczytałby to słowo jako adres e-mail ACME – dlatego obraz `proxy` jest przypięty do 2.10
@@ -527,7 +527,7 @@ if [ "$GUARD_ON" = "1" ]; then
     BEGIN { opts = 0; guard = 0; pins = 0 }
     {
       if (want_opts == "1" && ($0 == "www.{$SITE_DOMAIN} {" || $0 == "{$SITE_DOMAIN} {" || $0 == "meet.{$SITE_DOMAIN} {" ||
-          $0 == "monitor.{$SITE_DOMAIN} {" || $0 == "{$S3_PUBLIC_ADDRESS} {")) {
+          $0 == "monitor.{$SITE_DOMAIN} {" || $0 == "gitlab.{$SITE_DOMAIN} {" || $0 == "{$S3_PUBLIC_ADDRESS} {")) {
         print
         tls_pin()
         next
@@ -563,7 +563,7 @@ if [ "$GUARD_ON" = "1" ]; then
         opts = 1
       }
     }
-    END { if ((want_opts == "1" && (!opts || pins != 5)) || !guard) exit 3 }
+    END { if ((want_opts == "1" && (!opts || pins != 6)) || !guard) exit 3 }
   ' "$tmp" > "$tmp.sub" || {
     echo "render_caddyfile: nie znalazłem kotwic dla PLATFORM_SUBDOMAINS/DJCMS_ENABLED w $SRC – popraw generator razem z plikiem źródłowym" >&2
     exit 1
@@ -699,7 +699,7 @@ done
 if [ "$SUBDOMAINS_ON" = "1" ]; then
   # Blok wieloznaczny idzie na koniec pliku, bo kolejność bloków w Caddyfile'u nie ma znaczenia
   # dla wyboru witryny: Caddy dobiera blok po **najbardziej szczegółowym** dopasowaniu nazwy
-  # hosta, a nie po tym, który stoi wyżej. Dlatego `www.`, `meet.`, `monitor.`, `s3.`, `mail.`
+  # hosta, a nie po tym, który stoi wyżej. Dlatego `www.`, `meet.`, `monitor.`, `gitlab.`, `s3.`, `mail.`
   # i każda domena z `EXTRA_DOMAINS` zachowują pierwszeństwo – nazwa dosłowna jest zawsze
   # bardziej szczegółowa niż `*.`. Wzorzec obejmuje dokładnie **jedną** etykietę, więc
   # `a.b.<SITE_DOMAIN>` nie pasuje do niego wcale.

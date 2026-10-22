@@ -355,6 +355,9 @@ services:
       errors_front:
       # `tex_front`: trasa WEBTEX_HOST -> webtex:3000 (TEX-01). Bez profilu `latex` stoi w niej sam Caddy.
       tex_front:
+      # `gitlab_front`: trasa gitlab.<domena> -> gitlab:80 (GitLab CE z osobnego projektu, deploy/gitlab).
+      # Bez GitLaba na serwerze stoi w niej sam Caddy.
+      gitlab_front:
     depends_on:
       web: { condition: service_healthy }
     healthcheck:
@@ -1329,6 +1332,15 @@ networks:
     ipam:
       config:
         - subnet: 172.30.14.0/24
+  # GitLab CE (deploy/gitlab, osobny projekt compose jak Jitsi): Caddy ⇄ `gitlab`. Bez wyjścia do
+  # internetu (GitLab wychodzi własną siecią projektu); nie w TRUSTED_PROXY_IPS ani w `mynetworks`.
+  # Bez GitLaba stoi w niej sam Caddy. 172.30.15.0/24 zajmuje WEBTEX_EGRESS_SUBNET (webtex-ai).
+  gitlab_front:
+    driver: bridge
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.30.16.0/24
 
 volumes:
   # PostgreSQL 18 – dane bazy (patrz komentarz przy usłudze `db`).
