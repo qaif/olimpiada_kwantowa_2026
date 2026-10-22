@@ -28,8 +28,8 @@
 {% block panel_lead %}
   <p class="lead">Członek komitetu ·
     <span class="{{ member.status|badge_class }}">{{ member.get_status_display }}</span>
-    {# ``region_label`` stawia widok i wyłącznie przy włączonej fladze ``custom_regions``; pusty
-       napis znaczy „czytaj województwo”, czyli dokładnie to, co ta linia robiła przed etapem 2. #}
+    {% comment %} ``region_label`` stawia widok i wyłącznie przy włączonej fladze ``custom_regions``; pusty
+       napis znaczy „czytaj województwo”, czyli dokładnie to, co ta linia robiła przed etapem 2. {% endcomment %}
     {% if region_label %}· {{ region_label }}{% elif member.district %}· {{ member.get_district_display }}{% else %}· prace z całego kraju{% endif %}
     {% if member.is_appeals_committee %}· <span class="badge badge--info">komisja odwoławcza</span>{% endif %}
   </p>

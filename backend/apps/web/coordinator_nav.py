@@ -1133,6 +1133,10 @@ def navigation(request) -> dict:
         "nav_search_url": resolve(("web:coordinator-search",)) or "",
         "nav_query": request.GET.get("q", "") if url_name == "coordinator-search" else "",
         "nav_competitions": competition_switcher(request),
+        # Etapy bieżącej edycji – już policzone wyżej; rama panelu (UX-PANEL-04,
+        # ``apps.coordinator_panel.shell``) wybiera z nich etap „w ognisku”, którego dzieci menu stoją
+        # rozwinięte, bez drugiego zapytania.
+        "nav_stages": stages,
     }
 
 

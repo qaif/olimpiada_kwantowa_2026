@@ -467,7 +467,15 @@ def export_payload(user: User, competition=None) -> dict:
         "tlumaczenia": _translation_review_section(user),
         "doreczalnosc_poczty": _email_delivery_section(user),
         "powiadomienia_w_panelu": _panel_notifications_section(user, competition),
+        "skroty_panelu_koordynatora": _coordinator_pins_section(user, competition),
     }
+
+
+def _coordinator_pins_section(user: User, competition=None) -> list[dict]:
+    """Przypięte pozycje menu koordynatora (UX-PANEL-04): ścieżka, kolejność, data; u innych kont pusto."""
+    from apps.coordinator_panel.services import export_rows
+
+    return export_rows(user, competition)
 
 
 def _panel_notifications_section(user: User, competition=None) -> list[dict]:

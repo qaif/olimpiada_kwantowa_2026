@@ -704,6 +704,10 @@ def anonymise_account(user: User, *, actor: User | None = None, request=None) ->
     from apps.notifications.services import erase_for_user as erase_panel_notifications
 
     erase_panel_notifications(user)
+    # Przypięte pozycje menu koordynatora (UX-PANEL-04) – ustawienie konta, znika całe.
+    from apps.coordinator_panel.services import erase_for_user as erase_coordinator_pins
+
+    erase_coordinator_pins(user)
 
     _drop_credentials(user)
     audit(actor or user, "account.anonymised", user, {"user_id": user.pk}, request=request)

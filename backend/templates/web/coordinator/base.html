@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static coordinator_shell %}
+{% load static coordinator_shell coordinator_panel %}
 {% comment %}
   Szkielet panelu koordynatora: stałe menu boczne + kolumna treści. Każdy ekran panelu rozszerza
   ten szablon i wypełnia:
@@ -16,20 +16,30 @@
 
   ``eyebrow`` prowadzi na pulpit, czyli o jeden poziom wyżej – zostaje także na wąskim ekranie,
   gdzie menu jest zwinięte.
+
+  UX-PANEL-04: nad nagłówkiem stoją okruszki z pozycji bieżącej menu (``coordinator_crumbs``); domyślny
+  „eyebrow” znika wtedy, bo okruszki zaczynają się od tego samego Startu. Ekran z własnym ``panel_eyebrow``
+  zachowuje go. W nagłówku – „Przypnij” dla ekranu, który jest pozycją menu (``coordinator_pin_button``).
+  Wygląd ramy: ``coordinator_panel/panel.css`` (po ``coordinator.css``), paleta poleceń i „ostatnio
+  używane”: ``coordinator_panel/shell.js``.
 {% endcomment %}
 {% block title %}Panel koordynatora{% endblock %}
 {% block head %}{{ block.super }}
   <link rel="stylesheet" href="{% static 'css/coordinator.css' %}">
+  <link rel="stylesheet" href="{% static 'coordinator_panel/panel.css' %}">
   {% block panel_head %}{% endblock %}
 {% endblock %}
 {% block content %}
-<div class="panel panel--coordinator">
+<div class="panel panel--coordinator kp">
   <nav class="panel__nav" aria-label="Menu panelu koordynatora">
     {% coordinator_nav %}
   </nav>
   <div class="panel__main">
-    <div class="page-head">
-      <span class="eyebrow">{% block panel_eyebrow %}<a href="{% url 'web:coordinator' %}">Panel koordynatora</a>{% endblock %}</span>
+    {% coordinator_crumbs %}
+    {% coordinator_trail as kp_trail %}
+    <div class="page-head kp-page-head">
+      <div class="kp-page-head__tools">{% coordinator_pin_button %}</div>
+      <span class="eyebrow">{% block panel_eyebrow %}{% if not kp_trail %}<a href="{% url 'web:coordinator' %}">Panel koordynatora</a>{% endif %}{% endblock %}</span>
       <h1>{% block panel_title %}{% endblock %}</h1>
       {% block panel_lead %}{% endblock %}
       <div class="actions">{% block panel_actions %}{% endblock %}</div>
@@ -41,4 +51,6 @@
 {% block scripts %}{{ block.super }}
   {# Pamięć zwiniętych sekcji menu bocznego – bez skryptu wszystkie sekcje stoją otwarte. #}
   <script nonce="{{ request.csp_nonce }}" src="{% static 'js/coordinator-nav.js' %}" defer></script>
+  {# Paleta poleceń (Ctrl+K, „/”) i „ostatnio używane” – bez skryptu zostaje pole wyszukiwania w menu. #}
+  <script nonce="{{ request.csp_nonce }}" src="{% static 'coordinator_panel/shell.js' %}" defer></script>
 {% endblock %}

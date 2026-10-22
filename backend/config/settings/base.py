@@ -211,6 +211,7 @@ INSTALLED_APPS = [
     # który montuje jej adresy i wstawia jej panel do karty zadania.
     "apps.webtex",
     "apps.committee_panel",  # rama panelu komisji: menu, Start, materiały (UX-PANEL-03), bez modeli
+    "apps.coordinator_panel",  # panel koordynatora: Start, przypięte, okruszki, paleta (UX-PANEL-04)
     # Panel uczestnika (UX-PANEL-01): powiadomienia w panelu (model, haki źródeł, retencja) i rama panelu
     # (menu, kafle „Start”, wejścia do notatników i edytora LaTeX). **Przed** ``apps.web`` jak webtex.
     "apps.notifications",

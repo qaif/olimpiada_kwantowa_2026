@@ -142,7 +142,10 @@ from apps.competitions.models import DEFAULT_RETENTION_MONTHS
 #: w wierszu „komitet” (dane pracownicze członków komitetu i komisji odwoławczej: rodzaj zdarzenia,
 #: nazwa etapu albo liczba prac, odnośnik, data odczytu) z tą samą 90-dniową retencją, co u uczestników.
 #: Ten sam cel (przydział i rozpatrywanie prac) i ta sama podstawa.
-REGISTER_VERSION = "1.27"
+#: 1.28 (21.10.2026, zadanie UX-PANEL-04) – panel koordynatora: przypięte pozycje menu (ustawienie konta
+#: personelu: ścieżka ekranu panelu, kolejność, data – bez danych uczestników) w wierszu „serwis”; „ostatnio
+#: używane” zostają wyłącznie w przeglądarce. Nowa kategoria danych przy koncie, więc zmiana jest materialna.
+REGISTER_VERSION = "1.28"
 REGISTER_DATE = date(2026, 10, 21)
 
 #: Zdanie o okresie przechowywania danych uczestnika. Liczba pochodzi z tego samego miejsca, co
@@ -523,6 +526,12 @@ ACTIVITIES: tuple[ProcessingActivity, ...] = (
             "adres IP i czas zdarzenia w dzienniku audytowym",
             "identyfikatory sesji i tokeny ochrony formularzy (cookie niezbędne)",
             "dane statystyki odwiedzin Google Analytics 4 – wyłącznie po zgodzie",
+            (
+                "przypięte pozycje menu panelu koordynatora (od 21.10.2026): ścieżka ekranu panelu, "
+                "kolejność i data przypięcia – wyłącznie pozycje menu, bez danych uczestników; usuwane "
+                "przy anonimizacji i przy usunięciu konta. Lista „ostatnio używane” jest zapisywana "
+                "wyłącznie w przeglądarce koordynatora i nie trafia do serwisu"
+            ),
         ],
         recipients=[HOSTING_RECIPIENT, ANALYTICS_RECIPIENT],
         retention=(

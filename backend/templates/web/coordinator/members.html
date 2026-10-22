@@ -109,9 +109,9 @@
             </td>
             <td>
               {% if row.region_label %}
-                {# Konkurs z własnym podziałem terytorialnym (flaga ``custom_regions``): nazwę
+                {% comment %} Konkurs z własnym podziałem terytorialnym (flaga ``custom_regions``): nazwę
                    regionu podaje widok. ``district_verified`` nie dotyczy regionu i nie zmienia
-                   swojej roli – mówi wyłącznie, skąd wzięła się wartość województwa. #}
+                   swojej roli – mówi wyłącznie, skąd wzięła się wartość województwa. {% endcomment %}
                 {{ row.region_label }}
               {% elif row.member.district %}
                 {{ row.member.get_district_display }}

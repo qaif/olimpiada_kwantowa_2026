@@ -230,6 +230,13 @@ def _issues(query: str, competition) -> list[Hit]:
     return hits
 
 
+def _screens(query: str, competition) -> list[Hit]:
+    """Ekrany panelu – pozycje menu pasujące do frazy (UX-PANEL-04, ``apps.coordinator_panel.screens``)."""
+    from apps.coordinator_panel.screens import screen_hits
+
+    return [Hit(label=label, meta=meta, url=url) for label, meta, url in screen_hits(query, competition)]
+
+
 #: Grupy osób – jedyne, w których działa przełącznik kont usuniętych.
 PEOPLE_GROUPS = frozenset({"participants", "members"})
 
@@ -240,6 +247,8 @@ GROUPS = (
     ("problems", "Zadania", _problems),
     ("stages", "Etapy", _stages),
     ("issues", "Zgłoszenia", _issues),
+    # Na końcu: fraza o osobie („Kowalski”) ma najpierw pokazać osobę, a nie ekran „Uczestnicy”.
+    ("screens", "Ekrany panelu", _screens),
 )
 
 

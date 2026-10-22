@@ -22,6 +22,29 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
 - `gitlab` zarezerwowany jako slug konkursu i host infrastruktury (laboratorium notatników).
 - Instalacja, aktualizacja i ograniczenia: `deploy/gitlab/README.md`.
 
+## [Unreleased] – Nowy panel koordynatora (UX-PANEL-04)
+
+- Audyt ergonomii panelu koordynatora i nowa rama (`docs/tasks/UX-PANEL-04.md`). Nowa aplikacja
+  `apps/coordinator_panel`; struktura sekcji i pozycji menu (`coordinator_nav`) **bez zmian**, żaden adres
+  nie znika.
+- **Start** `/coordinator/`: sprawy niezerowe na kaflach (doszły zaplanowane i nieudane wysyłki, zaświadczenia
+  o statusie ucznia do weryfikacji, zdublowane konta, wiadomości, forum), zerowe zwinięte w jedną linię;
+  karty „Najbliższe terminy” (etapy, warsztaty, wysyłki – 30 dni), „Konkurs w liczbach”, „Przypięte”,
+  „Szybkie skróty”; karty etapów jak dotąd. Liczniki pakietami w pamięci podręcznej per konkurs;
+  budżet zapytań `/coordinator/` 54 → 61 na zimno, stały na ciepło.
+- **Menu**: ikony sekcji, ekrany etapu zwinięte poza etapem bieżącym, na zwiniętym „Menu panelu” bieżąca
+  pozycja i suma spraw; **Przypięte** (model `PinnedItem`, migracja `coordinator_panel.0001_initial`,
+  POST `/coordinator/pins/`, najwyżej 8 pozycji menu) i **Ostatnio używane** (wyłącznie `localStorage`).
+- **Okruszki** z pozycji bieżącej menu; **paleta poleceń** Ctrl+K / ⌘K / „/” (plik statyczny, bez inline
+  JS); wyszukiwarka panelu znajduje też **ekrany** (grupa „Ekrany panelu”).
+- Nowy wygląd na tokenach ról (tryb ciemny, wysoki kontrast z poprawką liczby na odznakach, `forced-colors`,
+  RTL, cele dotyku 44 px), kolumna menu bez przyklejania (WCAG 2.4.11); naprawione wielowierszowe
+  komentarze `{# #}` widoczne na pięciu ekranach panelu (m.in. nad tabelą zadań etapu).
+- RODO: rejestr czynności **1.28** (przypięte pozycje w wierszu „serwis”), sekcja
+  `skroty_panelu_koordynatora` w eksporcie danych, kasowanie przy anonimizacji, reguła scalania `STAYS`.
+- Napisy nowych elementów w `apps/coordinator_panel/locale` (10 języków); istniejące ekrany panelu
+  koordynatora zostają po polsku.
+
 ## [Unreleased] – pypdf 6.21.2 (GHSA-qfv9-64jg-mh7p, GHSA-9mx8-4j7g-633p)
 
 - pypdf 6.20.0 → 6.21.2 w `backend/uv.lock` (pip-audit 21.10.2026; poprawka od 6.20.1).

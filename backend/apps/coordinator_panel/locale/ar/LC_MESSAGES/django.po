@@ -1,0 +1,191 @@
+# UX-PANEL-04 – napisy panelu koordynatora (ar): Start, paleta poleceń, okruszki, przypięte,
+# ostatnio używane. Źródło (msgid) po polsku; poza angielskim tłumaczenie
+# maszynowe – do przeglądu native speakera (I18N-01 § 8).
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada coordinator_panel\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-21 18:00+0200\n"
+"PO-Revision-Date: 2026-10-21 18:00+0200\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: ar\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=6; plural=(n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : n%100>=3 && n%100<=10 ? 3 : n%100>=11 ? 4 : 5);\n"
+
+msgid "Wyślij komunikat"
+msgstr "إرسال رسالة"
+
+msgid "Obecność na warsztatach"
+msgstr "الحضور في ورش العمل"
+
+msgid "Zaświadczenia z warsztatów"
+msgstr "شهادات ورش العمل"
+
+msgid "Zdublowane konta"
+msgstr "حسابات مكررة"
+
+msgid "Eksport danych"
+msgstr "تصدير البيانات"
+
+msgid "Zaplanowane wysyłki"
+msgstr "رسائل مجدولة"
+
+msgid "Komunikaty czekające na termin wysyłki."
+msgstr "رسائل بانتظار موعد إرسالها."
+
+msgid "Nieudane wysyłki"
+msgstr "رسائل فشل إرسالها"
+
+msgid "Komunikaty z ostatnich 30 dni, których nie udało się wysłać."
+msgstr "رسائل آخر 30 يومًا التي تعذر إرسالها."
+
+msgid "Nieprzeczytane rozmowy i kolejka moderacji."
+msgstr "محادثات غير مقروءة وقائمة الإشراف."
+
+msgid "Zaświadczenia do weryfikacji"
+msgstr "شهادات بانتظار التحقق"
+
+msgid "Zaświadczenia o statusie ucznia czekają na akceptację."
+msgstr "شهادات صفة الطالب بانتظار الموافقة."
+
+msgid "Ta sama osoba z kilkoma kontami uczestnika."
+msgstr "الشخص نفسه بعدة حسابات مشارك."
+
+msgid "Forum do moderacji"
+msgstr "المنتدى بانتظار الإشراف"
+
+msgid "Wątki, wpisy i zgłoszenia czekające na moderatora."
+msgstr "مواضيع ومشاركات وبلاغات بانتظار المشرف."
+
+msgid "Otwarcie etapu"
+msgstr "افتتاح المرحلة"
+
+msgid "Koniec oddawania prac"
+msgstr "نهاية تسليم الأعمال"
+
+msgid "Koniec recenzji"
+msgstr "نهاية المراجعة"
+
+msgid "Otwarcie okna reklamacji"
+msgstr "فتح باب الطعون"
+
+msgid "Zamknięcie okna reklamacji"
+msgstr "إغلاق باب الطعون"
+
+msgid "Wysyłka komunikatu"
+msgstr "إرسال الرسالة"
+
+msgid "Warsztat"
+msgstr "ورشة عمل"
+
+msgid "Przypiąć można wyłącznie pozycję menu panelu."
+msgstr "يمكن تثبيت عناصر قائمة اللوحة فقط."
+
+msgid "Przypięto. Pozycja stoi teraz nad sekcjami menu i na Starcie."
+msgstr "تم التثبيت. يظهر العنصر الآن فوق أقسام القائمة وفي صفحة البداية."
+
+msgid "Odpięto pozycję."
+msgstr "تم إلغاء تثبيت العنصر."
+
+#, python-format
+msgid "Masz już %(limit)s przypiętych pozycji – odepnij którąś, żeby dodać nową."
+msgstr "لديك بالفعل %(limit)s عناصر مثبتة – ألغِ تثبيت أحدها لإضافة عنصر جديد."
+
+msgid "Okruszki"
+msgstr "مسار التنقل"
+
+msgid "Przypięte"
+msgstr "المثبتة"
+
+msgid "odepnij"
+msgstr "إلغاء التثبيت"
+
+msgid "Komplet przypiętych pozycji – odepnij którąś na Starcie."
+msgstr "جميع خانات التثبيت مشغولة – ألغِ تثبيت أحدها في صفحة البداية."
+
+msgid "Przypnij"
+msgstr "تثبيت"
+
+msgid "Polecenia"
+msgstr "الأوامر"
+
+msgid "Ostatnio używane"
+msgstr "المستخدمة مؤخرًا"
+
+msgid "Szukaj w panelu"
+msgstr "البحث في اللوحة"
+
+msgid "Polecenia panelu koordynatora"
+msgstr "أوامر لوحة المنسق"
+
+msgid "Dokąd przejść? Ekran, sekcja albo fraza do wyszukania"
+msgstr "إلى أين؟ شاشة أو قسم أو عبارة للبحث"
+
+msgid "Dokąd przejść? Ekran, sekcja albo fraza…"
+msgstr "إلى أين؟ شاشة أو قسم أو عبارة…"
+
+msgid "Zamknij"
+msgstr "إغلاق"
+
+msgid "wybór"
+msgstr "اختيار"
+
+msgid "przejdź"
+msgstr "انتقال"
+
+msgid "zamknij"
+msgstr "إغلاق"
+
+#, python-format
+msgid "Ekrany etapu: %(stage)s"
+msgstr "شاشات المرحلة: %(stage)s"
+
+msgid "Wszystko na bieżąco."
+msgstr "كل شيء محدّث."
+
+msgid "Nic nie czeka na koordynatora – kolejki są puste."
+msgstr "لا شيء بانتظار المنسق – القوائم فارغة."
+
+msgid "W najbliższych 30 dniach nie ma terminów etapów, warsztatów ani zaplanowanych wysyłek."
+msgstr "لا توجد مواعيد مراحل أو ورش عمل أو رسائل مجدولة خلال الثلاثين يومًا القادمة."
+
+msgid "Wydarzenia linii czasu"
+msgstr "أحداث الجدول الزمني"
+
+msgid "Harmonogram warsztatów (CMS)"
+msgstr "جدول ورش العمل (CMS)"
+
+msgid "Konkurs w liczbach"
+msgstr "المسابقة بالأرقام"
+
+msgid "W tej edycji"
+msgstr "في هذه الدورة"
+
+msgid "Komitet (aktywni)"
+msgstr "اللجنة (النشطون)"
+
+msgid "Etapy otwarte"
+msgstr "المراحل المفتوحة"
+
+#, python-format
+msgid "Czeka na decyzję: %(count)s"
+msgstr "بانتظار القرار: %(count)s"
+
+#, python-format
+msgid "Bez zaległości: %(count)s"
+msgstr "لا شيء معلّق: %(count)s"
+
+#, python-format
+msgid "Stan z %(time)s, liczby odświeżają się co 5 minut. Bez kont usuniętych."
+msgstr "الوضع في %(time)s؛ تُحدَّث الأرقام كل 5 دقائق. دون الحسابات المحذوفة."
+
+#, python-format
+msgid "Odepnij: %(label)s"
+msgstr "إلغاء التثبيت: %(label)s"
+
+#, python-format
+msgid "Ekrany, po które sięgasz codziennie, przypnij przyciskiem „Przypnij” w nagłówku ekranu – staną tutaj i nad sekcjami menu (najwyżej %(limit)s)."
+msgstr "ثبّت الشاشات التي تستخدمها يوميًا بزر «تثبيت» في رأس الشاشة – ستظهر هنا وفوق أقسام القائمة (حتى %(limit)s)."

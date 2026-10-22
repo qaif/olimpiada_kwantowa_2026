@@ -1,0 +1,191 @@
+# UX-PANEL-04 – napisy panelu koordynatora (es): Start, paleta poleceń, okruszki, przypięte,
+# ostatnio używane. Źródło (msgid) po polsku; poza angielskim tłumaczenie
+# maszynowe – do przeglądu native speakera (I18N-01 § 8).
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada coordinator_panel\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-21 18:00+0200\n"
+"PO-Revision-Date: 2026-10-21 18:00+0200\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: es\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Wyślij komunikat"
+msgstr "Enviar un comunicado"
+
+msgid "Obecność na warsztatach"
+msgstr "Asistencia a los talleres"
+
+msgid "Zaświadczenia z warsztatów"
+msgstr "Certificados de los talleres"
+
+msgid "Zdublowane konta"
+msgstr "Cuentas duplicadas"
+
+msgid "Eksport danych"
+msgstr "Exportación de datos"
+
+msgid "Zaplanowane wysyłki"
+msgstr "Envíos programados"
+
+msgid "Komunikaty czekające na termin wysyłki."
+msgstr "Comunicados a la espera de su hora de envío."
+
+msgid "Nieudane wysyłki"
+msgstr "Envíos fallidos"
+
+msgid "Komunikaty z ostatnich 30 dni, których nie udało się wysłać."
+msgstr "Comunicados de los últimos 30 días que no se pudieron enviar."
+
+msgid "Nieprzeczytane rozmowy i kolejka moderacji."
+msgstr "Conversaciones no leídas y cola de moderación."
+
+msgid "Zaświadczenia do weryfikacji"
+msgstr "Certificados por verificar"
+
+msgid "Zaświadczenia o statusie ucznia czekają na akceptację."
+msgstr "Los certificados de estudiante esperan aprobación."
+
+msgid "Ta sama osoba z kilkoma kontami uczestnika."
+msgstr "La misma persona con varias cuentas de participante."
+
+msgid "Forum do moderacji"
+msgstr "Foro por moderar"
+
+msgid "Wątki, wpisy i zgłoszenia czekające na moderatora."
+msgstr "Hilos, mensajes y denuncias a la espera de un moderador."
+
+msgid "Otwarcie etapu"
+msgstr "Apertura de la etapa"
+
+msgid "Koniec oddawania prac"
+msgstr "Fin de la entrega de trabajos"
+
+msgid "Koniec recenzji"
+msgstr "Fin de la revisión"
+
+msgid "Otwarcie okna reklamacji"
+msgstr "Apertura del plazo de reclamaciones"
+
+msgid "Zamknięcie okna reklamacji"
+msgstr "Cierre del plazo de reclamaciones"
+
+msgid "Wysyłka komunikatu"
+msgstr "Envío del comunicado"
+
+msgid "Warsztat"
+msgstr "Taller"
+
+msgid "Przypiąć można wyłącznie pozycję menu panelu."
+msgstr "Solo se pueden fijar elementos del menú del panel."
+
+msgid "Przypięto. Pozycja stoi teraz nad sekcjami menu i na Starcie."
+msgstr "Fijado. El elemento aparece ahora sobre las secciones del menú y en Inicio."
+
+msgid "Odpięto pozycję."
+msgstr "Elemento desfijado."
+
+#, python-format
+msgid "Masz już %(limit)s przypiętych pozycji – odepnij którąś, żeby dodać nową."
+msgstr "Ya tienes %(limit)s elementos fijados: desfija uno para añadir otro."
+
+msgid "Okruszki"
+msgstr "Ruta de navegación"
+
+msgid "Przypięte"
+msgstr "Fijados"
+
+msgid "odepnij"
+msgstr "desfijar"
+
+msgid "Komplet przypiętych pozycji – odepnij którąś na Starcie."
+msgstr "Todos los espacios fijados están ocupados: desfija uno en Inicio."
+
+msgid "Przypnij"
+msgstr "Fijar"
+
+msgid "Polecenia"
+msgstr "Comandos"
+
+msgid "Ostatnio używane"
+msgstr "Usados recientemente"
+
+msgid "Szukaj w panelu"
+msgstr "Buscar en el panel"
+
+msgid "Polecenia panelu koordynatora"
+msgstr "Comandos del panel del coordinador"
+
+msgid "Dokąd przejść? Ekran, sekcja albo fraza do wyszukania"
+msgstr "¿Adónde ir? Una pantalla, una sección o una frase para buscar"
+
+msgid "Dokąd przejść? Ekran, sekcja albo fraza…"
+msgstr "¿Adónde ir? Pantalla, sección o frase…"
+
+msgid "Zamknij"
+msgstr "Cerrar"
+
+msgid "wybór"
+msgstr "elegir"
+
+msgid "przejdź"
+msgstr "ir"
+
+msgid "zamknij"
+msgstr "cerrar"
+
+#, python-format
+msgid "Ekrany etapu: %(stage)s"
+msgstr "Pantallas de la etapa: %(stage)s"
+
+msgid "Wszystko na bieżąco."
+msgstr "Todo al día."
+
+msgid "Nic nie czeka na koordynatora – kolejki są puste."
+msgstr "Nada espera al coordinador: las colas están vacías."
+
+msgid "W najbliższych 30 dniach nie ma terminów etapów, warsztatów ani zaplanowanych wysyłek."
+msgstr "En los próximos 30 días no hay fechas de etapas, talleres ni envíos programados."
+
+msgid "Wydarzenia linii czasu"
+msgstr "Eventos de la cronología"
+
+msgid "Harmonogram warsztatów (CMS)"
+msgstr "Calendario de talleres (CMS)"
+
+msgid "Konkurs w liczbach"
+msgstr "El concurso en cifras"
+
+msgid "W tej edycji"
+msgstr "En esta edición"
+
+msgid "Komitet (aktywni)"
+msgstr "Comité (activos)"
+
+msgid "Etapy otwarte"
+msgstr "Etapas abiertas"
+
+#, python-format
+msgid "Czeka na decyzję: %(count)s"
+msgstr "A la espera de decisión: %(count)s"
+
+#, python-format
+msgid "Bez zaległości: %(count)s"
+msgstr "Sin pendientes: %(count)s"
+
+#, python-format
+msgid "Stan z %(time)s, liczby odświeżają się co 5 minut. Bez kont usuniętych."
+msgstr "Datos de %(time)s; las cifras se actualizan cada 5 minutos. Sin cuentas eliminadas."
+
+#, python-format
+msgid "Odepnij: %(label)s"
+msgstr "Desfijar: %(label)s"
+
+#, python-format
+msgid "Ekrany, po które sięgasz codziennie, przypnij przyciskiem „Przypnij” w nagłówku ekranu – staną tutaj i nad sekcjami menu (najwyżej %(limit)s)."
+msgstr "Fija las pantallas que usas a diario con el botón «Fijar» del encabezado: aparecerán aquí y sobre las secciones del menú (hasta %(limit)s)."

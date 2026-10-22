@@ -235,6 +235,10 @@ class CoordinatorDashboardView(CoordinatorRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context.update(dashboard_context(self.competition))
+        # Start (UX-PANEL-04): sprawy, terminy, liczby konkursu i przypięte – dokładane, nic nie znika.
+        from apps.coordinator_panel.start import start_context
+
+        context.update(start_context(self.request, context))
         return context
 
 

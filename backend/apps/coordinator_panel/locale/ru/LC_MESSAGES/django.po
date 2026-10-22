@@ -1,0 +1,191 @@
+# UX-PANEL-04 – napisy panelu koordynatora (ru): Start, paleta poleceń, okruszki, przypięte,
+# ostatnio używane. Źródło (msgid) po polsku; poza angielskim tłumaczenie
+# maszynowe – do przeglądu native speakera (I18N-01 § 8).
+msgid ""
+msgstr ""
+"Project-Id-Version: olimpiada coordinator_panel\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-21 18:00+0200\n"
+"PO-Revision-Date: 2026-10-21 18:00+0200\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: ru\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
+
+msgid "Wyślij komunikat"
+msgstr "Отправить рассылку"
+
+msgid "Obecność na warsztatach"
+msgstr "Посещаемость мастер-классов"
+
+msgid "Zaświadczenia z warsztatów"
+msgstr "Сертификаты мастер-классов"
+
+msgid "Zdublowane konta"
+msgstr "Дублирующиеся аккаунты"
+
+msgid "Eksport danych"
+msgstr "Экспорт данных"
+
+msgid "Zaplanowane wysyłki"
+msgstr "Запланированные рассылки"
+
+msgid "Komunikaty czekające na termin wysyłki."
+msgstr "Рассылки, ожидающие времени отправки."
+
+msgid "Nieudane wysyłki"
+msgstr "Неудачные рассылки"
+
+msgid "Komunikaty z ostatnich 30 dni, których nie udało się wysłać."
+msgstr "Рассылки за последние 30 дней, которые не удалось отправить."
+
+msgid "Nieprzeczytane rozmowy i kolejka moderacji."
+msgstr "Непрочитанные разговоры и очередь модерации."
+
+msgid "Zaświadczenia do weryfikacji"
+msgstr "Справки к проверке"
+
+msgid "Zaświadczenia o statusie ucznia czekają na akceptację."
+msgstr "Справки о статусе учащегося ждут подтверждения."
+
+msgid "Ta sama osoba z kilkoma kontami uczestnika."
+msgstr "Один человек с несколькими аккаунтами участника."
+
+msgid "Forum do moderacji"
+msgstr "Форум к модерации"
+
+msgid "Wątki, wpisy i zgłoszenia czekające na moderatora."
+msgstr "Темы, сообщения и жалобы, ожидающие модератора."
+
+msgid "Otwarcie etapu"
+msgstr "Открытие этапа"
+
+msgid "Koniec oddawania prac"
+msgstr "Окончание приёма работ"
+
+msgid "Koniec recenzji"
+msgstr "Окончание проверки"
+
+msgid "Otwarcie okna reklamacji"
+msgstr "Открытие окна апелляций"
+
+msgid "Zamknięcie okna reklamacji"
+msgstr "Закрытие окна апелляций"
+
+msgid "Wysyłka komunikatu"
+msgstr "Отправка рассылки"
+
+msgid "Warsztat"
+msgstr "Мастер-класс"
+
+msgid "Przypiąć można wyłącznie pozycję menu panelu."
+msgstr "Закрепить можно только пункт меню панели."
+
+msgid "Przypięto. Pozycja stoi teraz nad sekcjami menu i na Starcie."
+msgstr "Закреплено. Пункт теперь стоит над разделами меню и на главной."
+
+msgid "Odpięto pozycję."
+msgstr "Пункт откреплён."
+
+#, python-format
+msgid "Masz już %(limit)s przypiętych pozycji – odepnij którąś, żeby dodać nową."
+msgstr "У вас уже %(limit)s закреплённых пунктов – открепите один, чтобы добавить новый."
+
+msgid "Okruszki"
+msgstr "Навигационная цепочка"
+
+msgid "Przypięte"
+msgstr "Закреплённые"
+
+msgid "odepnij"
+msgstr "открепить"
+
+msgid "Komplet przypiętych pozycji – odepnij którąś na Starcie."
+msgstr "Все места заняты – открепите пункт на главной."
+
+msgid "Przypnij"
+msgstr "Закрепить"
+
+msgid "Polecenia"
+msgstr "Команды"
+
+msgid "Ostatnio używane"
+msgstr "Недавние"
+
+msgid "Szukaj w panelu"
+msgstr "Искать в панели"
+
+msgid "Polecenia panelu koordynatora"
+msgstr "Команды панели координатора"
+
+msgid "Dokąd przejść? Ekran, sekcja albo fraza do wyszukania"
+msgstr "Куда перейти? Экран, раздел или фраза для поиска"
+
+msgid "Dokąd przejść? Ekran, sekcja albo fraza…"
+msgstr "Куда перейти? Экран, раздел или фраза…"
+
+msgid "Zamknij"
+msgstr "Закрыть"
+
+msgid "wybór"
+msgstr "выбор"
+
+msgid "przejdź"
+msgstr "перейти"
+
+msgid "zamknij"
+msgstr "закрыть"
+
+#, python-format
+msgid "Ekrany etapu: %(stage)s"
+msgstr "Экраны этапа: %(stage)s"
+
+msgid "Wszystko na bieżąco."
+msgstr "Всё в порядке."
+
+msgid "Nic nie czeka na koordynatora – kolejki są puste."
+msgstr "Для координатора ничего не ждёт – очереди пусты."
+
+msgid "W najbliższych 30 dniach nie ma terminów etapów, warsztatów ani zaplanowanych wysyłek."
+msgstr "В ближайшие 30 дней нет сроков этапов, мастер-классов и запланированных рассылок."
+
+msgid "Wydarzenia linii czasu"
+msgstr "События ленты времени"
+
+msgid "Harmonogram warsztatów (CMS)"
+msgstr "Расписание мастер-классов (CMS)"
+
+msgid "Konkurs w liczbach"
+msgstr "Конкурс в цифрах"
+
+msgid "W tej edycji"
+msgstr "В этом выпуске"
+
+msgid "Komitet (aktywni)"
+msgstr "Комитет (активные)"
+
+msgid "Etapy otwarte"
+msgstr "Открытые этапы"
+
+#, python-format
+msgid "Czeka na decyzję: %(count)s"
+msgstr "Ждут решения: %(count)s"
+
+#, python-format
+msgid "Bez zaległości: %(count)s"
+msgstr "Без задолженности: %(count)s"
+
+#, python-format
+msgid "Stan z %(time)s, liczby odświeżają się co 5 minut. Bez kont usuniętych."
+msgstr "Данные на %(time)s, обновляются каждые 5 минут. Без удалённых аккаунтов."
+
+#, python-format
+msgid "Odepnij: %(label)s"
+msgstr "Открепить: %(label)s"
+
+#, python-format
+msgid "Ekrany, po które sięgasz codziennie, przypnij przyciskiem „Przypnij” w nagłówku ekranu – staną tutaj i nad sekcjami menu (najwyżej %(limit)s)."
+msgstr "Закрепите экраны, которыми пользуетесь каждый день, кнопкой «Закрепить» в заголовке – они появятся здесь и над разделами меню (не более %(limit)s)."

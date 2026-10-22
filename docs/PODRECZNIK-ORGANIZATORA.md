@@ -17,11 +17,38 @@ Krótkie instrukcje do rozesłania: [`PODRECZNIK-UCZESTNIKA.md`](PODRECZNIK-UCZE
 Wejście: **`/coordinator/`** (nagłówek „Prowadzenie edycji <rocznik>”, sekcja **„Co wymaga uwagi”**).
 Każdy ekran panelu stoi w tej samej ramie: menu boczne po lewej, nagłówek z jednym zdaniem „po co jest
 ta strona” i akcją główną, treść pod spodem. Poniżej 900 px menu zwija się do rozwijanego
-**„Menu panelu”** na górze strony. Cały panel działa **bez JavaScriptu**.
+**„Menu panelu”** na górze strony (z nazwą ekranu, na którym jesteś, i sumą spraw czekających). Cały
+panel działa **bez JavaScriptu**; skrypt dokłada tylko paletę poleceń i listę „Ostatnio używane”.
 
-Na górze menu stoi **wyszukiwarka** (`/coordinator/search/?q=`) — jedno pole na pięć rodzajów obiektów:
-uczestnicy (kod publiczny, nazwisko, imię, e-mail, szkoła), członkowie komisji, zadania, etapy bieżącej
-edycji i zgłoszenia po numerze. Fraza krótsza niż dwa znaki nie szuka niczego.
+Na górze menu stoi **wyszukiwarka** (`/coordinator/search/?q=`) — jedno pole na sześć rodzajów: uczestnicy
+(kod publiczny, nazwisko, imię, e-mail, szkoła), członkowie komisji, zadania, etapy bieżącej edycji,
+zgłoszenia po numerze i **ekrany panelu** (pozycje menu: „lejek”, „zaswiadczenia” – bez polskich znaków
+też działa). Fraza krótsza niż dwa znaki nie szuka niczego.
+
+**Start i ergonomia panelu (UX-PANEL-04).**
+
+- **Start** (`/coordinator/`): na górze wyłącznie sprawy, które czekają (kafle z liczbą – kliknięcie
+  prowadzi do kolejki): moderacja, aktywacje, komitet, zgłoszenia, reklamacje, zaległe recenzje,
+  **zaplanowane i nieudane wysyłki** komunikatów (30 dni), **zaświadczenia o statusie ucznia do
+  weryfikacji** (przy włączonych zaświadczeniach), **zdublowane konta**, wiadomości i forum. Kolejki
+  z zerem są zwinięte w jedną linię „Bez zaległości”. Pod nimi karty: **Najbliższe terminy** (30 dni:
+  terminy etapów, warsztaty z harmonogramu na stronie „Warsztaty”, zaplanowane wysyłki; odnośnik do
+  edycji harmonogramu w CMS), **Konkurs w liczbach** (uczestnicy, uczestnicy tej edycji, szkoły, aktywny
+  komitet, otwarte etapy – odświeżane co 5 minut, bez kont usuniętych), **Przypięte** i **Szybkie skróty**
+  do najczęstszych zadań; niżej karty etapów jak dotąd. Liczby spraw odświeżają się co minutę, liczba
+  zdublowanych kont – co 10 minut.
+- **Paleta poleceń**: **Ctrl+K** (na Macu **⌘K**) albo **/** poza polem tekstowym, albo przycisk
+  „Polecenia” w menu. Wpisz fragment nazwy ekranu albo sekcji (bez polskich znaków też działa), strzałki
+  wybierają, **Enter** przechodzi, **Esc** zamyka; ostatnia pozycja „Szukaj w panelu” przekazuje frazę
+  do wyszukiwarki.
+- **Przypięte**: na ekranie, który jest pozycją menu, przycisk **„Przypnij”** w nagłówku dodaje go do
+  listy nad sekcjami menu i na Starcie (najwyżej 8, ponowne kliknięcie – „Przypięte” – odpina; odpiąć
+  można też krzyżykiem na Starcie). Lista należy do konta i konkursu i jest ta sama na każdym komputerze.
+- **Ostatnio używane**: ostatnie odwiedzone pozycje menu nad sekcjami – zapisywane wyłącznie
+  w przeglądarce (na innym komputerze lista jest inna; wyczyszczenie danych witryny ją kasuje).
+- **Okruszki** nad nagłówkiem ekranu: Start › sekcja › pozycja (› ekran etapu).
+- W sekcji **Etapy** ekrany etapu (Zadania, Przydziały i oceny, Postęp, Wyniki…) są rozwinięte tylko przy
+  etapie, na którym jesteś (albo przy etapie, który teraz trwa); strzałka przy nazwie etapu rozwija resztę.
 
 | Sekcja menu | Pozycje |
 |---|---|

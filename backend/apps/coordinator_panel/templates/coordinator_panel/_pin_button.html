@@ -1,0 +1,24 @@
+{% load i18n %}{% comment %}
+  „Przypnij do skrótów” / „Odepnij” w nagłówku ekranu (UX-PANEL-04 D9). Zwykły formularz POST – działa bez
+  JavaScriptu; ścieżka to adres **pozycji menu** bieżącego ekranu, a serwis przyjmuje wyłącznie pozycje menu.
+  Przy komplecie przypiętych przycisk znika, a zostaje zdanie, dlaczego (zamiast przycisku, który odmówi).
+{% endcomment %}{% if pin %}
+<form class="kp-pin" method="post" action="{% url 'web:coordinator-pin-toggle' %}">
+  {% csrf_token %}
+  <input type="hidden" name="path" value="{{ pin.path }}">
+  <input type="hidden" name="next" value="{{ request.get_full_path }}">
+  {% if pin.pinned %}
+    <button type="submit" class="kp-pin__button kp-pin__button--on" aria-pressed="true">
+      <svg class="kp-icon" aria-hidden="true" focusable="false"><use href="#kp-i-pin"></use></svg>
+      <span>{% translate "Przypięte" %}</span><span class="visually-hidden"> – {% translate "odepnij" %}: {{ pin.label }}</span>
+    </button>
+  {% elif pin.full %}
+    <p class="kp-pin__full">{% translate "Komplet przypiętych pozycji – odepnij którąś na Starcie." %}</p>
+  {% else %}
+    <button type="submit" class="kp-pin__button" aria-pressed="false">
+      <svg class="kp-icon" aria-hidden="true" focusable="false"><use href="#kp-i-pin"></use></svg>
+      <span>{% translate "Przypnij" %}</span><span class="visually-hidden">: {{ pin.label }}</span>
+    </button>
+  {% endif %}
+</form>
+{% endif %}
