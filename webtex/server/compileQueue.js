@@ -266,6 +266,8 @@ export function sendQueueError(res, err) {
 /** An AbortSignal that fires when the client goes away before the response was sent. */
 export function closeSignal(res) {
   const controller = new AbortController();
+  // Already gone (e.g. while the route waited for the client's edits to arrive).
+  if (res.destroyed) controller.abort(new Error('client closed the connection'));
   res.on('close', () => {
     if (!res.writableFinished) controller.abort(new Error('client closed the connection'));
   });
