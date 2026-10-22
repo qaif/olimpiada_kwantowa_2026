@@ -92,6 +92,27 @@ CREATE TABLE IF NOT EXISTS used_jti (
 // Platform projects that existed before the column: locked until the platform says otherwise.
 if (addAiLocked) db.exec(`UPDATE projects SET ai_locked = 1 WHERE id IN (SELECT project_id FROM linked_projects)`);
 
+// Version history (server/history.js). The content lives in files under projects/<id>/history/,
+// shared between snapshots by hash; a row is a point in time pointing at them.
+db.exec(`
+CREATE TABLE IF NOT EXISTS snapshots (
+  id         TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  created_at INTEGER NOT NULL,
+  -- auto | compile | submission | manual | pre-restore | restore
+  kind       TEXT NOT NULL,
+  label      TEXT,
+  meta       TEXT,                       -- JSON, e.g. what a restore restored
+  authors    TEXT NOT NULL DEFAULT '[]', -- JSON array of user ids who changed the project since the previous snapshot
+  actor_id   TEXT,                       -- who triggered it (compile, restore, named version)
+  state_hash TEXT NOT NULL,              -- states/<hash>.gz: Y.encodeStateAsUpdate of the project's Y.Doc
+  state_size INTEGER NOT NULL,
+  tree       TEXT NOT NULL,              -- JSON { entities: [{ id, parentId, name, kind, size, sha256 }], mainFileId }
+  tree_hash  TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS snapshots_by_project ON snapshots(project_id, created_at);
+`);
+
 export const one = (sql, ...args) => db.prepare(sql).get(...args);
 export const all = (sql, ...args) => db.prepare(sql).all(...args);
 export const run = (sql, ...args) => db.prepare(sql).run(...args);

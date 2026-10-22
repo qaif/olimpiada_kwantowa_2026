@@ -105,6 +105,7 @@ musi mieć wiersz z poprawną wartością domyślną, a każda flaga z tabeli �
 | Edytor LaTeX webTEX (pisanie i składanie rozwiązań) | `latex_editor` | flaga konkursu | wył. | § 55 | — |
 | Host i klucz edytora LaTeX | `WEBTEX_HOST`, `WEBTEX_SHARED_KEY` | `.env` | puste (wył.) | § 55.1 | — |
 | Udostępnianie linków / asystent AI w edytorze LaTeX | ustawienia etapu (`/coordinator/stages/<id>/latex/`) | pole etapu | wył. / wył. | § 55.3 | — |
+| Historia wersji w edytorze LaTeX: przechowywanie, limit na projekt | `WEBTEX_HISTORY_KEEP_DAYS`, `WEBTEX_HISTORY_MAX_MB` | `.env` | 365 dni, 100 MB | § 55.5 | — |
 <!-- funkcje-i-flagi: koniec -->
 
 ---
@@ -7560,13 +7561,15 @@ zmiennych: `webtex/README.md`). Klucze zostają po stronie serwera edytora, prze
 ### 55.4. Dane i kopie
 
 Projekty uczniów (szkice) leżą w wolumenie `webtex_data`: baza SQLite `/data/webtex.db` (konta
-edytora, projekty, członkostwa, powiązania z platformą), `/data/projects/<id>/` (stan dokumentów
-i pliki projektu) oraz `/data/compiles/` i `/data/outputs/` (katalogi robocze i PDF-y kompilacji).
+edytora, projekty, członkostwa, powiązania z platformą, spis wersji z historii – § 55.5),
+`/data/projects/<id>/` (stan dokumentów, pliki projektu i w `history/` treść jego wersji) oraz
+`/data/compiles/` i `/data/outputs/` (katalogi robocze i PDF-y kompilacji).
 **Złożone** rozwiązania są w MinIO i w kopii zapasowej jak każde inne. **Niezłożone szkice** trafiają
 do kopii nocnej, gdy profil `latex` jest włączony: paczka `webtex-<stamp>.tar.gpg` (§ 1.2, podkrok 2c)
 z migawką bazy i `projects/` – bez `compiles/` i `outputs/`, które edytor odtwarza przy następnej
-kompilacji. Kopia jest z 3:15, więc po odtworzeniu brakuje tego, co uczestnicy napisali od tamtej
-pory. Projekty kopiowane są sekundy po migawce bazy – plik dodany albo usunięty dokładnie w tych
+kompilacji. Historia wersji (§ 55.5) jest w tej samej paczce: spis wersji w bazie, ich treść
+w `projects/<id>/history/` – osobnego kroku kopii nie ma. Kopia jest z 3:15, więc po odtworzeniu
+brakuje tego, co uczestnicy napisali od tamtej pory (wersje z tego czasu też). Projekty kopiowane są sekundy po migawce bazy – plik dodany albo usunięty dokładnie w tych
 sekundach może być w `projects/`, a nie w bazie (lub odwrotnie); treść tekstu jest w `projects/`.
 
 **Odtwarzanie** (ręczne – `scripts/restore.sh` tej paczki nie obsługuje poza `--fetch`; zasada jak
@@ -7609,3 +7612,43 @@ Plik `webtex-przed-$S.tar` i rozszyfrowany `webtex-restore-$S.tar` trzymaj tydzi
 Na **nowym** serwerze: wdrożenie z profilem `latex` (§ 55.1), `docker compose up -d webtex` raz
 (powstaje wolumen), potem kroki 1–4. Bez profilu `latex` (edytor wyłączony) paczki nie powstają;
 ostatnią kopią szkiców jest ta z ostatniej nocy przed wyłączeniem (30 dni w `daily/`, 365 w `monthly/`).
+
+**Jeden projekt zamiast całego wolumenu.** Gdy szkic zepsuł się jednemu uczestnikowi, zwykle
+wystarczy historia wersji w edytorze (§ 55.5) – bez odtwarzania kopii i bez zatrzymywania edytora.
+
+### 55.5. Historia wersji
+
+Edytor sam zapisuje wersje każdego projektu: po chwili bez zmian (2 min), co 10 min ciągłej pracy,
+przy każdej udanej kompilacji uruchomionej przez uczestnika (przycisk, Ctrl+S – nie automatyczna po
+pisaniu) i przy **złożeniu rozwiązania** – ta wersja ma podpis „Złożone jako rozwiązanie – wersja N”
+(N z serwisu, w języku uczestnika) i jest dowodem przy odwołaniu: pokazuje szkic w chwili złożenia.
+Uczestnik i współpracownicy z prawem edycji mogą też zapisać wersję z nazwą. Panel **Historia**
+w edytorze: lista wersji z autorami zmian, porównanie z bieżącym stanem (plik po pliku), pobranie
+wersji jako `.zip`, przywrócenie całego projektu albo jednego pliku. Przywrócenie to nowa zmiana
+(współpracownicy widzą ją na żywo), a stan sprzed niej zostaje zapisany jako wersja – „Cofnij
+przywrócenie”. Osoby z dostępem tylko do odczytu historię oglądają, nie przywracają; po wyłączeniu
+udostępniania na etapie (§ 55.3) współpracownicy tracą ją razem z projektem.
+
+**Przechowywanie.** Wszystkie wersje z ostatniej doby, potem jedna na godzinę do 7 dni, potem jedna
+na dzień; nic starszego niż `WEBTEX_HISTORY_KEEP_DAYS` dni – to dotyczy także złożeń (domyślnie
+365, `0` = bez limitu). Ponad `WEBTEX_HISTORY_MAX_MB` na projekt (domyślnie 100) znikają najstarsze wersje
+automatyczne; złożenia i wersje z nazwą zostają (przerzedzanie ich nie dotyczy), najnowsza też.
+Treść jest zapisana raz, choćby była w wielu wersjach (identyczne pliki i stany – po sha256), więc
+typowy szkic to kilkadziesiąt–kilkaset KB historii. Zmiana zmiennych: `.env`, potem
+`docker compose up -d webtex`; nowe zasady obejmują stare wersje przy najbliższym przeglądzie (co godzinę).
+
+**Wersja dla komisji (odwołanie).** Uczestnik może ją pobrać sam (`.zip` w panelu Historia). Bez
+niego – na serwerze, po identyfikatorze użytkownika platformy (`sub` w tokenie SSO = `User.pk`):
+
+```bash
+docker compose exec -T webtex node server/history-cli.js list 1234     # id, czas UTC, rodzaj, projekt, podpis
+docker compose exec -T webtex node server/history-cli.js zip <id> > wersja.zip
+```
+
+Projekt to `<konkurs>/s<etap>/p<zadanie>`, rodzaj `submission` – złożenie (podpis z numerem wersji
+z serwisu). `.zip` zawiera pliki projektu w stanie z tej chwili. Treść leży w wolumenie jako
+`projects/<id>/history/states/<sha256>.gz` (stan dokumentów Yjs) i `history/blobs/<sha256>` (obrazy
+itp.), spis w tabeli `snapshots` bazy edytora. Wyłączenie historii: `HISTORY_ENABLED=false`
+w środowisku usługi `webtex` (compose tej zmiennej nie przekazuje – nakładka
+`docker-compose.override.yml`); zapisane wersje zostają na dysku.
+
