@@ -8,7 +8,8 @@ import { config, paths } from './config.js';
 import { all, one, run } from './db.js';
 import { requireUser } from './auth.js';
 import { broadcast, getShared, getText, kick, setTexts } from './collab.js';
-import { ENGINES, clearCache, compileProject, detectBackend, engineRefusal } from './compiler.js';
+import { ENGINES, clearCache, compileProject, compileQueue, detectBackend, engineRefusal } from './compiler.js';
+import { QueueBusyError, closeSignal, sendQueueError } from './compileQueue.js';
 import { forwardSearch, inverseSearch, loadSynctex } from './synctex.js';
 import { canUseAi } from './aiPolicy.js';
 import { TEMPLATES } from './templates.js';
@@ -442,8 +443,26 @@ projectsRouter.post('/:id/compile', async (req, res) => {
   // The client sends its Yjs state vector so we compile only after its latest edits
   // (which travel over the WebSocket) have reached the server.
   if (typeof req.body?.stateVector === 'string') await waitForState(project.id, req.body.stateVector);
-  const result = await compileProject(project, { stopOnFirstError: !!req.body?.stopOnFirstError });
+  let result;
+  try {
+    result = await compileProject(project, {
+      stopOnFirstError: !!req.body?.stopOnFirstError,
+      user: req.user.id,
+      signal: closeSignal(res),
+    });
+  } catch (err) {
+    if (err instanceof QueueBusyError) return sendQueueError(res, err);
+    if (res.destroyed) return; // the browser gave up while the compile was queued
+    throw err;
+  }
   res.json(result);
+});
+
+// Polled by the editor while its compile request is pending: queue position for the button.
+projectsRouter.get('/:id/compile/status', (req, res) => {
+  const { project } = access(req, 'viewer');
+  res.set('Cache-Control', 'no-store');
+  res.json(compileQueue.status(project.id) || { state: 'idle' });
 });
 
 projectsRouter.post('/:id/clear-cache', async (req, res) => {
@@ -493,6 +512,6 @@ projectsRouter.get('/:id/synctex/code', async (req, res) => {
 });
 
 export async function compilerStatus() {
-  return { backend: await detectBackend() };
+  return { backend: await detectBackend(), queue: compileQueue.stats() };
 }
 

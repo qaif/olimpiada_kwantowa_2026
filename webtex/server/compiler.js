@@ -8,6 +8,7 @@ import { config, paths } from './config.js';
 import { getText } from './collab.js';
 import { entityPaths, listEntities } from './tree.js';
 import { parseLatexmkOutput, parseLog } from './logParser.js';
+import { CompileQueue } from './compileQueue.js';
 import { exists, newId } from './util.js';
 
 export const ENGINES = { pdflatex: '-pdf', xelatex: '-xelatex', lualatex: '-lualatex' };
@@ -37,7 +38,11 @@ export function engineRefusal(compiler) {
   return null;
 }
 
-function runProcess(cmd, args, { cwd, timeoutMs, onTimeout, env = { ...process.env, ...TEX_ENV } } = {}) {
+// `group`: the command runs in its own process group and a timeout kills the whole group. latexmk
+// starts TeX, biber, ... as children; killing latexmk alone would leave them running (and holding
+// the output pipe open) after the timeout.
+function runProcess(cmd, args, { cwd, timeoutMs, onTimeout, group = false, env = { ...process.env, ...TEX_ENV } } = {}) {
+  const ownGroup = group && process.platform !== 'win32';
   return new Promise((resolve) => {
     let out = '';
     let timedOut = false;
@@ -47,15 +52,24 @@ function runProcess(cmd, args, { cwd, timeoutMs, onTimeout, env = { ...process.e
         cwd,
         env,
         windowsHide: true,
+        detached: ownGroup,
       });
     } catch (err) {
       return resolve({ code: -1, out: String(err), timedOut, spawnError: err });
     }
+    const killGroup = () => {
+      try {
+        process.kill(-child.pid, 'SIGKILL');
+        return true;
+      } catch {
+        return false;
+      }
+    };
     const timer = timeoutMs
       ? setTimeout(() => {
           timedOut = true;
           onTimeout?.();
-          child.kill('SIGKILL');
+          if (!(ownGroup && child.pid && killGroup())) child.kill('SIGKILL');
         }, timeoutMs)
       : null;
     const append = (d) => {
@@ -67,9 +81,11 @@ function runProcess(cmd, args, { cwd, timeoutMs, onTimeout, env = { ...process.e
       clearTimeout(timer);
       resolve({ code: -1, out: out + String(err), timedOut, spawnError: err });
     });
-    child.on('close', (code) => {
+    child.on('close', (code, signal) => {
       clearTimeout(timer);
-      resolve({ code, out, timedOut });
+      // Leftovers of a run that ended by itself (a process that detached from latexmk) go too.
+      if (ownGroup && child.pid) killGroup();
+      resolve({ code, signal, out, timedOut });
     });
   });
 }
@@ -100,24 +116,55 @@ const SANDBOX = path.join(GUARD_DIR, 'sandbox.pl');
 const SANDBOX_RO = ['/usr', '/bin', '/sbin', '/lib', '/lib32', '/lib64', '/etc', '/opt', '/var/lib/texmf', '/var/cache/fontconfig'];
 const SANDBOX_DEVICES = ['/dev/null', '/dev/zero', '/dev/random', '/dev/urandom'];
 
+const LIMITS = path.join(GUARD_DIR, 'limits.pl');
+
 let localIsolation = null;
 export async function localCompileIsolation() {
   if (localIsolation) return localIsolation;
   let landlock = false;
+  let limits = false;
   const texRoots = [];
   if (process.platform === 'linux') {
     landlock = (await runProcess('perl', [SANDBOX, '--check'], { timeoutMs: 15000 })).code === 0;
+    limits = (await runProcess('perl', [LIMITS, '--check'], { timeoutMs: 15000 })).code === 0;
     const root = await runProcess('kpsewhich', ['-var-value=TEXMFROOT'], { timeoutMs: 15000 });
     if (root.code === 0 && root.out.trim().startsWith('/')) texRoots.push(root.out.trim());
   }
   const probe = await runProcess('kpsewhich', ['-safe-in-name=/etc/passwd'], { timeoutMs: 15000 });
   const openinEnforced = !probe.spawnError && probe.code !== 0;
-  localIsolation = { landlock, openinEnforced, texRoots };
+  localIsolation = { landlock, openinEnforced, texRoots, limits };
+  const l = localLimits();
   console.log(
     `webTEX: local compiles ${landlock ? 'sandboxed with Landlock' : 'NOT sandboxed (Landlock unavailable)'}, ` +
-      `openin_any ${openinEnforced ? 'enforced' : 'not enforced by this TeX'}`,
+      `openin_any ${openinEnforced ? 'enforced' : 'not enforced by this TeX'}, ` +
+      (limits
+        ? `limits per process: memory ${Math.round(l.as / 2 ** 20)} MB, CPU ${l.cpu} s, file ${Math.round(l.fsize / 2 ** 20)} MB, nice 10`
+        : 'NO resource limits (setrlimit unavailable)'),
   );
   return localIsolation;
+}
+
+/** Parses a Docker-style size ("1g", "512m", "800000k", bytes) into bytes; null when invalid. */
+function parseSize(value) {
+  const m = /^\s*(\d+(?:\.\d+)?)\s*([kmgt]?)b?\s*$/i.exec(String(value ?? ''));
+  if (!m) return null;
+  const mult = { '': 1, k: 2 ** 10, m: 2 ** 20, g: 2 ** 30, t: 2 ** 40 }[m[2].toLowerCase()];
+  return Math.floor(Number(m[1]) * mult) || null;
+}
+
+function localLimits() {
+  return {
+    as: parseSize(config.compiler.memory) || 2 ** 30,
+    cpu: Math.max(1, Math.ceil(config.compiler.cpuSec)),
+    fsize: Math.max(1, config.compiler.maxFileMb) * 2 ** 20,
+  };
+}
+
+/** Prefixes a local command with server/tex/limits.pl (rlimits inherited by everything it starts). */
+function withLimits(isolation, cmd, args) {
+  if (!isolation?.limits) return [cmd, args];
+  const l = localLimits();
+  return ['perl', [LIMITS, '--as', String(l.as), '--cpu', String(l.cpu), '--fsize', String(l.fsize), '--nice', '10', '--', cmd, ...args]];
 }
 
 /** Environment for local TeX runs: only what TeX needs, never the server's secrets. */
@@ -182,21 +229,32 @@ async function materialize(projectId) {
   return { dir, pathOf };
 }
 
-const locks = new Map();
+// Every compile goes through one queue (server/compileQueue.js): a global concurrency limit,
+// submission builds first, one compile per project at a time.
+export const compileQueue = new CompileQueue({
+  concurrency: config.compiler.concurrency,
+  maxQueue: config.compiler.queueMax,
+  maxWaitMs: { build: config.compiler.buildMaxWaitSec * 1000, interactive: config.compiler.queueMaxWaitSec * 1000 },
+  warnWaitMs: config.compiler.queueWarnSec * 1000,
+});
 
-export async function compileProject(project, { stopOnFirstError = false } = {}) {
-  const previous = locks.get(project.id) || Promise.resolve();
-  const job = previous.catch(() => {}).then(() => doCompile(project, { stopOnFirstError }));
-  locks.set(project.id, job);
-  try {
-    const result = await job;
-    if (result.status !== 'unavailable') {
-      lastResults.set(project.id, { status: result.status, message: result.message || null, issues: result.issues || [], at: Date.now() });
-    }
-    return result;
-  } finally {
-    if (locks.get(project.id) === job) locks.delete(project.id);
+/**
+ * Compiles a project when the queue lets it. `kind` is 'build' for the platform's submission builds
+ * (they go first), 'interactive' otherwise; `user` is who asked (per-user cap); `signal` drops a
+ * still queued compile when the caller goes away. Throws QueueBusyError when the queue refuses it.
+ */
+export async function compileProject(project, { stopOnFirstError = false, user = null, kind = 'interactive', signal } = {}) {
+  const result = await compileQueue.submit({
+    project: project.id,
+    user,
+    kind,
+    signal,
+    run: async ({ waitMs }) => ({ ...(await doCompile(project, { stopOnFirstError })), queuedMs: waitMs }),
+  });
+  if (result.status !== 'unavailable') {
+    lastResults.set(project.id, { status: result.status, message: result.message || null, issues: result.issues || [], at: Date.now() });
   }
+  return result;
 }
 
 // Last compile outcome per project (whoever compiled it), for the AI assistant's "fix errors".
@@ -310,10 +368,12 @@ async function doCompile(project, { stopOnFirstError }) {
         ...SANDBOX_DEVICES.flatMap((p) => ['--dev', p]),
         '--', 'latexmk', ...latexmkArgs,
       ];
-      result = await runProcess('perl', sandboxArgs, { cwd: dir, timeoutMs, env });
+      result = await runProcess(...withLimits(isolation, 'perl', sandboxArgs), { cwd: dir, timeoutMs, env, group: true });
     } else {
-      result = await runProcess('latexmk', latexmkArgs, { cwd: dir, timeoutMs, env });
+      result = await runProcess(...withLimits(isolation, 'latexmk', latexmkArgs), { cwd: dir, timeoutMs, env, group: true });
     }
+    // RLIMIT_CPU ends a runaway TeX run with SIGXCPU (then SIGKILL): report it like the wall-clock timeout.
+    if (result.signal === 'SIGXCPU' || /\bCPU time limit exceeded\b/.test(result.out)) result.timedOut = true;
   } else {
     const name = `webtex-${project.id.replace(/[^\w-]/g, '')}-${newId(4).replace(/[^\w]/g, '')}`;
     const args = [

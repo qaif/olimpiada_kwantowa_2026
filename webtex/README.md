@@ -80,8 +80,17 @@ Wszystkie ustawienia to zmienne środowiskowe (szablon: [`.env.example`](.env.ex
 | `COMPILE_BACKEND` | `auto` | `auto` (lokalny `latexmk`, a jeśli go nie ma, to Docker), `local` albo `docker` |
 | `COMPILE_IMAGE` | `webtex-texlive` | Obraz Dockera używany do kompilacji |
 | `COMPILE_TIMEOUT` | `90` | Limit czasu jednej kompilacji w sekundach |
-| `COMPILE_MEMORY` | `1g` | Limit pamięci kontenera kompilacji (tylko `docker`) |
+| `COMPILE_MEMORY` | `1g` | Limit pamięci kontenera kompilacji (`docker`); przy `local` limit przestrzeni adresowej każdego procesu TeX-a (`server/tex/limits.pl`) |
 | `COMPILE_CPUS` | `2` | Limit CPU kontenera kompilacji (tylko `docker`) |
+| `COMPILE_CPU_SECONDS` | `COMPILE_TIMEOUT` | Limit czasu procesora każdego procesu TeX-a (tylko `local`) |
+| `COMPILE_MAX_FILE_MB` | `256` | Największy plik, jaki może zapisać kompilacja (tylko `local`) |
+| `COMPILE_CONCURRENCY` | liczba CPU | Ile kompilacji naraz (globalna kolejka, `server/compileQueue.js`) |
+| `COMPILE_QUEUE_MAX` | `100` | Ile kompilacji może czekać; dalsze dostają 503 `compiler_busy` |
+| `COMPILE_QUEUE_MAX_WAIT` | `120` | Po tylu sekundach w kolejce kompilacja z edytora dostaje 503 |
+| `COMPILE_BUILD_MAX_WAIT` | `60` | To samo dla budowania PDF-u do złożenia (`/api/integration/build`) |
+| `COMPILE_QUEUE_WARN` | `30` | Ostrzeżenie w logu, gdy kompilacja czekała dłużej niż tyle sekund |
+
+Wszystkie kompilacje idą przez jedną kolejkę: najwyżej `COMPILE_CONCURRENCY` naraz, nigdy dwie jednego projektu, budowanie do złożenia (platforma) przed kompilacjami z edytora, użytkownik ma najwyżej jedną kompilację w toku i jedną w kolejce, a kolejne żądania tego samego projektu zastępują czekające (każdy dostaje najnowszy wynik). Edytor pokazuje na przycisku „W kolejce (n)” i rzadziej kompiluje automatycznie, gdy serwer jest zajęty. Stan kolejki: `GET /api/health` z pętli zwrotnej (`queue`) i podpisane `GET /api/integration/health`. Test obciążeniowy: `scripts/load-test.mjs`.
 
 Za reverse proxy (nginx, Caddy) trzeba przepuścić WebSockety na ścieżce `/ws/` i ustawić `SECURE_COOKIES=true`, jeśli serwujesz przez HTTPS.
 
@@ -379,7 +388,7 @@ Both images use the **full, current TeX Live** (`scheme-full` without docs and s
 
 ## Configuration
 
-All settings are environment variables. See the table above and [`.env.example`](.env.example): `PORT`, `HOST`, `DATA_DIR`, `ALLOW_REGISTRATION`, `SECURE_COOKIES`, `MAX_UPLOAD_MB`, `COMPILE_BACKEND` (`auto` | `local` | `docker`), `COMPILE_IMAGE`, `COMPILE_TIMEOUT`, `COMPILE_MEMORY`, `COMPILE_CPUS`. Behind a reverse proxy, forward WebSockets on `/ws/`.
+All settings are environment variables. See the table above and [`.env.example`](.env.example): `PORT`, `HOST`, `DATA_DIR`, `ALLOW_REGISTRATION`, `SECURE_COOKIES`, `MAX_UPLOAD_MB`, `COMPILE_BACKEND` (`auto` | `local` | `docker`), `COMPILE_IMAGE`, `COMPILE_TIMEOUT`, `COMPILE_MEMORY`, `COMPILE_CPUS`, `COMPILE_CPU_SECONDS`, `COMPILE_MAX_FILE_MB`, and the global compile queue: `COMPILE_CONCURRENCY` (default: CPU count), `COMPILE_QUEUE_MAX`, `COMPILE_QUEUE_MAX_WAIT`, `COMPILE_BUILD_MAX_WAIT`, `COMPILE_QUEUE_WARN`. Behind a reverse proxy, forward WebSockets on `/ws/`.
 
 ## Architecture
 
