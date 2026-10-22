@@ -11,6 +11,17 @@ import { broadcast, getShared, getText, kick, setTexts } from './collab.js';
 import { ENGINES, clearCache, compileProject, detectBackend, engineRefusal } from './compiler.js';
 import { forwardSearch, inverseSearch, loadSynctex } from './synctex.js';
 import { canUseAi } from './aiPolicy.js';
+import {
+  captureForSnapshot,
+  listSnapshots,
+  noteChange,
+  restoreSnapshot,
+  snapshotAfterCompile,
+  snapshotDetails,
+  snapshotFile,
+  snapshotZip,
+  takeSnapshot,
+} from './history.js';
 import { TEMPLATES } from './templates.js';
 import {
   createDoc,
@@ -62,7 +73,11 @@ function assertSharingAllowed(project) {
   if (project.sharing_locked) throw new HttpError(403, SHARING_LOCKED);
 }
 
-const touch = (projectId) => run(`UPDATE projects SET updated_at = ? WHERE id = ?`, now(), projectId);
+// A change of the project by req.user: last-modified time, and the version history's change tracking.
+const touch = (projectId, req = null) => {
+  run(`UPDATE projects SET updated_at = ? WHERE id = ?`, now(), projectId);
+  if (req) noteChange(projectId, req.user.id);
+};
 
 // External users' emails are synthetic placeholders; never show them.
 const EMAIL = `CASE WHEN u.external_id IS NULL THEN u.email END`;
@@ -229,7 +244,7 @@ projectsRouter.patch('/:id', (req, res) => {
     if (e.kind !== 'doc' || !e.name.toLowerCase().endsWith('.tex')) throw new HttpError(400, 'Main file must be a .tex document');
     run(`UPDATE projects SET main_file_id = ? WHERE id = ?`, e.id, project.id);
   }
-  touch(project.id);
+  touch(project.id, req);
   projectEvent(project.id);
   res.json({ ok: true });
 });
@@ -360,7 +375,7 @@ projectsRouter.post('/:id/entities', async (req, res) => {
   if (kind === 'folder') id = createFolder(project.id, parentId, name);
   else if (kind === 'doc') id = await createDoc(project.id, parentId, name, '');
   else throw new HttpError(400, 'Invalid kind');
-  touch(project.id);
+  touch(project.id, req);
   treeEvent(project.id);
   res.json({ id });
 });
@@ -380,7 +395,7 @@ projectsRouter.post('/:id/upload', upload.array('files'), async (req, res) => {
     ids.push(await putFileAtPath(project.id, parentId, rel, f.buffer));
   }
   if (!project.main_file_id) await finalizeProject(project.id);
-  touch(project.id);
+  touch(project.id, req);
   treeEvent(project.id);
   projectEvent(project.id);
   res.json({ ids });
@@ -389,7 +404,7 @@ projectsRouter.post('/:id/upload', upload.array('files'), async (req, res) => {
 projectsRouter.patch('/:id/entities/:entityId', (req, res) => {
   const { project } = access(req, 'editor');
   moveEntity(project.id, req.params.entityId, { name: req.body?.name, parentId: req.body?.parentId });
-  touch(project.id);
+  touch(project.id, req);
   treeEvent(project.id);
   res.json({ ok: true });
 });
@@ -398,7 +413,7 @@ projectsRouter.delete('/:id/entities/:entityId', async (req, res) => {
   const { project } = access(req, 'editor');
   getEntity(project.id, req.params.entityId);
   await deleteEntity(project.id, req.params.entityId);
-  touch(project.id);
+  touch(project.id, req);
   treeEvent(project.id);
   projectEvent(project.id);
   res.json({ ok: true });
@@ -442,7 +457,11 @@ projectsRouter.post('/:id/compile', async (req, res) => {
   // The client sends its Yjs state vector so we compile only after its latest edits
   // (which travel over the WebSocket) have reached the server.
   if (typeof req.body?.stateVector === 'string') await waitForState(project.id, req.body.stateVector);
+  // A successful compile asked for by someone (button, Ctrl+S) is a version worth keeping; compiles
+  // the editor starts by itself after typing (`auto`) are left to the edits-settled snapshots.
+  const capture = req.body?.auto === true ? null : await captureForSnapshot(project.id);
   const result = await compileProject(project, { stopOnFirstError: !!req.body?.stopOnFirstError });
+  await snapshotAfterCompile(project.id, capture, result, { actorId: req.user.id });
   res.json(result);
 });
 
@@ -490,6 +509,73 @@ projectsRouter.get('/:id/synctex/pdf', async (req, res) => {
 projectsRouter.get('/:id/synctex/code', async (req, res) => {
   const data = await synctexFor(req);
   res.json({ boxes: forwardSearch(data, String(req.query.file || ''), Number(req.query.line)) });
+});
+
+// ---------- version history (server/history.js) ----------
+
+function historyAccess(req, minRole) {
+  if (!config.history.enabled) throw new HttpError(404, 'Version history is disabled on this server');
+  return access(req, minRole);
+}
+
+const cleanLabel = (v) => (typeof v === 'string' ? v.trim().replace(/\s+/g, ' ').slice(0, 120) : '');
+
+projectsRouter.get('/:id/history', (req, res) => {
+  const { project, role } = historyAccess(req, 'viewer');
+  res.json({ snapshots: listSnapshots(project.id), canRestore: ROLE_RANK[role] >= ROLE_RANK.editor, keepDays: config.history.keepDays });
+});
+
+// A named version, e.g. "before rewriting the proof".
+projectsRouter.post('/:id/history', async (req, res) => {
+  const { project } = historyAccess(req, 'editor');
+  const label = cleanLabel(req.body?.label);
+  if (!label) throw new HttpError(400, 'Give the version a name');
+  const r = await takeSnapshot(project.id, { kind: 'manual', label, actorId: req.user.id, force: true });
+  res.json({ snapshot: r.snapshot });
+});
+
+projectsRouter.get('/:id/history/:snapshotId', async (req, res) => {
+  const { project } = historyAccess(req, 'viewer');
+  res.json(await snapshotDetails(project.id, req.params.snapshotId));
+});
+
+projectsRouter.get('/:id/history/:snapshotId/files/:entityId', async (req, res) => {
+  const { project } = historyAccess(req, 'viewer');
+  const f = await snapshotFile(project.id, req.params.snapshotId, req.params.entityId);
+  res.setHeader('Content-Disposition', `inline; filename*=UTF-8''${encodeURIComponent(f.entity.name)}`);
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Content-Security-Policy', "default-src 'none'; style-src 'unsafe-inline'; sandbox");
+  res.setHeader('Cache-Control', 'private, max-age=86400'); // a snapshot never changes
+  if (f.text !== undefined) return res.type('text/plain; charset=utf-8').send(f.text);
+  res.type(path.extname(f.entity.name) || 'application/octet-stream');
+  res.sendFile(f.file, (err) => {
+    if (err && !res.headersSent) res.status(404).json({ error: 'File not found' });
+  });
+});
+
+projectsRouter.get('/:id/history/:snapshotId/download', async (req, res) => {
+  const { project } = historyAccess(req, 'viewer');
+  const { zip, createdAt } = await snapshotZip(project.id, req.params.snapshotId);
+  const stamp = new Date(createdAt).toISOString().slice(0, 16).replace(/[:T]/g, '-');
+  const safe = project.name.replace(/[^\w\- ]+/g, '_').trim() || 'project';
+  res.setHeader('Content-Type', 'application/zip');
+  res.setHeader(
+    'Content-Disposition',
+    `attachment; filename="${safe} ${stamp}.zip"; filename*=UTF-8''${encodeURIComponent(`${project.name} ${stamp}`)}.zip`,
+  );
+  res.end(Buffer.from(zip));
+});
+
+// Restores the whole version, or one file of it ({ entityId }), as a new change everyone receives.
+projectsRouter.post('/:id/history/:snapshotId/restore', async (req, res) => {
+  const { project } = historyAccess(req, 'editor');
+  const entityId = req.body?.entityId;
+  if (entityId != null && typeof entityId !== 'string') throw new HttpError(400, 'Invalid file');
+  const result = await restoreSnapshot(project.id, req.params.snapshotId, { entityId: entityId || null, actorId: req.user.id });
+  touch(project.id);
+  treeEvent(project.id);
+  projectEvent(project.id);
+  res.json(result);
 });
 
 export async function compilerStatus() {

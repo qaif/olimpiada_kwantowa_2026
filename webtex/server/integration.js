@@ -1,6 +1,6 @@
 // Quantum Olympiad platform integration (docs/tasks/TEX-01.md), active with WEBTEX_INTEGRATION=true.
 //   POST /api/integration/sso      browser, body {token}: one-time JWT from the platform → session + project
-//   POST /api/integration/build    signed: fresh compile, responds with the PDF
+//   POST /api/integration/build    signed: fresh compile, responds with the PDF (+ labelled history snapshot)
 //   POST /api/integration/sharing  signed: lock/unlock link sharing for every project in a scope
 //   POST /api/integration/ai       signed: enable/disable the AI assistant for a scope (TEX-02)
 //   GET  /api/integration/health   signed
@@ -14,6 +14,7 @@ import { startSession } from './auth.js';
 import { kickExcept } from './collab.js';
 import { setAiLocked, setAiLockedForScope } from './aiPolicy.js';
 import { compileProject, detectBackend } from './compiler.js';
+import { captureForSnapshot, snapshotAfterCompile } from './history.js';
 import { cleanName, createProjectWithFiles, escapeTex } from './projects.js';
 import { olympiadSolution } from './templates.js';
 import { TokenError, consumeJti, deriveKeys, verifyJwt, verifyRequestSignature } from './integrationCrypto.js';
@@ -169,7 +170,9 @@ integrationRouter.post('/build', signed, async (req, res) => {
   const body = jsonBody(req);
   const sub = typeof body?.sub === 'string' ? body.sub.trim() : '';
   const projectKey = typeof body?.project === 'string' ? body.project.trim() : '';
-  if (!sub || !projectKey) return res.status(400).json({ error: 'bad_request' });
+  // Optional, added later (older platforms omit it): the history label of this submission.
+  if (!sub || !projectKey || (body.label != null && typeof body.label !== 'string')) return res.status(400).json({ error: 'bad_request' });
+  const label = str(body.label, 120) || null;
 
   const project = one(
     `SELECT p.* FROM linked_projects l
@@ -182,6 +185,7 @@ integrationRouter.post('/build', signed, async (req, res) => {
   if (!project) return res.status(404).json({ error: 'no_project' });
   if ((await detectBackend()) === 'none') return res.status(503).json({ error: 'compiler_unavailable' });
 
+  const capture = await captureForSnapshot(project.id);
   const result = await compileProject(project);
   if (result.status === 'unavailable') return res.status(503).json({ error: 'compiler_unavailable' });
   const errors = result.issues.filter((i) => i.level === 'error');
@@ -190,6 +194,8 @@ integrationRouter.post('/build', signed, async (req, res) => {
     // Read now: a later compile of the same project prunes old build directories.
     const pdf = await fs.readFile(path.join(paths.build(project.id, result.buildId), 'output.pdf')).catch(() => null);
     if (pdf) {
+      // The submitted state, labelled, in the project's version history (evidence for appeals).
+      await snapshotAfterCompile(project.id, capture, result, { kind: 'submission', label, actorId: project.owner_id });
       res.set({
         'Content-Type': 'application/pdf',
         'Cache-Control': 'no-store',

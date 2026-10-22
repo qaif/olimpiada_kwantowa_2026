@@ -74,8 +74,12 @@ function runProcess(cmd, args, { cwd, timeoutMs, onTimeout, env = { ...process.e
   });
 }
 
+// Tests replace the TeX run here ({ compile(project, opts) → result }); the test machines have no TeX.
+export const compilerTestHooks = { compile: null };
+
 let detected = null;
 export async function detectBackend() {
+  if (compilerTestHooks.compile) return 'test';
   if (detected) return detected;
   const want = config.compiler.backend;
   if (want === 'local' || want === 'auto') {
@@ -186,7 +190,8 @@ const locks = new Map();
 
 export async function compileProject(project, { stopOnFirstError = false } = {}) {
   const previous = locks.get(project.id) || Promise.resolve();
-  const job = previous.catch(() => {}).then(() => doCompile(project, { stopOnFirstError }));
+  const run = compilerTestHooks.compile || doCompile;
+  const job = previous.catch(() => {}).then(() => run(project, { stopOnFirstError }));
   locks.set(project.id, job);
   try {
     const result = await job;
