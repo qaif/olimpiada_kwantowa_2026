@@ -37,6 +37,19 @@ import {
   scanFile,
   scanSymbols,
 } from './completions.js';
+import {
+  compileDiagnosticsField,
+  diagnosticCounts,
+  diagnosticsExtension,
+  nextDiagnostic,
+  refreshDiagnostics,
+  setCompileDiagnosticsEffect,
+} from './diagnostics.js';
+import { setDiagnosticsEffect } from '@codemirror/lint';
+import { mathPreviewExtension } from './mathpreview.js';
+import { contentLanguage, latexSpellcheck } from './spellcheck.js';
+import { structureOf } from './docStructure.js';
+import { countWords } from './latex/prose.js';
 
 export { mergeSymbols, scanFile, scanSymbols };
 
@@ -201,6 +214,13 @@ export function createEditor({
   readOnly = false,
   fontSize = 14,
   getSymbols,
+  getLintContext,
+  getMacros,
+  mathPreview = true,
+  spellLang = null,
+  onDiagnostics,
+  onCompileDiagnostics,
+  onStats,
   onCompile,
   onForwardSearch,
   onCursorLine,
@@ -208,6 +228,8 @@ export function createEditor({
 }) {
   const readOnlyComp = new Compartment();
   const fontComp = new Compartment();
+  const mathComp = new Compartment();
+  const langComp = new Compartment();
   const lang = languageFor(fileName);
 
   const cursorLine = (state) => state.doc.lineAt(state.selection.main.head).number;
@@ -229,6 +251,14 @@ export function createEditor({
   let lastLine = null;
   const listeners = EditorView.updateListener.of((update) => {
     if (update.docChanged) onDocChanged?.();
+    if (update.docChanged || update.selectionSet) onStats?.();
+    if (update.transactions.some((tr) => tr.effects.some((e) => e.is(setDiagnosticsEffect)))) {
+      onDiagnostics?.(diagnosticCounts(update.state));
+    }
+    const compileNow = update.state.field(compileDiagnosticsField, false);
+    if (onCompileDiagnostics && compileNow !== update.startState.field(compileDiagnosticsField, false)) {
+      onCompileDiagnostics(compileNow || []);
+    }
     if ((update.selectionSet || update.docChanged) && onCursorLine) {
       clearTimeout(cursorTimer);
       cursorTimer = setTimeout(() => {
@@ -241,10 +271,13 @@ export function createEditor({
     }
   });
 
-  const languageExt = [];
+  const mathExt = (on) => (on && lang === 'latex' ? mathPreviewExtension({ getMacros }) : []);
+  const languageExt = [diagnosticsExtension({ getContext: getLintContext })];
   if (lang === 'latex') {
     languageExt.push(
       latexLanguage,
+      latexSpellcheck,
+      mathComp.of(mathExt(mathPreview)),
       autocompletion({
         override: [latexCompletionSource(getSymbols)],
         icons: false,
@@ -280,6 +313,7 @@ export function createEditor({
       search({ top: true }),
       EditorView.lineWrapping,
       EditorView.contentAttributes.of({ spellcheck: 'true', autocorrect: 'off', autocapitalize: 'off' }),
+      langComp.of(contentLanguage(spellLang)),
       keymap.of([
         ...closeBracketsKeymap,
         ...yUndoManagerKeymap,
@@ -316,6 +350,37 @@ export function createEditor({
     },
     setReadOnly(ro) {
       view.dispatch({ effects: readOnlyComp.reconfigure(readOnlyExt(ro)) });
+    },
+    setMathPreview(on) {
+      view.dispatch({ effects: mathComp.reconfigure(mathExt(on)) });
+    },
+    setSpellLanguage(code) {
+      view.dispatch({ effects: langComp.reconfigure(contentLanguage(code)) });
+    },
+    /** Diagnostyki z kompilacji dla tego pliku (lista z latex/diagnostics.js compileDiagnostics). */
+    setCompileDiagnostics(list) {
+      const len = view.state.doc.length;
+      const safe = list.filter((d) => d.from <= len).map((d) => ({ ...d, to: Math.min(d.to, len) }));
+      view.dispatch({ effects: setCompileDiagnosticsEffect.of(safe) });
+    },
+    /** Ponowne szybkie sprawdzenie (zmiana ustawień albo innych plików projektu). */
+    refreshDiagnostics() {
+      refreshDiagnostics(view);
+    },
+    /** Przechodzi do następnego problemu (jak F8). */
+    nextDiagnostic() {
+      nextDiagnostic(view);
+      view.focus();
+    },
+    getDiagnosticCounts() {
+      return diagnosticCounts(view.state);
+    },
+    /** Słowa i znaki pliku (albo zaznaczenia) bez poleceń, wzorów i komentarzy. */
+    getStats() {
+      const { from, to } = view.state.selection.main;
+      const file = countWords(view.state.doc.toString(), { structure: structureOf(view.state.doc) });
+      const selection = from === to ? null : countWords(view.state.sliceDoc(from, to), { fragment: true });
+      return { file, selection };
     },
     goToLine(line, col = 0) {
       const doc = view.state.doc;

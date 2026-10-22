@@ -32,6 +32,8 @@
   --syn-operator: #6e7781;
   --syn-error: #cf222e;
   --syn-meta: #6e7781;
+  --cm-problem-error-bg: rgba(207, 34, 46, 0.07);
+  --cm-problem-warning-bg: rgba(212, 150, 0, 0.08);
 }
 
 [data-theme='dark'] {
@@ -57,6 +59,8 @@
   --syn-operator: #9da7b3;
   --syn-error: #ff7b72;
   --syn-meta: #9da7b3;
+  --cm-problem-error-bg: rgba(255, 100, 100, 0.1);
+  --cm-problem-warning-bg: rgba(255, 190, 60, 0.09);
 }
 
 /* Search / replace panel controls */
