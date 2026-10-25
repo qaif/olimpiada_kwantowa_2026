@@ -178,10 +178,10 @@ check "plik z EXTRA_DOMAINS i przełącznikiem kończy się domkniętym blokiem"
 check "blok wieloznaczny stoi za blokami z EXTRA_DOMAINS" $?
 
 # Przypięcie polityki TLS nazw dosłownych z pliku źródłowego (www., domena główna, blok S3, meet.,
-# monitor., gitlab.) – po jednym, zaraz za nagłówkiem bloku; EXTRA_DOMAINS i `*.` bez niego (skutek – § 19).
+# monitor., gitlab., tasker.) – po jednym, zaraz za nagłówkiem bloku; EXTRA_DOMAINS i `*.` bez niego (skutek – § 19).
 pinned="$(awk '/^[^ #].* \{$/ { head = $0 } $0 == "        key_type p256" { print head }' "$WORK/sub-extra.caddy" | tr '\n' '|')"
-[ "$pinned" = 'www.{$SITE_DOMAIN} {|{$SITE_DOMAIN} {|{$S3_PUBLIC_ADDRESS} {|meet.{$SITE_DOMAIN} {|monitor.{$SITE_DOMAIN} {|gitlab.{$SITE_DOMAIN} {|' ]
-check "PLATFORM_SUBDOMAINS=1: tls { key_type p256 } w www., domenie głównej, S3, meet., monitor., gitlab. i nigdzie indziej (jest: $pinned)" $?
+[ "$pinned" = 'www.{$SITE_DOMAIN} {|{$SITE_DOMAIN} {|{$S3_PUBLIC_ADDRESS} {|meet.{$SITE_DOMAIN} {|monitor.{$SITE_DOMAIN} {|gitlab.{$SITE_DOMAIN} {|tasker.{$SITE_DOMAIN} {|' ]
+check "PLATFORM_SUBDOMAINS=1: tls { key_type p256 } w www., domenie głównej, S3, meet., monitor., gitlab., tasker. i nigdzie indziej (jest: $pinned)" $?
 # Caddy 2.10 (DEP-02): nazwa pokryta przez `*.{$SITE_DOMAIN}` nie dostaje certyfikatu, o ile nie ma
 # `force_automate` – każde przypięcie ma go mieć, a bloki EXTRA_DOMAINS (bez przypięcia) też, bo
 # generator nie wie, która z nich jest subdomeną platformy. Działanie: § 19 (`certificates.automate`).
