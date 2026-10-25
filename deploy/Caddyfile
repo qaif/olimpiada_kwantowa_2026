@@ -319,3 +319,21 @@ gitlab.{$SITE_DOMAIN} {
         -Server
     }
 }
+
+# Tasker – klon Jiry (osobny projekt compose w /opt/tasker; repozytorium tasker, deploy/olimpiada/).
+# Kontener `web` Taskera (nginx + SPA, alias `tasker`) dołącza do sieci `tasker_front` (tylko Caddy
+# i Tasker – NIE `edge`, której ufa aplikacja). Bez Taskera na serwerze blok czeka na certyfikat albo
+# oddaje 502 i nikomu nie przeszkadza, jak `gitlab.`. Bez `import maintenance`: przerwa w portalu nie
+# dotyczy Taskera. Nagłówki bezpieczeństwa (CSP, X-Frame-Options, nosniff) wysyła nginx Taskera – tu
+# tylko HSTS. Strumień zdarzeń (/api/v1/realtime/stream/, text/event-stream) Caddy przepuszcza bez
+# buforowania; limit treści żądania ustawia nginx Taskera (50 MB).
+tasker.{$SITE_DOMAIN} {
+    encode gzip zstd
+    reverse_proxy tasker:80 {
+        header_up X-Forwarded-Proto {scheme}
+    }
+    header {
+        Strict-Transport-Security "max-age=31536000"
+        -Server
+    }
+}

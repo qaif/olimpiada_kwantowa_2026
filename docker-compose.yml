@@ -358,6 +358,9 @@ services:
       # `gitlab_front`: trasa gitlab.<domena> -> gitlab:80 (GitLab CE z osobnego projektu, deploy/gitlab).
       # Bez GitLaba na serwerze stoi w niej sam Caddy.
       gitlab_front:
+      # `tasker_front`: trasa tasker.<domena> -> tasker:80 (Tasker – klon Jiry, osobny projekt compose
+      # w /opt/tasker; repozytorium tasker, deploy/olimpiada/deploy.sh). Bez Taskera stoi w niej sam Caddy.
+      tasker_front:
     depends_on:
       web: { condition: service_healthy }
     healthcheck:
@@ -1341,6 +1344,16 @@ networks:
     ipam:
       config:
         - subnet: 172.30.16.0/24
+  # Proxy ⇄ `web` Taskera (klon Jiry; osobny projekt compose w /opt/tasker dołącza do niej jako sieci
+  # zewnętrznej `<projekt>_tasker_front` z aliasem `tasker`). Jak `gitlab_front`: tylko Caddy i Tasker,
+  # bez wyjścia do internetu (Tasker ma je własną siecią projektu); nie w TRUSTED_PROXY_IPS ani
+  # w `mynetworks`. Bez Taskera na serwerze stoi w niej sam Caddy.
+  tasker_front:
+    driver: bridge
+    internal: true
+    ipam:
+      config:
+        - subnet: 172.30.17.0/24
 
 volumes:
   # PostgreSQL 18 – dane bazy (patrz komentarz przy usłudze `db`).
