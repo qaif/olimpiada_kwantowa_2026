@@ -123,7 +123,8 @@ def build_pdf(sub: str, project: str, *, max_bytes: int) -> bytes:
     """Świeża kompilacja projektu uczestnika (``POST /api/integration/build``) – bajty PDF-u.
 
     Odmowy webTEX (TEX-01 § 2) zamieniamy na komunikaty: ``404`` – uczestnik nie otwierał edytora
-    przy tym zadaniu, ``422`` – nie powstał PDF (lista błędów LaTeX), ``503`` – kompilator niedostępny.
+    przy tym zadaniu, ``422`` – nie powstał PDF (lista błędów LaTeX), ``503`` – kompilator niedostępny
+    albo (``compiler_busy``) przeciążony kolejką kompilacji.
     """
     try:
         response = _request(
@@ -165,6 +166,17 @@ def build_pdf(sub: str, project: str, *, max_bytes: int) -> bytes:
                     "i złóż rozwiązanie ponownie. Poprzednia wersja (jeśli była) zostaje bez zmian."
                 ),
                 _issues(data),
+            )
+        if status == 503 and data.get("error") == "compiler_busy":
+            # Kolejka kompilacji webTEX jest pełna albo kompilacja czekała w niej za długo – typowe
+            # w ostatnich minutach przed terminem (docs/OPERACJE.md § 55). Ponowienie zwykle się udaje.
+            raise WebtexError(
+                "compiler_busy",
+                _(
+                    "Edytor LaTeX kompiluje teraz bardzo wiele rozwiązań naraz i Twoje nie zmieściło się "
+                    "w kolejce. Spróbuj ponownie za minutę – Twoja praca w edytorze jest zapisana. Jeśli "
+                    "termin jest blisko, pobierz PDF z edytora i wyślij go zwykłym formularzem."
+                ),
             )
         if status == 503:
             raise WebtexError(

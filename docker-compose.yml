@@ -1185,9 +1185,18 @@ services:
       SECURE_COOKIES: ${WEBTEX_SECURE_COOKIES:-true}
       MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-25}
       COMPILE_TIMEOUT: ${WEBTEX_COMPILE_TIMEOUT:-90}
+      # Kolejka kompilacji (docs/OPERACJE.md § 55.5): ile latexmk naraz (≈ vCPU serwera), ile żądań
+      # może czekać i limit pamięci jednego procesu TeX-a (RLIMIT_AS, webtex/server/tex/limits.pl).
+      # Wartości domyślne z testu obciążeniowego z 22.10.2026 (6 vCPU, mem_limit 2g).
+      COMPILE_CONCURRENCY: ${WEBTEX_COMPILE_CONCURRENCY:-6}
+      COMPILE_QUEUE_MAX: ${WEBTEX_COMPILE_QUEUE_MAX:-150}
+      COMPILE_MEMORY: ${WEBTEX_COMPILE_MEMORY:-1g}
     volumes:
       - webtex_data:/data
     networks: [tex_front, tex_api]
+    # Prawdziwy PID 1 (tini): node nie zbiera osieroconych procesów TeX-a po przerwanej kompilacji,
+    # a każdy zombie zajmuje miejsce w pids_limit.
+    init: true
     read_only: true
     tmpfs:
       - /tmp:size=512m

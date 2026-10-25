@@ -13,7 +13,8 @@ import { all, one, run } from './db.js';
 import { startSession } from './auth.js';
 import { kickExcept } from './collab.js';
 import { setAiLocked, setAiLockedForScope } from './aiPolicy.js';
-import { compileProject, detectBackend } from './compiler.js';
+import { compileProject, compileQueue, detectBackend } from './compiler.js';
+import { QueueBusyError, closeSignal, sendQueueError } from './compileQueue.js';
 import { cleanName, createProjectWithFiles, escapeTex } from './projects.js';
 import { olympiadSolution } from './templates.js';
 import { TokenError, consumeJti, deriveKeys, verifyJwt, verifyRequestSignature } from './integrationCrypto.js';
@@ -182,7 +183,15 @@ integrationRouter.post('/build', signed, async (req, res) => {
   if (!project) return res.status(404).json({ error: 'no_project' });
   if ((await detectBackend()) === 'none') return res.status(503).json({ error: 'compiler_unavailable' });
 
-  const result = await compileProject(project);
+  let result;
+  try {
+    // Submission builds go before interactive compiles and skip the per-user cap.
+    result = await compileProject(project, { kind: 'build', user: project.owner_id, signal: closeSignal(res) });
+  } catch (err) {
+    if (err instanceof QueueBusyError) return sendQueueError(res, err);
+    if (res.destroyed) return; // the platform gave up (its timeout) while the build was queued
+    throw err;
+  }
   if (result.status === 'unavailable') return res.status(503).json({ error: 'compiler_unavailable' });
   const errors = result.issues.filter((i) => i.level === 'error');
 
@@ -239,5 +248,5 @@ integrationRouter.post('/ai', signed, (req, res) => {
 });
 
 integrationRouter.get('/health', signed, async (_req, res) => {
-  res.json({ ok: true, backend: await detectBackend() });
+  res.json({ ok: true, backend: await detectBackend(), queue: compileQueue.stats() });
 });

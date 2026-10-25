@@ -251,6 +251,7 @@ def test_compile_failure_lists_latex_errors(web, competition, problem, participa
     [
         (json_response(404, {"error": "no_project"}), "nie ma jeszcze Twojego projektu"),
         (json_response(503, {"error": "compiler_unavailable"}), "Kompilator LaTeX jest chwilowo niedostępny"),
+        (json_response(503, {"error": "compiler_busy"}), "nie zmieściło się w kolejce"),
         (requests.ConnectionError("down"), "Edytor LaTeX nie odpowiada"),
         (json_response(500, {}), "Edytor LaTeX nie odpowiada"),
     ],
