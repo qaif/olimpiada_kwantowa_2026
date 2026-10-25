@@ -1,46 +1,115 @@
+/* Inter – ten sam krój, co platforma olimpiady (pliki skopiowane ze static/fonts/ platformy,
+   latin + latin-ext dla polskich znaków). Serwowane z własnego originu, więc działają offline. */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/inter-latin-ext-400.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF,
+    U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/inter-latin-400.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/inter-latin-ext-500.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF,
+    U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/inter-latin-500.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/inter-latin-ext-600.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF,
+    U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/inter-latin-600.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* Paleta jak na platformie olimpiady (backend/static/css/app.css § 2): biały papier, grafitowy
+   atrament, czerwień z logotypu jako jedyny kolor. Czerwień jest akcentem marki (znak, odnośniki,
+   fokus, linia zaznaczenia w drzewie), a przycisk główny i stany „aktywne” są atramentowe – w
+   edytorze czerwone tło czytałoby się jak błąd kompilacji. */
 :root {
   --bg: #ffffff;
-  --bg-2: #f6f7f9;
-  --bg-3: #eceef2;
-  --border: #dde1e7;
-  --text: #1c2430;
-  --text-muted: #687384;
-  --accent: #0f766e;
-  --accent-hover: #0b5f58;
-  --accent-soft: #ccfbf1;
+  --bg-2: #f6f8fb;
+  --bg-3: #eceff4;
+  --border: #dfe3ea;
+  --border-strong: #b8c0cc;
+  --text: #15181d;
+  --text-muted: #5f6776;
+  --accent: #a10f0f;
+  --accent-hover: #8b0404;
+  --accent-soft: #fbeae8;
   --accent-contrast: #ffffff;
-  --danger: #c2322f;
-  --danger-soft: #fde8e8;
-  --warning: #b7791f;
-  --warning-soft: #fdf3dc;
-  --info: #2b6cb0;
-  --info-soft: #e3effc;
-  --pdf-bg: #e4e7ec;
-  --shadow: 0 8px 28px rgb(16 24 40 / 0.14), 0 2px 6px rgb(16 24 40 / 0.06);
-  --radius: 8px;
-  --font: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --ink: #15181d;
+  --ink-hover: #262b33;
+  --ink-contrast: #ffffff;
+  --danger: #bd3b26;
+  --danger-soft: #fcebe6;
+  --warning: #9a6410;
+  --warning-soft: #fbf0d9;
+  --info: #1f4fa3;
+  --info-soft: #e7edf9;
+  --pdf-bg: #e9ecf1;
+  --shadow: 0 2px 6px rgb(21 24 29 / 0.06), 0 12px 32px rgb(21 24 29 / 0.1);
+  --radius: 6px;
+  --font: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --mono: ui-monospace, 'Cascadia Code', 'JetBrains Mono', Menlo, Consolas, monospace;
   color-scheme: light;
 }
 
 [data-theme='dark'] {
-  --bg: #161b22;
-  --bg-2: #1c222b;
-  --bg-3: #262d38;
-  --border: #303845;
-  --text: #e3e8ef;
-  --text-muted: #8b96a6;
-  --accent: #2dd4bf;
-  --accent-hover: #5eead4;
-  --accent-soft: #134e4a;
-  --accent-contrast: #062a27;
-  --danger: #f87171;
-  --danger-soft: #3b1d1d;
-  --warning: #f6c25b;
-  --warning-soft: #3a2f16;
-  --info: #7cb4f5;
-  --info-soft: #1b2b40;
-  --pdf-bg: #0f1318;
+  --bg: #0f1115;
+  --bg-2: #171a20;
+  --bg-3: #22262e;
+  --border: #2a2f38;
+  --border-strong: #3c424d;
+  --text: #eceef2;
+  --text-muted: #9aa1ad;
+  --accent: #f08b83;
+  --accent-hover: #f6b3ad;
+  --accent-soft: #3a1412;
+  --accent-contrast: #15181d;
+  --ink: #eceef2;
+  --ink-hover: #c9cdd5;
+  --ink-contrast: #15181d;
+  --danger: #ec8f6e;
+  --danger-soft: #2f1a11;
+  --warning: #dda44a;
+  --warning-soft: #2c2210;
+  --info: #7ea6e0;
+  --info-soft: #142239;
+  --pdf-bg: #0b0d10;
   --shadow: 0 10px 30px rgb(0 0 0 / 0.5);
   color-scheme: dark;
 }
@@ -60,7 +129,12 @@ body {
   height: 100%;
 }
 a {
-  color: var(--accent);
+  color: var(--text);
+  text-decoration-color: var(--accent);
+  text-underline-offset: 0.16em;
+}
+a:hover {
+  color: var(--accent-hover);
 }
 button {
   font: inherit;
@@ -96,7 +170,7 @@ hr {
 }
 :focus-visible {
   outline: 2px solid var(--accent);
-  outline-offset: 1px;
+  outline-offset: 2px;
 }
 
 /* ---------- icons, buttons, inputs ---------- */
@@ -113,16 +187,18 @@ hr {
   gap: 6px;
   height: 32px;
   padding: 0 12px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
+  border: 1px solid var(--border-strong);
+  border-radius: 3px;
   background: var(--bg);
   cursor: pointer;
   white-space: nowrap;
   text-decoration: none;
   color: var(--text);
+  font-weight: 500;
 }
 .btn:hover {
-  background: var(--bg-3);
+  background: var(--bg-2);
+  border-color: var(--text);
 }
 .btn:disabled {
   opacity: 0.6;
@@ -138,13 +214,14 @@ hr {
   justify-content: center;
 }
 .btn.primary {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--accent-contrast);
-  font-weight: 500;
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--ink-contrast);
+  font-weight: 600;
 }
 .btn.primary:hover:not(:disabled) {
-  background: var(--accent-hover);
+  background: var(--ink-hover);
+  border-color: var(--ink-hover);
 }
 .btn.danger,
 .btn.primary.danger {
@@ -157,8 +234,8 @@ hr {
   color: #fff;
 }
 .btn.active {
-  background: var(--accent-soft);
-  border-color: var(--accent);
+  background: var(--bg-3);
+  border-color: var(--text);
 }
 .icon-btn {
   display: inline-flex;
@@ -167,7 +244,7 @@ hr {
   width: 30px;
   height: 30px;
   border: 0;
-  border-radius: 6px;
+  border-radius: 4px;
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
@@ -190,8 +267,8 @@ hr {
 .input {
   height: 34px;
   padding: 0 10px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
+  border: 1px solid var(--border-strong);
+  border-radius: 3px;
   background: var(--bg);
   color: var(--text);
   font: inherit;
@@ -203,7 +280,7 @@ hr {
 }
 .input:focus {
   outline: none;
-  border-color: var(--accent);
+  border-color: var(--text);
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 select.input {
@@ -253,7 +330,7 @@ select.input {
   display: inline-block;
   padding: 1px 7px;
   margin-left: 8px;
-  border-radius: 999px;
+  border-radius: 3px;
   background: var(--bg-3);
   color: var(--text-muted);
   font-size: 11px;
@@ -275,11 +352,11 @@ select.input {
   place-items: center;
   width: 30px;
   height: 30px;
-  border-radius: 7px;
-  background: var(--accent);
-  color: var(--accent-contrast);
-  font: 700 11px/1 Georgia, 'Times New Roman', serif;
-  letter-spacing: 0.02em;
+  border-radius: 5px;
+  background: var(--ink);
+  color: var(--ink-contrast);
+  font: 700 10px/1 var(--font);
+  letter-spacing: 0.06em;
   flex: none;
 }
 .brand-mark.small {
@@ -293,8 +370,8 @@ select.input {
   font-weight: 500;
 }
 .brand-name b {
-  font-family: Georgia, 'Times New Roman', serif;
   font-weight: 700;
+  color: var(--accent);
 }
 .brand-lg .brand-mark {
   width: 40px;
@@ -385,7 +462,7 @@ select.input {
   color: var(--danger);
 }
 .menu-check {
-  color: var(--accent);
+  color: var(--text);
   font-weight: 700;
 }
 .menu-sep {
@@ -479,17 +556,14 @@ select.input {
   display: grid;
   place-items: center;
   padding: 24px 16px;
-  background:
-    radial-gradient(1200px 500px at 10% -10%, var(--accent-soft), transparent 60%),
-    var(--bg-2);
+  background: var(--bg-2);
 }
 .auth-card {
   width: min(400px, 100%);
   padding: 32px 28px;
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: 10px;
   background: var(--bg);
-  box-shadow: var(--shadow);
 }
 .auth-tagline {
   color: var(--text-muted);
@@ -537,7 +611,7 @@ select.input {
 }
 .project-list {
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius);
   background: var(--bg);
   overflow: hidden;
 }
@@ -547,13 +621,11 @@ table.projects {
 }
 .projects th {
   text-align: left;
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 600;
   color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
   padding: 10px 16px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 2px solid var(--text);
 }
 .projects td {
   padding: 11px 16px;
@@ -571,7 +643,9 @@ table.projects {
   text-decoration: none;
 }
 .projects td.name a:hover {
-  color: var(--accent);
+  color: var(--accent-hover);
+  text-decoration: underline;
+  text-decoration-color: var(--accent);
 }
 .projects td.actions {
   width: 48px;
@@ -707,10 +781,8 @@ table.projects {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 11.5px;
+  font-size: 12.5px;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
   color: var(--text-muted);
   background: none;
   border: 0;
@@ -756,7 +828,7 @@ table.projects {
   background: var(--bg-3);
 }
 .tree-row.selected {
-  background: var(--accent-soft);
+  background: var(--bg-3);
   box-shadow: inset 3px 0 0 var(--accent);
 }
 .tree-row.drop-target {
@@ -775,9 +847,9 @@ table.projects {
 .tree-main {
   font-size: 10px;
   padding: 0 5px;
-  border-radius: 4px;
-  background: var(--accent);
-  color: var(--accent-contrast);
+  border-radius: 3px;
+  background: var(--ink);
+  color: var(--ink-contrast);
   font-weight: 600;
 }
 .outline-item {
@@ -798,8 +870,9 @@ table.projects {
   background: var(--bg-3);
 }
 .outline-item.active {
-  color: var(--accent);
+  color: var(--text);
   font-weight: 600;
+  box-shadow: inset 3px 0 0 var(--accent);
 }
 .outline-empty {
   padding: 4px 12px;
@@ -877,14 +950,14 @@ table.projects {
   display: inline-flex;
 }
 .compile-btn {
-  border-radius: 6px 0 0 6px;
+  border-radius: 3px 0 0 3px;
   height: 30px;
 }
 .compile-more {
-  border-radius: 0 6px 6px 0;
+  border-radius: 0 3px 3px 0;
   padding: 0 6px;
   height: 30px;
-  border-left: 1px solid rgb(255 255 255 / 0.25);
+  border-left: 1px solid rgb(128 128 128 / 0.45);
 }
 .compile-btn.busy .icon {
   animation: spin 0.9s linear infinite;
@@ -1001,7 +1074,8 @@ table.projects {
 .log-where {
   border: 0;
   background: none;
-  color: var(--accent);
+  color: var(--text);
+  text-decoration-color: var(--accent);
   font-family: var(--mono);
   font-size: 12px;
   cursor: pointer;
@@ -1122,8 +1196,9 @@ table.projects {
   display: flex;
 }
 .icon-btn.ai-toggle.active {
-  background: var(--accent-soft);
-  color: var(--accent);
+  background: var(--bg-3);
+  color: var(--text);
+  box-shadow: inset 0 -2px 0 var(--accent);
 }
 .ai-panel {
   flex: 1;
@@ -1144,7 +1219,7 @@ table.projects {
   height: 38px;
   padding: 0 6px 0 12px;
   flex: none;
-  color: var(--accent);
+  color: var(--text-muted);
 }
 .ai-title {
   font-weight: 600;
@@ -1176,8 +1251,8 @@ table.projects {
   white-space: nowrap;
 }
 .chip:hover {
-  border-color: var(--accent);
-  color: var(--accent);
+  border-color: var(--text);
+  color: var(--text);
 }
 .chip.chip-alert {
   border-color: var(--danger);
@@ -1228,7 +1303,7 @@ table.projects {
 .ai-user {
   align-self: flex-end;
   max-width: 90%;
-  background: var(--accent-soft);
+  background: var(--bg-3);
   white-space: pre-wrap;
 }
 .ai-tag {

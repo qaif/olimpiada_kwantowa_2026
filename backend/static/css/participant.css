@@ -84,8 +84,7 @@
 .now__title {
   margin: 0;
   font-size: 0.8125rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  letter-spacing: 0;
   color: rgba(var(--t-primary-contrast-rgb), 0.72);
 }
 
@@ -134,9 +133,8 @@
 }
 
 .now__deadline-label {
-  font-size: 0.75rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  font-size: 0.8125rem;
+  letter-spacing: 0;
   color: rgba(var(--t-primary-contrast-rgb), 0.7);
 }
 

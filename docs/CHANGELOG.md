@@ -160,6 +160,48 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
   bez migracji. Krok operatora przy pierwszym wdrożeniu (wcześniejszy `docker pull`, odtworzenie kontenera
   `minio` w kroku 4b/8): `OPERACJE.md` § 24.6.
 
+## [Unreleased] – Nowy wygląd serwisu i edytora: kartka z notatnika
+
+Wygląd wbudowanego motywu `classic` (`static/css/app.css` § 2–7, `apps/themes/tokens.py`,
+`themes/classic/tokens.json`) i edytora webTEX (`webtex/client/src/styles.css`); funkcjonalność,
+nazwy klas, sloty motywu i API tokenów `--t-*` bez zmian. Opis systemu: [`UI.md`](UI.md).
+
+- Paleta: biały papier, grafitowy atrament (`--brand`), czerwień z logotypu jako jedyny kolor
+  (przyciski akcentu, podkreślenie bieżącej pozycji menu, podkreślenia odnośników, linia stanu).
+  Granat i kremowe tło zniknęły; wariant ciemny i tryb wysokiego kontrastu – te same tokeny.
+- Nagłówek jasny (papier, cienka kreska, czerwone podkreślenie bieżącej strony), bez plakietki pod
+  logotypem; stopka, pasek cookie i odliczanie – grafit. Cień paska konta tylko po przyklejeniu.
+- Hero i plansze slidera: papier z polem prążków interferencyjnych (dwie rodziny okręgów, czysty CSS,
+  bez obrazów), hasło w Source Serif 4; kontrolki slidera na własnej kryjącej plakietce (naprawia też
+  dawny konflikt z regułą `button:not(.btn)`, który rysował kropki jako białe prostokąty).
+- Typografia: nagłówki w Inter 700 z ciasnym światłem; szeryf zostaje w hero, liczbach KPI,
+  numerach kroków, leadzie artykułu i cytatach. Nadtytuły, nagłówki tabel, etykiety i oznaczenie
+  edycji bez wersalików i rozstrzelenia.
+- Komponenty: karty i kafelki etapów/kroków z kolorową linią stanu na krawędzi początkowej zamiast
+  górnej, odznaki prostokątne (czipy zostają pigułkami), nagłówki tabel z kreską atramentem,
+  promienie 3/6/10 px, cienie prawie zgaszone.
+- webTEX: ten sam krój (Inter, pliki w `client/public/fonts/`), paleta i zasady – przycisk główny
+  atramentowy, czerwień tylko w znaku, odnośnikach, fokusie i linii zaznaczenia; zaznaczenie
+  w CodeMirror neutralne zamiast zielonego.
+- `<meta name="theme-color">` bez motywu: `#ffffff` / `#171a20`.
+- Układ strony głównej: hero i plansze slidera na pełną szerokość okna (``--bleed-pad`` sprowadza
+  tekst do linii treści, ``body { overflow-x: clip }`` ucina pasek przewijania z ``100vw``), kolumna
+  treści 1200 px, większe nagłówki i odstępy sekcji. Etapy jako pozioma oś z punktem stanu zamiast
+  trzech pudełek (na telefonie pionowa), kroki jako duże szeryfowe numery nad kreską, stopka
+  w dwóch kolumnach. Plansze „plakat” płaskie, w kroju serwisu (bez rastra, naklejek i cieni).
+- Przełącznik motywu w pasku konta (obok kontrastu): jak w systemie → ciemny → jasny. Zapis jak
+  kontrast (``UserPreference.color_scheme``, migracja ``accounts.0043``; gość w sesji), atrybut
+  ``data-scheme`` na ``<html>``, arkusz z wymuszonym wariantem (``:root:where([data-scheme="dark"])``),
+  generator ``tokens.css`` motywów emituje tę samą parę bloków.
+- Panel koordynatora (UX-PANEL-04) w tej samej szacie: kolumna menu w graficie (``--brand``) z czerwonym
+  znacznikiem pozycji bieżącej i jaśniejszymi licznikami, treść na przygaszonym blacie (``--bg-muted``)
+  z białymi kartami, sprawy „co wymaga uwagi” z linią stanu na krawędzi, skróty przechodzące w grafit po
+  najechaniu – sekcja 9 w ``coordinator_panel/panel.css``; klasy, układ i zachowanie menu bez zmian.
+- Drugi kolor widma: odnośniki i rola ``info`` w elektrycznym błękicie (`#1e45c9` / `#2448d6`);
+  prążki w hero w czerwieni i błękicie. Nowy pas ``.cta-band`` „Gotowi na zadania?” na końcu strony
+  głównej (`templates/cms/home_page.html`) – czerwony gradient, tylko dla gościa przy otwartej
+  rejestracji; dwa nowe napisy po polsku czekają na tłumaczenia w `locale/`.
+
 ## [Unreleased] – Edytor LaTeX (webTEX) do pisania rozwiązań (TEX-01) – strona platformy
 
 Specyfikacja: [`tasks/TEX-01.md`](tasks/TEX-01.md); instrukcje: `PODRECZNIK-UCZESTNIKA.md` § 3b,

@@ -66,6 +66,30 @@ LANGUAGE_COOKIE_MAX_AGE = 365 * 24 * 3600
 #: (``static/css/app.css``) trzyma się **wyłącznie** tej nazwy.
 CONTRAST_ATTRIBUTE_VALUE = "high"
 
+#: Klucz w sesji dla motywu kolorystycznego gościa – jak ``CONTRAST_SESSION_KEY``.
+SCHEME_SESSION_KEY = "interface_color_scheme"
+
+#: Dopuszczalne wartości motywu: pusta = jak w systemie (``prefers-color-scheme`` przeglądarki),
+#: ``light``/``dark`` = wymuszony. Trafiają w atrybut ``data-scheme`` na ``<html>`` (pusta = brak
+#: atrybutu), o który zaczepia się arkusz. **Nie** ``data-theme``: ten atrybut niesie slug
+#: aktywnej paczki motywu (``apps.themes``), a to są dwie różne rzeczy.
+COLOR_SCHEMES = ("", "light", "dark")
+
+#: Kolejność, w jakiej jeden przycisk w pasku konta przechodzi przez stany: system → ciemny →
+#: jasny → system. Ciemny jako pierwszy, bo po to ktoś w ogóle sięga po przełącznik na jasnej stronie.
+_NEXT_SCHEME = {"": "dark", "dark": "light", "light": ""}
+
+
+def normalize_scheme(value) -> str:
+    """``"light"``/``"dark"`` albo ``""``; ``"system"`` i wszystko nieznane znaczy „jak w systemie”."""
+    value = (value or "").strip().lower()
+    return value if value in COLOR_SCHEMES else ""
+
+
+def next_scheme(current: str) -> str:
+    """Stan, który ustawi kliknięcie przycisku motywu (``""`` wysyłamy jako ``system``)."""
+    return _NEXT_SCHEME.get(normalize_scheme(current), "dark")
+
 
 def offered_languages(request) -> tuple[str, ...]:
     """Języki, które oferuje **konkurs tego żądania** (``Competition.ui_languages``).
@@ -233,12 +257,15 @@ def resolve(request) -> dict:
     preference = stored_preference(getattr(request, "user", None))
     language = ""
     high_contrast = False
+    color_scheme = ""
     if preference is not None:
         language = preference.language or ""
         high_contrast = preference.high_contrast
+        color_scheme = normalize_scheme(preference.color_scheme)
     else:
         session = getattr(request, "session", None)
         high_contrast = bool(session.get(CONTRAST_SESSION_KEY)) if session is not None else False
+        color_scheme = normalize_scheme(session.get(SCHEME_SESSION_KEY)) if session is not None else ""
     if language not in languages:
         language = ""
     if not language and len(languages) > 1:
@@ -248,10 +275,10 @@ def resolve(request) -> dict:
     if not language:
         default = getattr(getattr(request, "competition", None), "default_language", "")
         language = default if default in languages else languages[0]
-    return {"language": language, "high_contrast": high_contrast}
+    return {"language": language, "high_contrast": high_contrast, "color_scheme": color_scheme}
 
 
-def save_preferences(request, *, language: str, high_contrast: bool) -> dict:
+def save_preferences(request, *, language: str, high_contrast: bool, color_scheme: str | None = None) -> dict:
     """Zapisuje wybór i od razu go stosuje. Zwraca stan, który ma obowiązywać od tej chwili.
 
     Zalogowanemu zapisujemy wiersz (jedzie za nim na inne urządzenie), gościowi – sesję. Język
@@ -265,25 +292,33 @@ def save_preferences(request, *, language: str, high_contrast: bool) -> dict:
     obietnicy „zapis zostaje w bazie”. Gdyby zapisywać wyliczone ``pl``, wystarczyłoby jedno
     kliknięcie w kontrast, żeby zapisany wcześniej ``en`` zniknął na zawsze – a wtedy włączenie
     angielskiego z powrotem nie przywróciłoby nikomu jego wyboru, tylko zastałoby puste pole.
+
+    ``color_scheme=None`` znaczy „zostaw bieżący” – formularz języka i formularz kontrastu nie
+    niosą motywu i nie mogą go przy okazji przestawić na systemowy.
     """
     languages = available_languages(request)
     resolved = language if language in languages else (translation.get_language() or "")
     if resolved not in languages:
         resolved = languages[0]
+    if color_scheme is None:
+        color_scheme = resolve(request)["color_scheme"]
+    scheme = normalize_scheme(color_scheme)
     user = getattr(request, "user", None)
     if user is not None and user.is_authenticated:
         from .models import UserPreference
 
-        defaults = {"high_contrast": high_contrast}
+        defaults = {"high_contrast": high_contrast, "color_scheme": scheme}
         if len(languages) > 1:
             defaults["language"] = resolved
         UserPreference.objects.update_or_create(user=user, defaults=defaults)
     if hasattr(request, "session"):
         request.session[CONTRAST_SESSION_KEY] = high_contrast
+        request.session[SCHEME_SESSION_KEY] = scheme
     translation.activate(resolved)
     request.LANGUAGE_CODE = resolved
     request.high_contrast = high_contrast
-    return {"language": resolved, "high_contrast": high_contrast}
+    request.color_scheme = scheme
+    return {"language": resolved, "high_contrast": high_contrast, "color_scheme": scheme}
 
 
 def competition_language(competition=None) -> str:
@@ -428,6 +463,7 @@ class PreferencesMiddleware:
         translation.activate(state["language"])
         request.LANGUAGE_CODE = state["language"]
         request.high_contrast = state["high_contrast"]
+        request.color_scheme = state["color_scheme"]
         response = None
         # Pamięć profilu uczestnika na czas tego żądania (PERF-01, ``apps.accounts.request_memo``) –
         # ta warstwa i tak ustawia stan wątku na czas żądania i sprząta go w ``finally``.
@@ -456,6 +492,7 @@ def interface(request) -> dict:
     ``interface_contrast`` jest **napisem** (``"high"`` albo pustym), a nie wartością logiczną,
     bo szablon wstawia go wprost w atrybut ``data-contrast`` na ``<html>``. Pusty napis znaczy
     „nie renderuj atrybutu” i tak wygląda tryb domyślny – arkusz nie ma wtedy czego zaczepić.
+    ``interface_scheme`` działa tak samo dla atrybutu ``data-scheme`` (motyw jasny/ciemny).
 
     ``interface_languages`` bywa listą **jednoelementową** – w konkursie jednojęzycznym – i to
     jest jedyne miejsce, w którym szablon paska konta się o tym dowiaduje.
@@ -465,12 +502,17 @@ def interface(request) -> dict:
     języków, gdy konkurs ma ich więcej niż dwa (I18N-01 § 3).
     """
     high_contrast = bool(getattr(request, "high_contrast", False))
+    scheme = normalize_scheme(getattr(request, "color_scheme", ""))
     language = getattr(request, "LANGUAGE_CODE", settings.LANGUAGE_CODE)
     choices = language_choices(request)
     current = next((item for item in choices if item["code"] == language), None)
     return {
         "interface_contrast": CONTRAST_ATTRIBUTE_VALUE if high_contrast else "",
         "interface_high_contrast": high_contrast,
+        # Motyw: ``""``/``light``/``dark`` w atrybut ``data-scheme`` (pusty = brak atrybutu) i wartość,
+        # którą wyśle przycisk w pasku konta (``system`` zamiast pustego napisu, żeby pole było w POST).
+        "interface_scheme": scheme,
+        "interface_scheme_next": next_scheme(scheme) or "system",
         "interface_languages": choices,
         "interface_language": language,
         "interface_language_label": current["label"] if current else language,

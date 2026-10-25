@@ -165,13 +165,13 @@
 :root {
   color-scheme: light dark;
 
-  /* Paleta bazowa – akademicka: granat, papier, czerwień z logotypu. Skale granatu (``primary``)
-     i czerwieni (``accent``) są tokenami motywu, bo część komponentów sięga po konkretny stopień
-     (np. pasek przewijania w granacie, przycisk akcentu z białą etykietą). */
-  --t-primary-900: #0b1729;
-  --t-primary-800: #12233f;
-  --t-primary-700: #1b3153;
-  --t-primary-600: #274677;
+  /* Paleta bazowa – kartka z notatnika: biały papier, grafitowy atrament i czerwień z logotypu
+     jako jedyny kolor. Skala grafitu (``primary``) i czerwieni (``accent``) są tokenami motywu,
+     bo część komponentów sięga po konkretny stopień (stopka, przycisk akcentu z białą etykietą). */
+  --t-primary-900: #0c0e12;
+  --t-primary-800: #15181d;
+  --t-primary-700: #262b33;
+  --t-primary-600: #3a414c;
 
   /* Czerwień marki jest wzięta z logotypu organizatora (ciemna czerwień #8b0404, stopień 700).
      Stopnie istnieją dlatego, że jeden odcień nie obsłuży obu tł serwisu:
@@ -188,59 +188,59 @@
   --t-accent-800: #6d0303;
 
   /* Role kolorów – wyłącznie tych używamy w komponentach (przez nazwy ról niżej). */
-  --t-bg: #f6f4ee;
-  --t-bg-muted: #efece3;
-  --t-surface: #fffefb;
-  --t-surface-2: #faf8f2;
-  --t-surface-inset: #f1eee5;
-  --t-text: #171d27;
-  --t-text-soft: #3c4453;
-  --t-muted: #5d6472;
-  --t-border: #dcd6c8;
-  --t-border-strong: #c4bcaa;
+  --t-bg: #ffffff;
+  --t-bg-muted: #f3f5f8;
+  --t-surface: #ffffff;
+  --t-surface-2: #f6f8fb;
+  --t-surface-inset: #eceff4;
+  --t-text: #15181d;
+  --t-text-soft: #3a4049;
+  --t-muted: #5f6776;
+  --t-border: #dfe3ea;
+  --t-border-strong: #b8c0cc;
 
-  --t-primary: #12233f;
-  --t-primary-contrast: #f4f1e8;
-  --t-primary-soft: #e6e9f0;
+  --t-primary: #15181d;
+  --t-primary-contrast: #f4f6f9;
+  --t-primary-soft: #e9ecf1;
 
   --t-accent: #a10f0f;
   --t-accent-ink: #6d0303;
-  --t-accent-soft: #f8e5e3;
+  --t-accent-soft: #fbeae8;
   /* Akcent na granatowym tle (pasek nagłówka, stopka, hero): ciemna czerwień byłaby tam plamą
      nie do odróżnienia od tła, więc tekst i znaczniki biorą stopień 300, a grube kreski 500. */
   --t-accent-on-primary: #ef8a82;
   --t-accent-rule: #d43228;
 
-  --t-success: #2e7d5b;
-  --t-success-ink: #1f5c42;
-  --t-success-soft: #e0efe7;
+  --t-success: #1f7a4d;
+  --t-success-ink: #155c39;
+  --t-success-soft: #e3f3ea;
 
-  --t-warning: #a06a17;
-  --t-warning-ink: #7a4f0c;
-  --t-warning-soft: #f8eed9;
+  --t-warning: #9a6410;
+  --t-warning-ink: #724a0a;
+  --t-warning-soft: #fbf0d9;
 
   --t-danger: #bd3b26;
   --t-danger-ink: #8f2c16;
-  --t-danger-soft: #fbe8e0;
+  --t-danger-soft: #fcebe6;
 
-  --t-info: #274677;
-  --t-info-ink: #1b3153;
-  --t-info-soft: #e4eaf4;
+  --t-info: #2448d6;
+  --t-info-ink: #17328f;
+  --t-info-soft: #e8ecfb;
 
-  --t-neutral-ink: #4a515e;
-  --t-neutral-soft: #e9e6dd;
+  --t-neutral-ink: #4b525e;
+  --t-neutral-soft: #eceff4;
 
-  --t-link: #1d4a86;
-  --t-link-hover: #12233f;
+  --t-link: #1e45c9;
+  --t-link-hover: #6d0303;
   --t-focus: #a10f0f;
 
   /* Kolory „na granacie” w postaci składowych RGB – arkusz używa ich z przezroczystością
      (``rgba(var(--t-primary-contrast-rgb), 0.72)``: przygaszony napis w pasku). Są niezależne
      od trybu (ciemny wariant paska używa tych samych półprzezroczystych bieli), więc wariant
      ciemny ich nie przestawia. */
-  --t-primary-rgb: 18, 35, 63;
-  --t-primary-900-rgb: 11, 23, 41;
-  --t-primary-contrast-rgb: 244, 241, 232;
+  --t-primary-rgb: 21, 24, 29;
+  --t-primary-900-rgb: 12, 14, 18;
+  --t-primary-contrast-rgb: 244, 246, 249;
   --t-accent-rgb: 161, 15, 15;
   --t-accent-rule-rgb: 212, 50, 40;
   --t-accent-on-primary-rgb: 239, 138, 130;
@@ -251,7 +251,7 @@
   /* Biel na pełnych kolorach statusu (przycisk „Usuń”, znak w alercie). */
   --t-on-status: #fff;
   /* Jasna plakietka pod logotypami (organizatora, partnerów) – stała także w trybie ciemnym. */
-  --t-logo-plaque: #f6f4ee;
+  --t-logo-plaque: #ffffff;
 
   /* Skala odstępów 4/8/12/16/24/32/48. */
   --t-space-1: 0.25rem;
@@ -264,13 +264,13 @@
 
   --t-radius-sm: 4px;
   --t-radius: 8px;
-  --t-radius-lg: 14px;
+  --t-radius-lg: 16px;
 
-  --t-shadow-sm: 0 1px 2px rgba(18, 35, 63, 0.06), 0 1px 3px rgba(18, 35, 63, 0.05);
-  --t-shadow: 0 2px 4px rgba(18, 35, 63, 0.06), 0 8px 24px rgba(18, 35, 63, 0.07);
+  --t-shadow-sm: 0 1px 2px rgba(21, 24, 29, 0.05);
+  --t-shadow: 0 2px 6px rgba(21, 24, 29, 0.06), 0 12px 32px rgba(21, 24, 29, 0.1);
   --t-shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.6);
 
-  --t-max-width: 1100px;
+  --t-max-width: 1200px;
   --t-reading: 68ch;
   --t-font-size-base: 1rem;
 
@@ -371,28 +371,28 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --t-bg: #0f1726;
-    --t-bg-muted: #0b1120;
-    --t-surface: #162032;
-    --t-surface-2: #1b2740;
-    --t-surface-inset: #111a2b;
-    --t-text: #e9edf5;
-    --t-text-soft: #cbd3e0;
-    --t-muted: #9fabbf;
-    --t-border: #27334c;
-    --t-border-strong: #374561;
+  :root:where(:not([data-scheme="light"])) {
+    --t-bg: #0f1115;
+    --t-bg-muted: #0b0d10;
+    --t-surface: #171a20;
+    --t-surface-2: #1d2128;
+    --t-surface-inset: #121419;
+    --t-text: #eceef2;
+    --t-text-soft: #c9cdd5;
+    --t-muted: #9aa1ad;
+    --t-border: #2a2f38;
+    --t-border-strong: #3c424d;
 
-    --t-primary: #17243d;
-    --t-primary-contrast: #eef1f7;
-    --t-primary-soft: #1d2942;
+    --t-primary: #1d2128;
+    --t-primary-contrast: #eceef2;
+    --t-primary-soft: #262b33;
 
     /* W ciemnym wariancie akcent musi być jaśniejszy od tła, a nie ciemniejszy: ta sama czerwień
        z logotypu, rozjaśniona do 7.4:1 na tle strony. Rola „na granacie” jest tu tym samym
        odcieniem – tło strony i pasek nagłówka mają w tym wariancie zbliżoną jasność. */
-    --t-accent: #ef8a82;
+    --t-accent: #f08b83;
     --t-accent-ink: #f6b3ad;
-    --t-accent-soft: #33100f;
+    --t-accent-soft: #3a1412;
     --t-accent-on-primary: #ef8a82;
     --t-accent-rule: #d9483c;
 
@@ -414,8 +414,8 @@
     --t-info-ink: #a6c4ee;
     --t-info-soft: #142239;
 
-    --t-neutral-ink: #b3bdcd;
-    --t-neutral-soft: #1c2740;
+    --t-neutral-ink: #b3bac6;
+    --t-neutral-soft: #22262e;
 
     --t-link: #8fb6e8;
     --t-link-hover: #c3d8f5;
@@ -425,6 +425,71 @@
     --t-shadow: 0 2px 6px rgba(0, 0, 0, 0.45), 0 12px 32px rgba(0, 0, 0, 0.35);
     --t-shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.04);
   }
+}
+
+/* Motyw wybrany ręcznie (przycisk w pasku konta, ``apps.accounts.preferences``): te same tokeny,
+   co w wariancie systemowym, ale zaczepione o ``data-scheme`` na ``<html>``. ``:where()`` trzyma
+   swoistość równą ``:root``, więc arkusz motywu (``tokens.css`` dołączany później) nadal wygrywa
+   kolejnością – motyw jasny-tylko zostaje jasny niezależnie od przełącznika. Blok systemowy wyżej
+   nie dotyczy ``data-scheme="light"``: wymuszony jasny ma zostać jasny także w ciemnym systemie. */
+:root:where([data-scheme="dark"]) {
+  color-scheme: dark;
+  --t-bg: #0f1115;
+  --t-bg-muted: #0b0d10;
+  --t-surface: #171a20;
+  --t-surface-2: #1d2128;
+  --t-surface-inset: #121419;
+  --t-text: #eceef2;
+  --t-text-soft: #c9cdd5;
+  --t-muted: #9aa1ad;
+  --t-border: #2a2f38;
+  --t-border-strong: #3c424d;
+
+  --t-primary: #1d2128;
+  --t-primary-contrast: #eceef2;
+  --t-primary-soft: #262b33;
+
+  /* W ciemnym wariancie akcent musi być jaśniejszy od tła, a nie ciemniejszy: ta sama czerwień
+     z logotypu, rozjaśniona do 7.4:1 na tle strony. Rola „na granacie” jest tu tym samym
+     odcieniem – tło strony i pasek nagłówka mają w tym wariancie zbliżoną jasność. */
+  --t-accent: #f08b83;
+  --t-accent-ink: #f6b3ad;
+  --t-accent-soft: #3a1412;
+  --t-accent-on-primary: #ef8a82;
+  --t-accent-rule: #d9483c;
+
+  --t-success: #4cae83;
+  --t-success-ink: #7fd0aa;
+  --t-success-soft: #10281f;
+
+  --t-warning: #dda44a;
+  --t-warning-ink: #edc078;
+  --t-warning-soft: #2c2210;
+
+  /* Błąd zostaje cieplejszy od akcentu także tutaj – inaczej alert i marka byłyby tym samym
+     odcieniem łososia. */
+  --t-danger: #ec8f6e;
+  --t-danger-ink: #f3b294;
+  --t-danger-soft: #2f1a11;
+
+  --t-info: #7ea6e0;
+  --t-info-ink: #a6c4ee;
+  --t-info-soft: #142239;
+
+  --t-neutral-ink: #b3bac6;
+  --t-neutral-soft: #22262e;
+
+  --t-link: #8fb6e8;
+  --t-link-hover: #c3d8f5;
+  --t-focus: #ef8a82;
+
+  --t-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --t-shadow: 0 2px 6px rgba(0, 0, 0, 0.45), 0 12px 32px rgba(0, 0, 0, 0.35);
+  --t-shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+:root:where([data-scheme="light"]) {
+  color-scheme: light;
 }
 
 /* --- 3. Reset i podstawy -------------------------------------------------------------------- */
@@ -457,14 +522,13 @@ body {
   flex-direction: column;
   font-family: var(--font-sans);
   font-size: var(--t-font-size-base);
-  line-height: 1.6;
+  line-height: 1.55;
   color: var(--ink);
   background-color: var(--bg);
-  /* Delikatna „faktura papieru”: dwa bardzo miękkie gradienty, żadnych obrazów do pobrania. */
-  background-image:
-    radial-gradient(1200px 420px at 50% -180px, rgba(var(--t-primary-rgb), 0.07), transparent 70%),
-    radial-gradient(720px 320px at 100% 0, rgba(var(--t-accent-rgb), 0.06), transparent 70%);
-  background-repeat: no-repeat;
+  /* Hero i pas CTA wychodzą na pełną szerokość okna (``100vw``, czyli razem z paskiem przewijania);
+     ``clip`` ucina ten pasek bez zakładania kontenera przewijania – ``position: sticky`` paska
+     konta działa dalej. */
+  overflow-x: clip;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -478,14 +542,18 @@ img {
   height: auto;
 }
 
+/* Odnośnik jest błękitny (drugi kolor widma obok czerwieni z logotypu), z półprzezroczystym
+   podkreśleniem; po najechaniu przechodzi w ciemną czerwień akcentu. */
 a {
   color: var(--link);
-  text-underline-offset: 0.16em;
+  text-decoration-color: color-mix(in srgb, currentcolor 45%, transparent);
+  text-underline-offset: 0.18em;
   text-decoration-thickness: 1px;
 }
 
 a:hover {
   color: var(--link-hover);
+  text-decoration-color: currentcolor;
 }
 
 :focus-visible {
@@ -525,16 +593,19 @@ hr {
   inset-inline-start: 0;
 }
 
+/* Nagłówek jest jasny: papier, cienka kreska i czerwone podkreślenie bieżącej pozycji. Granatowy
+   pas z czerwoną listwą ustąpił, bo logotyp jest rysowany na biel – na własnym tle nie potrzebuje
+   plakietki, a nawigacja czyta się tym samym atramentem, co treść. */
 .topbar {
-  background: var(--brand);
-  color: var(--brand-ink);
-  border-bottom: 3px solid var(--accent-rule);
+  background: var(--surface);
+  color: var(--ink);
+  border-bottom: 1px solid var(--line);
 }
 
 .topbar__inner {
   max-width: var(--container);
   margin: 0 auto;
-  padding: var(--sp-3) var(--sp-4);
+  padding: var(--sp-4) var(--sp-4);
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -546,7 +617,7 @@ hr {
   align-items: center;
   gap: var(--sp-3);
   text-decoration: none;
-  color: var(--brand-ink);
+  color: var(--ink);
 }
 
 /* Logotyp organizatora (czarne kontury + ciemna czerwień) jest zaprojektowany na jasne tło:
@@ -580,7 +651,7 @@ hr {
 
 .brand:hover .brand__logo,
 .brand:focus-visible .brand__logo {
-  outline: 2px solid var(--accent-on-brand);
+  outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
 
@@ -597,10 +668,9 @@ hr {
 }
 
 .brand__sub {
-  font-size: 0.8125rem;
-  color: rgba(var(--t-primary-contrast-rgb), 0.72);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font-size: 0.875rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
 }
 
 
@@ -608,7 +678,7 @@ hr {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--sp-1) var(--sp-4);
+  gap: var(--sp-1) var(--sp-6);
   margin: 0;
   padding: 0;
 }
@@ -617,9 +687,9 @@ hr {
   position: relative;
   display: inline-block;
   padding: var(--sp-1) 0;
-  color: rgba(var(--t-primary-contrast-rgb), 0.88);
+  color: var(--ink-soft);
   text-decoration: none;
-  font-size: 0.9375rem;
+  font-size: 1rem;
   font-weight: 500;
   border-bottom: 2px solid transparent;
 }
@@ -636,13 +706,13 @@ hr {
 }
 
 .nav__link:hover {
-  color: var(--t-on-primary-strong);
-  border-bottom-color: rgba(var(--t-accent-on-primary-rgb), 0.6);
+  color: var(--ink);
+  border-bottom-color: var(--line-strong);
 }
 
 .nav__link[aria-current="page"] {
-  color: var(--t-on-primary-strong);
-  border-bottom-color: var(--accent-on-brand);
+  color: var(--ink);
+  border-bottom-color: var(--accent);
   font-weight: 600;
 }
 
@@ -696,13 +766,13 @@ hr {
 }
 
 .nav-menu__summary:hover {
-  color: var(--t-on-primary-strong);
-  border-bottom-color: rgba(var(--t-accent-on-primary-rgb), 0.6);
+  color: var(--ink);
+  border-bottom-color: var(--line-strong);
 }
 
 .nav-menu__summary--active {
-  color: var(--t-on-primary-strong);
-  border-bottom-color: var(--accent-on-brand);
+  color: var(--ink);
+  border-bottom-color: var(--accent);
   font-weight: 600;
 }
 
@@ -719,20 +789,20 @@ hr {
 .nav-menu__link {
   display: block;
   padding: var(--sp-2) var(--sp-3);
-  color: rgba(var(--t-primary-contrast-rgb), 0.88);
+  color: var(--ink-soft);
   text-decoration: none;
   font-size: 0.9375rem;
   border-inline-start: 2px solid transparent;
 }
 
 .nav-menu__link:hover {
-  color: var(--t-on-primary-strong);
-  background: rgba(var(--t-primary-contrast-rgb), 0.08);
+  color: var(--ink);
+  background: var(--surface-2);
 }
 
 .nav-menu__link[aria-current="page"] {
-  color: var(--t-on-primary-strong);
-  border-inline-start-color: var(--accent-on-brand);
+  color: var(--ink);
+  border-inline-start-color: var(--accent);
   font-weight: 600;
 }
 
@@ -743,7 +813,7 @@ hr {
 }
 
 .nav-menu__list > li:first-child {
-  border-bottom: 1px solid rgba(var(--t-primary-contrast-rgb), 0.16);
+  border-bottom: 1px solid var(--line);
   margin-bottom: var(--sp-1);
   padding-bottom: var(--sp-1);
 }
@@ -757,9 +827,9 @@ hr {
     min-width: 17rem;
     margin: 0;
     padding: var(--sp-2) 0;
-    background: var(--brand);
-    border: 1px solid rgba(var(--t-primary-contrast-rgb), 0.18);
-    border-top: 3px solid var(--accent-rule);
+    background: var(--surface);
+    border: 1px solid var(--line-strong);
+    border-top: 2px solid var(--accent);
     border-radius: 0 0 var(--radius) var(--radius);
     box-shadow: var(--shadow);
   }
@@ -809,12 +879,16 @@ hr {
   top: 0;
   z-index: 40;
   border-bottom: 0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+}
+
+/* Cień dopiero po przyklejeniu (klasa z static/js/sticky-bar.js): na górze strony pasek jest
+   częścią papieru, a nie listwą nad nim. */
+.topbar--account.is-stuck {
+  box-shadow: 0 1px 0 var(--line), 0 8px 24px rgba(var(--t-primary-rgb), 0.08);
 }
 
 .topbar__account {
-  background: var(--brand);
-  border-bottom: 1px solid rgba(var(--t-primary-contrast-rgb), 0.14);
+  background: var(--surface);
 }
 
 .topbar__account-inner {
@@ -882,7 +956,7 @@ hr {
 
 .account-bar__link {
   padding: var(--sp-1) 0;
-  color: rgba(var(--t-primary-contrast-rgb), 0.9);
+  color: var(--ink-soft);
   text-decoration: none;
   font-size: 0.875rem;
   font-weight: 500;
@@ -890,25 +964,25 @@ hr {
 }
 
 .account-bar__link:hover {
-  color: var(--t-on-primary-strong);
-  border-bottom-color: rgba(var(--t-accent-on-primary-rgb), 0.6);
+  color: var(--ink);
+  border-bottom-color: var(--line-strong);
 }
 
 .account-bar__link[aria-current="page"] {
-  color: var(--t-on-primary-strong);
-  border-bottom-color: var(--accent-on-brand);
+  color: var(--ink);
+  border-bottom-color: var(--accent);
   font-weight: 600;
 }
 
 .account-bar__sep {
   width: 1px;
   height: 1.25rem;
-  background: rgba(var(--t-primary-contrast-rgb), 0.24);
+  background: var(--line-strong);
 }
 
 .account-bar__who {
   font-size: 0.8125rem;
-  color: rgba(var(--t-primary-contrast-rgb), 0.7);
+  color: var(--muted);
   max-width: 24ch;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -920,7 +994,7 @@ hr {
    dopiero po najechaniu, żeby pasek nie zamienił się w rząd podkreśleń. */
 .account-bar__who:hover,
 .account-bar__who[aria-current="page"] {
-  color: var(--t-on-primary-strong);
+  color: var(--ink);
   text-decoration: underline;
 }
 
@@ -929,22 +1003,7 @@ hr {
   margin: 0;
 }
 
-/* Na granacie jasny ``.btn--secondary`` byłby plamą w kolorze pola formularza – w pasku konta
-   (tak samo jak w hero) zostaje z niego sam obrys. */
-.account-bar .btn--secondary {
-  background: transparent;
-  border-color: rgba(var(--t-primary-contrast-rgb), 0.55);
-  color: rgb(var(--t-primary-contrast-rgb));
-}
-
-.account-bar .btn--secondary:hover {
-  background: rgba(var(--t-primary-contrast-rgb), 0.12);
-  border-color: rgb(var(--t-primary-contrast-rgb));
-  color: var(--t-on-primary-strong);
-}
-
-/* Obrys fokusu w granatowych pasach: ciemna czerwień akcentu jest tam niewidoczna. */
-.topbar :focus-visible,
+/* Obrys fokusu w grafitowej stopce: ciemna czerwień akcentu jest tam niewidoczna. */
 .footer :focus-visible {
   outline-color: var(--accent-on-brand);
 }
@@ -1515,6 +1574,9 @@ hr {
   max-width: var(--container);
   margin: 0 auto;
   padding: var(--sp-8) var(--sp-4) var(--sp-12);
+  /* Wcięcie treści względem krawędzi okna – elementy pełnej szerokości (hero, pas CTA) wracają
+     tym samym wyrażeniem do linii treści. */
+  --bleed-pad: max(var(--sp-4), calc((100vw - var(--container)) / 2 + var(--sp-4)));
 }
 
 .page > h1:first-child,
@@ -1536,17 +1598,15 @@ hr {
   background: var(--navy-900);
   color: rgba(var(--t-primary-contrast-rgb), 0.72);
   font-size: 0.875rem;
-  border-top: 3px solid var(--accent-rule);
 }
 
 .footer__inner {
   max-width: var(--container);
   margin: 0 auto;
-  padding: var(--sp-8) var(--sp-4);
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-6);
-  justify-content: space-between;
+  padding: var(--sp-12) var(--sp-4);
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: var(--sp-8);
 }
 
 .footer p {
@@ -1556,6 +1616,20 @@ hr {
 
 .footer strong {
   color: rgba(var(--t-primary-contrast-rgb), 0.92);
+}
+
+/* Nazwa serwisu w stopce – pierwsza linia pierwszej kolumny, większa od reszty. */
+.footer__inner > div:first-child > p:first-child {
+  font-size: 1.25rem;
+  line-height: 1.3;
+  margin-bottom: var(--sp-4);
+}
+
+@media (max-width: 760px) {
+  .footer__inner {
+    grid-template-columns: minmax(0, 1fr);
+    padding: var(--sp-8) var(--sp-4);
+  }
 }
 
 .footer a {
@@ -1670,15 +1744,17 @@ hr {
 
 /* --- 5. Typografia -------------------------------------------------------------------------- */
 
+/* Nagłówki składa ten sam krój, co treść – ciasno i ciężko. Szeryf (``--font-display``) zostaje
+   głosem „złożonej strony”: hasło w hero, liczby KPI, numery kroków, lead artykułu i cytat. */
 h1,
 h2,
 h3,
 h4 {
-  font-family: var(--font-serif);
+  font-family: var(--font-sans);
   font-weight: 700;
-  line-height: 1.2;
+  line-height: 1.15;
   color: var(--ink);
-  letter-spacing: -0.005em;
+  letter-spacing: -0.02em;
   /* Nagłówek z adresem e-mail albo nazwą pliku („Konto jan.kowalski@…”) łamie się zamiast
      rozpychać stronę – na 360 px taki ``<h1>`` miał 650 px. */
   overflow-wrap: break-word;
@@ -1686,24 +1762,27 @@ h4 {
 }
 
 h1 {
-  font-size: clamp(1.75rem, 1.3rem + 1.6vw, 2.35rem);
+  font-size: clamp(2rem, 1.4rem + 2vw, 3rem);
   margin: 0 0 var(--sp-4);
 }
 
 h2 {
-  font-size: 1.4rem;
+  font-size: 1.5rem;
+  letter-spacing: -0.015em;
   margin: var(--sp-8) 0 var(--sp-3);
 }
 
 h3 {
   font-size: 1.125rem;
   font-weight: 600;
+  letter-spacing: -0.01em;
   margin: var(--sp-6) 0 var(--sp-2);
 }
 
 h4 {
   font-size: 1rem;
   font-weight: 600;
+  letter-spacing: 0;
   margin: var(--sp-4) 0 var(--sp-2);
 }
 
@@ -1712,7 +1791,8 @@ p {
 }
 
 .lead {
-  font-size: 1.0625rem;
+  font-size: 1.125rem;
+  line-height: 1.5;
   color: var(--ink-soft);
   max-width: var(--reading);
 }
@@ -1742,19 +1822,21 @@ p {
   padding-bottom: var(--sp-2);
 }
 
+/* Nadtytuł mówi, w jakiej części serwisu stoi strona („Panel koordynatora”). Zwykłe zdanie,
+   drugoplanowym kolorem – bez wersalików i rozstrzelenia, które robiły z niego etykietę. */
 .eyebrow {
   display: block;
   font-family: var(--font-sans);
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--accent-ink);
-  margin-bottom: var(--sp-2);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--muted);
+  margin-bottom: var(--sp-1);
 }
 
 .section {
-  margin-bottom: var(--sp-12);
+  margin-bottom: calc(var(--sp-12) + var(--sp-8));
 }
 
 .section__head {
@@ -1763,12 +1845,13 @@ p {
   align-items: baseline;
   justify-content: space-between;
   gap: var(--sp-3);
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--line-strong);
   margin: var(--sp-8) 0 var(--sp-4);
 }
 
 .section__head h2 {
-  margin: 0 0 var(--sp-2);
+  margin: 0 0 var(--sp-3);
+  font-size: clamp(1.5rem, 1.2rem + 1vw, 2rem);
 }
 
 .prose {
@@ -1865,7 +1948,6 @@ p {
 }
 
 .card__title {
-  font-family: var(--font-serif);
   font-weight: 700;
 }
 
@@ -1941,6 +2023,35 @@ a.btn {
   color: var(--t-on-primary-strong);
 }
 
+/* Przycisk „atramentowy” w ciemnym wariancie odwraca się: jasna plama na grafitowym tle, bo
+   grafit na graficie byłby przyciskiem bez konturu. Role, nie literały – motyw jasny-tylko
+   nigdy tu nie trafia. */
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-scheme="light"])) .btn--primary {
+    background: var(--ink);
+    border-color: var(--ink);
+    color: var(--bg);
+  }
+
+  :root:where(:not([data-scheme="light"])) .btn--primary:hover {
+    background: var(--ink-soft);
+    border-color: var(--ink-soft);
+    color: var(--bg);
+  }
+}
+
+:root:where([data-scheme="dark"]) .btn--primary {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--bg);
+}
+
+:root:where([data-scheme="dark"]) .btn--primary:hover {
+  background: var(--ink-soft);
+  border-color: var(--ink-soft);
+  color: var(--bg);
+}
+
 .btn--accent {
   background: var(--accent);
   border-color: var(--red-700);
@@ -1953,29 +2064,33 @@ a.btn {
   color: var(--t-on-accent);
 }
 
-/* Ten sam przycisk stoi też na granacie (pasek konta, hero). Ciemna czerwień na granacie jest
-   plamą bez konturu, więc tam obrys bierze jasny stopień akcentu – kształt przycisku jest
-   widoczny, a biały tekst nadal leży na ciemnej czerwieni. */
-.topbar .btn--accent,
-.hero .btn--accent {
-  border-color: var(--accent-on-brand);
-}
-
 /* W ciemnym wariancie ``--accent`` jest jasnym łososiem – dobrym na tekst, złym jako tło pod białe
    litery (2:1). Przycisk zostaje więc przy ciemnej czerwieni marki w obu wariantach; na ciemnym tle
    wyodrębnia go jasny obrys, tak samo jak w granatowym pasku. */
 @media (prefers-color-scheme: dark) {
-  .btn--accent {
+  :root:where(:not([data-scheme="light"])) .btn--accent {
     background: var(--red-600);
     border-color: var(--red-300);
     color: var(--t-on-accent);
   }
 
-  .btn--accent:hover {
+  :root:where(:not([data-scheme="light"])) .btn--accent:hover {
     background: var(--red-700);
     border-color: var(--red-300);
     color: var(--t-on-accent);
   }
+}
+
+:root:where([data-scheme="dark"]) .btn--accent {
+  background: var(--red-600);
+  border-color: var(--red-300);
+  color: var(--t-on-accent);
+}
+
+:root:where([data-scheme="dark"]) .btn--accent:hover {
+  background: var(--red-700);
+  border-color: var(--red-300);
+  color: var(--t-on-accent);
 }
 
 .btn--secondary {
@@ -1986,7 +2101,7 @@ a.btn {
 
 .btn--secondary:hover {
   background: var(--surface-2);
-  border-color: var(--brand);
+  border-color: var(--ink);
   color: var(--ink);
 }
 
@@ -2033,7 +2148,7 @@ a.btn {
 /* Przyciski poza systemem klas (fallback dla formularzy Django). Znacznik linii czasu
    (``.tl__mark``) jest z tego wyjęty razem z ``.link``: to nie jest przycisk formularza, tylko
    jeden znak w siatce monospace – tło, obrys i minimalna wysokość rozerwałyby pasek. */
-button:not(.btn):not(.link):not(.tl__mark) {
+button:not(.btn):not(.link):not(.tl__mark):not([class^="hero-slider__"]) {
   font: inherit;
   font-size: 0.9375rem;
   font-weight: 600;
@@ -2163,7 +2278,7 @@ textarea:hover {
 input:focus,
 select:focus,
 textarea:focus {
-  border-color: var(--brand);
+  border-color: var(--ink);
   outline: 3px solid var(--focus);
   outline-offset: 1px;
 }
@@ -2315,7 +2430,6 @@ fieldset {
 }
 
 legend {
-  font-family: var(--font-serif);
   font-weight: 700;
   padding: 0 var(--sp-2);
   color: var(--ink);
@@ -2416,7 +2530,6 @@ form.inline input[type="text"] {
 
 .dropzone__label {
   display: block;
-  font-family: var(--font-serif);
   font-weight: 700;
   font-size: 1.0625rem;
   margin-bottom: var(--sp-1);
@@ -2637,17 +2750,19 @@ form.inline input[type="text"] {
   padding: 0 0 var(--sp-2);
 }
 
+/* Nagłówek kolumn jak linijka w notesie: bez tła i wersalików, drugoplanowym kolorem, a pod nim
+   kreska atramentem – to ona oddziela nagłówek od danych. */
 .table th,
 .grid th {
-  background: var(--surface-inset);
-  color: var(--ink);
+  background: var(--surface);
+  color: var(--muted);
   font-weight: 600;
   font-size: 0.8125rem;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   text-align: start;
   padding: var(--sp-2) var(--sp-3);
-  border-bottom: 2px solid var(--line-strong);
+  border-bottom: 2px solid var(--ink);
   white-space: nowrap;
 }
 
@@ -2718,7 +2833,7 @@ form.inline input[type="text"] {
 
 .table--sticky-first thead tr > :first-child {
   z-index: 3;
-  background: var(--surface-inset);
+  background: var(--surface);
 }
 
 /* Ranking: przyklejone są **dwie** kolumny – miejsce i uczestnik – bo samo „7.” po przewinięciu
@@ -2753,7 +2868,7 @@ form.inline input[type="text"] {
 
 .table--sticky-rank thead tr > :is(:first-child, :nth-child(2)) {
   z-index: 3;
-  background: var(--surface-inset);
+  background: var(--surface);
 }
 
 /* Nagłówek „Miejsce” w stałej szerokości: gdyby krój się nie zmieścił, ucina się wielokropkiem
@@ -3019,12 +3134,12 @@ form.inline input[type="text"] {
   align-items: center;
   gap: 0.3em;
   padding: 0.12rem 0.5rem;
-  border-radius: 999px;
+  border-radius: var(--radius-sm);
   border: 1px solid transparent;
   font-size: 0.75rem;
   font-weight: 600;
   line-height: 1.5;
-  letter-spacing: 0.02em;
+  letter-spacing: 0;
   /* Odznaka jest pudełkiem atomowym (``inline-flex``): krótka nigdy się nie łamie, tylko w całości
      przechodzi do następnej linii. Łamie się dopiero ta, która sama jest szersza od kontenera
      („niedostępny – brak pakietu … na serwerze” w nagłówku karty na 360 px) – z ``nowrap`` taka
@@ -3220,7 +3335,6 @@ span.msg {
 
 .empty__title {
   display: block;
-  font-family: var(--font-serif);
   font-weight: 700;
   font-size: 1.0625rem;
   color: var(--ink-soft);
@@ -3252,51 +3366,86 @@ td.empty,
 }
 
 /* 6.8 Oś czasu etapów */
+/* Oś etapów: jedna pozioma linia i punkt na początku każdego etapu – kolor punktu i odcinka
+   mówi, czy etap jest za nami (zielony), trwa (czerwony), czy dopiero przed nami (szary).
+   Bez pudełek: etapy czyta się jak poziomy energetyczne na jednej skali, a nie jak trzy
+   osobne ogłoszenia. Na wąskim ekranie oś staje się pionowa – punkty i odcinki po lewej. */
 .timeline {
   list-style: none;
   margin: 0 0 var(--sp-6);
   padding: 0;
   display: grid;
-  gap: var(--sp-4);
+  gap: var(--sp-6) var(--sp-8);
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
 }
 
+/* Stan etapu niesie **linia widmowa** na początkowej krawędzi karty: zielona – za nami, czerwona –
+   trwa, szara – przed nami. Jedna krawędź, jeden kolor, ta sama składnia co ``.card--accent``
+   i kroki na stronie głównej. */
 .timeline__item {
+  --tl-state: var(--line-strong);
   position: relative;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-top: 4px solid var(--line-strong);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-sm);
-  padding: var(--sp-4);
+  padding: var(--sp-6) 0 0;
+  border-top: 2px solid var(--tl-state);
+}
+
+.timeline__item::before {
+  content: "";
+  position: absolute;
+  top: -8px;
+  inset-inline-start: 0;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--tl-state);
+  box-shadow: 0 0 0 4px var(--bg);
 }
 
 .timeline__item--done {
-  border-top-color: var(--ok);
+  --tl-state: var(--ok);
 }
 
 .timeline__item--open {
-  border-top-color: var(--accent);
-  box-shadow: var(--shadow);
+  --tl-state: var(--accent);
+}
+
+.timeline__item--open::before {
+  box-shadow: 0 0 0 4px var(--bg), 0 0 0 7px var(--accent-soft);
 }
 
 .timeline__item--next {
-  border-top-color: var(--line-strong);
-  background: var(--surface-2);
+  --tl-state: var(--line-strong);
+}
+
+@media (max-width: 639.98px) {
+  .timeline {
+    gap: 0;
+  }
+
+  .timeline__item {
+    padding: 0 0 var(--sp-6) var(--sp-6);
+    border-top: 0;
+    border-inline-start: 2px solid var(--tl-state);
+  }
+
+  .timeline__item::before {
+    top: 0;
+    inset-inline-start: -8px;
+  }
 }
 
 .timeline__kind {
-  font-family: var(--font-serif);
-  font-size: 1.125rem;
+  font-size: 1.375rem;
   font-weight: 700;
+  letter-spacing: -0.015em;
   margin: 0 0 var(--sp-2);
 }
 
 .timeline__dates {
-  margin: 0 0 var(--sp-3);
+  margin: var(--sp-3) 0;
   padding: 0;
   list-style: none;
-  font-size: 0.875rem;
+  font-size: 0.9375rem;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
@@ -3305,7 +3454,8 @@ td.empty,
   display: flex;
   justify-content: space-between;
   gap: var(--sp-3);
-  padding: 0.1rem 0;
+  padding: 0.2rem 0;
+  border-bottom: 1px solid var(--line);
 }
 
 .timeline__dates dt {
@@ -3340,9 +3490,8 @@ td.empty,
 }
 
 .countdown__label {
-  font-size: 0.75rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  font-size: 0.8125rem;
+  letter-spacing: 0;
   color: rgba(var(--t-primary-contrast-rgb), 0.7);
   display: block;
   width: 100%;
@@ -3390,9 +3539,13 @@ td.empty,
 }
 
 @media (prefers-color-scheme: dark) {
-  .kpi__value {
+  :root:where(:not([data-scheme="light"])) .kpi__value {
     color: var(--accent);
   }
+}
+
+:root:where([data-scheme="dark"]) .kpi__value {
+  color: var(--accent);
 }
 
 .kpi__label {
@@ -3500,8 +3653,7 @@ td.empty,
   font-family: var(--font-sans);
   font-size: 0.6875rem;
   font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: 0;
   color: var(--muted);
 }
 
@@ -3934,51 +4086,72 @@ td.empty,
 /* --- 7. Widoki ------------------------------------------------------------------------------ */
 
 /* 7.1 Strona główna */
+/* Plansza powitalna jest kartką, nie granatowym pasem: papier, cienka ramka i pole prążków
+   interferencyjnych po prawej. Prążki rysują dwie rodziny współśrodkowych okręgów przesunięte
+   względem siebie (``--hero-field``) – ich nałożenie daje mory jak w doświadczeniu z dwiema
+   szczelinami; maska wygasza pole w stronę tekstu, więc hasło stoi na czystym papierze.
+   Kolor kresek idzie z atramentu (``color-mix``), więc w ciemnym wariancie prążki są jasne. */
 .hero {
+  /* Dwie rodziny okręgów w dwóch kolorach widma – czerwień logotypu i błękit odnośników –
+     nakładają się w prążki interferencyjne; pod nimi miękka poświata obu barw. */
+  --hero-line-red: color-mix(in srgb, var(--accent) 22%, transparent);
+  --hero-line-blue: color-mix(in srgb, var(--info) 22%, transparent);
+  --hero-field:
+    repeating-radial-gradient(circle at 76% 50%, var(--hero-line-red) 0 1.5px, transparent 1.5px 22px),
+    repeating-radial-gradient(circle at 46% 50%, var(--hero-line-blue) 0 1.5px, transparent 1.5px 22px),
+    radial-gradient(circle at 70% 40%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 50%),
+    radial-gradient(circle at 48% 70%, color-mix(in srgb, var(--info) 16%, transparent), transparent 50%);
   position: relative;
-  background: linear-gradient(135deg, var(--navy-800), var(--navy-700) 60%, var(--navy-600));
-  color: rgb(var(--t-primary-contrast-rgb));
-  border-radius: var(--radius-lg);
-  padding: var(--sp-12) var(--sp-8);
-  margin-bottom: var(--sp-8);
+  /* Na całą szerokość okna: ujemny margines wyprowadza planszę poza kolumnę treści, a wcięcie
+     ``--bleed-pad`` sprowadza tekst z powrotem do linii treści. Góra bez marginesu – hero zaczyna
+     się tuż pod menu, oddzielone jedynie kreską nagłówka. */
+  margin: calc(var(--sp-8) * -1) calc(50% - 50vw) var(--sp-12);
+  padding: clamp(3.5rem, 9vw, 7rem) var(--bleed-pad);
+  background: linear-gradient(120deg, var(--surface) 0%, var(--surface-2) 45%, color-mix(in srgb, var(--accent-soft) 60%, var(--info-soft)) 100%);
+  color: var(--ink);
   overflow: hidden;
-  box-shadow: var(--shadow);
 }
 
 .hero::after {
   content: "";
   position: absolute;
-  inset: auto -60px -120px auto;
-  width: 320px;
-  height: 320px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(var(--t-accent-rule-rgb), 0.42), transparent 65%);
+  inset: -40% -10% -40% 42%;
+  background: var(--hero-field);
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 35%);
+  mask-image: linear-gradient(to right, transparent, #000 35%);
   pointer-events: none;
 }
 
 .hero__inner {
   position: relative;
-  max-width: 46rem;
+  z-index: 1;
+  max-width: 54rem;
 }
 
 .hero .eyebrow {
-  color: var(--accent-on-brand);
+  color: var(--muted);
 }
 
 .hero h1 {
-  color: var(--t-on-primary-strong);
-  font-size: clamp(2rem, 1.4rem + 2.4vw, 3rem);
-  margin-bottom: var(--sp-4);
+  color: var(--ink);
+  font-family: var(--font-serif);
+  font-size: clamp(2.5rem, 1.4rem + 4.2vw, 4.75rem);
+  line-height: 1.02;
+  letter-spacing: -0.02em;
+  margin-bottom: var(--sp-6);
 }
 
 .hero__text {
-  font-size: 1.0625rem;
-  color: rgba(var(--t-primary-contrast-rgb), 0.85);
+  font-size: clamp(1.125rem, 1rem + 0.5vw, 1.375rem);
+  line-height: 1.5;
+  color: var(--ink-soft);
   max-width: 44ch;
 }
 
-.hero__text a {
-  color: var(--accent-on-brand);
+.hero__actions .btn {
+  min-height: 3rem;
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
 }
 
 .hero__actions {
@@ -3988,18 +4161,6 @@ td.empty,
   margin-top: var(--sp-6);
 }
 
-.hero__actions .btn--secondary {
-  background: transparent;
-  border-color: rgba(var(--t-primary-contrast-rgb), 0.5);
-  color: rgb(var(--t-primary-contrast-rgb));
-}
-
-.hero__actions .btn--secondary:hover {
-  background: rgba(var(--t-primary-contrast-rgb), 0.12);
-  border-color: rgb(var(--t-primary-contrast-rgb));
-  color: var(--t-on-primary-strong);
-}
-
 /* Zapowiedź startu rejestracji pod przyciskami (``cms.SiteSettings.registration_note``). Zwykły
    wiersz tekstu, a nie plakietka jak ``hero__status``: to informacja o dacie, a nie stan systemu –
    wyróżniona ramką konkurowałaby wzrokowo z przyciskiem, pod którym stoi. */
@@ -4007,7 +4168,7 @@ td.empty,
   max-width: 44ch;
   margin-top: var(--sp-4);
   font-size: 0.875rem;
-  color: rgba(var(--t-primary-contrast-rgb), 0.85);
+  color: var(--muted);
 }
 
 .hero__status {
@@ -4018,10 +4179,11 @@ td.empty,
   margin-top: var(--sp-6);
   padding: var(--sp-2) var(--sp-4);
   border-radius: var(--radius);
-  background: rgba(var(--t-primary-contrast-rgb), 0.1);
-  border: 1px solid rgba(var(--t-accent-on-primary-rgb), 0.5);
+  background: var(--surface-2);
+  border: 1px solid var(--line-strong);
+  border-inline-start: 3px solid var(--accent);
   font-size: 0.875rem;
-  color: rgb(var(--t-primary-contrast-rgb));
+  color: var(--ink-soft);
 }
 
 /* 7.1 (c.d.) Slider w nagłówku strony głównej (templates/cms/home_page.html, js/hero-slider.js).
@@ -4054,40 +4216,50 @@ td.empty,
   position: relative;
   scroll-snap-align: start;
   scroll-snap-stop: always;
-  padding: var(--sp-12) var(--sp-8) calc(var(--sp-12) + var(--sp-4));
+  padding: clamp(3.5rem, 9vw, 7rem) var(--bleed-pad) clamp(5rem, 11vw, 8.5rem);
   overflow: hidden;
   min-width: 0;
+  /* Plansza ma oddech dużego ekranu, a tekst stoi w jej środku, nie przy górnej krawędzi. */
+  min-height: min(68vh, 44rem);
+  display: grid;
+  align-content: center;
 }
 
-/* Plansza z hasłem serwisu zachowuje dotychczasową poświatę nagłówka. */
+/* Plansza z hasłem i plansza aktualności dostają to samo pole prążków, co hero bez slidera. */
 .hero-slide--intro::after,
 .hero-slide--news::after {
   content: "";
   position: absolute;
-  inset: auto -60px -120px auto;
-  width: 320px;
-  height: 320px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(var(--t-accent-rule-rgb), 0.42), transparent 65%);
+  inset: -40% -10% -40% 42%;
+  background: var(--hero-field);
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 35%);
+  mask-image: linear-gradient(to right, transparent, #000 35%);
   pointer-events: none;
 }
 
 .hero-news__title {
-  color: var(--t-on-primary-strong);
-  font-size: clamp(1.6rem, 1.2rem + 1.6vw, 2.4rem);
+  color: var(--ink);
+  font-family: var(--font-serif);
+  font-size: clamp(1.75rem, 1.2rem + 2vw, 2.75rem);
+  line-height: 1.1;
+  letter-spacing: -0.01em;
   margin-bottom: var(--sp-4);
 }
 
+/* Kontrolki stoją na dowolnej planszy – papierowej, czerwonej, granatowej – więc mają własną,
+   kryjącą plakietkę z obrysem zamiast półprzezroczystej plamy dobranej pod jedno tło. */
 .hero-slider__controls {
   position: absolute;
-  inset-inline-end: var(--sp-4);
-  bottom: var(--sp-4);
+  inset-inline-end: var(--bleed-pad);
+  bottom: var(--sp-6);
   display: flex;
   align-items: center;
   gap: var(--sp-2);
   padding: var(--sp-1) var(--sp-2);
   border-radius: 999px;
-  background: rgba(var(--t-primary-900-rgb), 0.6);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  box-shadow: var(--shadow-sm);
 }
 
 .hero-slider__controls[hidden] {
@@ -4098,7 +4270,7 @@ td.empty,
 .hero-slider__pause {
   border: 0;
   background: transparent;
-  color: var(--t-on-primary-strong);
+  color: var(--ink);
   cursor: pointer;
   font: inherit;
   line-height: 1;
@@ -4113,9 +4285,8 @@ td.empty,
 
 .hero-slider__pause {
   padding: var(--sp-1) var(--sp-2);
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  font-size: 0.8125rem;
+  font-weight: 600;
 }
 
 .hero-slider__pause[hidden] {
@@ -4124,7 +4295,7 @@ td.empty,
 
 .hero-slider__arrow:hover,
 .hero-slider__pause:hover {
-  background: rgba(255, 255, 255, 0.15);
+  background: var(--surface-inset);
 }
 
 .hero-slider__dots {
@@ -4136,20 +4307,20 @@ td.empty,
   width: 0.75rem;
   height: 0.75rem;
   padding: 0;
-  border: 2px solid var(--t-on-primary-strong);
+  border: 2px solid var(--ink);
   border-radius: 50%;
   background: transparent;
   cursor: pointer;
 }
 
 .hero-slider__dot[aria-current="true"] {
-  background: var(--t-on-primary-strong);
+  background: var(--ink);
 }
 
 .hero-slider__arrow:focus-visible,
 .hero-slider__pause:focus-visible,
 .hero-slider__dot:focus-visible {
-  outline: 3px solid var(--t-on-primary-strong);
+  outline: 3px solid var(--focus);
   outline-offset: 2px;
 }
 
@@ -4189,7 +4360,7 @@ td.empty,
   --poster-ink: #fff;
   --poster-band: var(--navy-900);
   --poster-band-ink: #fff;
-  --poster-dot: rgba(255, 255, 255, 0.14);
+  --poster-dot: transparent;
   --poster-art: rgba(255, 255, 255, 0.9);
   --poster-logo-k: var(--navy-900);
   --poster-button-bg: #fff;
@@ -4199,9 +4370,7 @@ td.empty,
   align-items: center;
   gap: var(--sp-8);
   color: var(--poster-ink);
-  background:
-    radial-gradient(circle at 1px 1px, var(--poster-dot) 1.5px, transparent 2px) 0 0 / 14px 14px,
-    linear-gradient(160deg, var(--poster-bg) 0%, var(--poster-bg) 55%, var(--poster-bg-deep) 100%);
+  background: linear-gradient(135deg, var(--poster-bg) 0%, var(--poster-bg) 50%, var(--poster-bg-deep) 100%);
 }
 
 .hero-poster--granatowy {
@@ -4236,54 +4405,44 @@ td.empty,
 .hero-poster__kicker {
   display: inline-block;
   margin: 0 0 var(--sp-6);
-  padding: var(--sp-1) var(--sp-4);
-  background: var(--poster-band);
-  color: var(--poster-band-ink);
-  font-size: 0.8125rem;
-  font-weight: 700;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  transform: rotate(-2deg);
-  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.25);
+  padding: var(--sp-1) var(--sp-3);
+  border: 1px solid currentcolor;
+  border-radius: 999px;
+  color: var(--poster-ink);
+  font-size: 0.875rem;
+  font-weight: 600;
 }
 
 .hero-poster__title {
   margin: 0 0 var(--sp-4);
   color: var(--poster-ink);
-  font-family: var(--font-sans);
-  font-size: clamp(2.4rem, 1.2rem + 4.8vw, 4.75rem);
-  font-weight: 900;
-  line-height: 0.95;
-  letter-spacing: -0.03em;
-  text-transform: uppercase;
+  font-family: var(--font-serif);
+  font-size: clamp(2.5rem, 1.4rem + 4.2vw, 4.75rem);
+  font-weight: 700;
+  line-height: 1.02;
+  letter-spacing: -0.02em;
   text-wrap: balance;
-  text-shadow: 4px 4px 0 rgba(0, 0, 0, 0.18);
 }
 
 .hero-poster__text {
-  max-width: 40ch;
+  max-width: 44ch;
   margin: 0;
-  font-size: 1.125rem;
-  font-weight: 500;
-  line-height: 1.45;
+  font-size: clamp(1.125rem, 1rem + 0.5vw, 1.375rem);
+  font-weight: 400;
+  line-height: 1.5;
+  opacity: 0.92;
 }
 
 /* Pasek z końcem rejestracji: kontrastowa naklejka jak data na afiszu. */
 .hero-poster__deadline {
-  display: inline-block;
+  display: block;
   margin: var(--sp-4) 0 0;
-  padding: var(--sp-2) var(--sp-4);
-  background: var(--poster-band);
-  color: var(--poster-band-ink);
   font-size: 1rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.25);
+  opacity: 0.92;
 }
 
 .hero-poster__deadline strong {
-  font-weight: 900;
+  font-weight: 700;
   white-space: nowrap;
 }
 
@@ -4292,16 +4451,13 @@ td.empty,
 }
 
 .hero-poster__button {
-  padding: var(--sp-3) var(--sp-8);
-  border: 3px solid var(--poster-button-bg);
+  min-height: 3rem;
+  padding: 0.75rem 1.5rem;
+  border: 1px solid var(--poster-button-bg);
   background: var(--poster-button-bg);
   color: var(--poster-button-ink);
-  font-size: 1.0625rem;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  box-shadow: 5px 5px 0 rgba(0, 0, 0, 0.3);
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  font-size: 1rem;
+  font-weight: 600;
 }
 
 .hero-poster__button:hover,
@@ -4309,8 +4465,7 @@ td.empty,
   color: var(--poster-button-ink);
   background: var(--poster-button-bg);
   border-color: var(--poster-button-bg);
-  transform: translate(-2px, -2px);
-  box-shadow: 7px 7px 0 rgba(0, 0, 0, 0.3);
+  opacity: 0.92;
 }
 
 .hero-poster__button:focus-visible {
@@ -4375,21 +4530,17 @@ td.empty,
   bottom: 4%;
   display: grid;
   place-items: center;
-  width: 7.5rem;
-  height: 7.5rem;
+  width: 7rem;
+  height: 7rem;
   padding: var(--sp-2);
-  border: 3px dashed var(--poster-band-ink);
+  border: 2px solid var(--poster-band-ink);
   border-radius: 50%;
   background: var(--poster-band);
   color: var(--poster-band-ink);
-  font-size: 0.875rem;
-  font-weight: 800;
-  line-height: 1.15;
-  letter-spacing: 0.06em;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  line-height: 1.2;
   text-align: center;
-  text-transform: uppercase;
-  transform: rotate(-12deg);
-  box-shadow: 0 0 0 5px var(--poster-band);
 }
 
 @keyframes hero-poster-arrow-pulse {
@@ -4438,6 +4589,7 @@ td.empty,
 @media (max-width: 760px) {
   .hero-slide {
     padding: var(--sp-8) var(--sp-4) calc(var(--sp-12) + var(--sp-4));
+    min-height: 0;
   }
 
   .hero-poster {
@@ -4554,46 +4706,44 @@ td.empty,
 .steps {
   list-style: none;
   counter-reset: krok;
-  margin: 0 0 var(--sp-6);
+  margin: 0 0 var(--sp-8);
   padding: 0;
   display: grid;
-  gap: var(--sp-4);
+  gap: var(--sp-8);
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
 }
 
 .steps__item {
   counter-increment: krok;
   position: relative;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-top: 4px solid var(--accent);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-sm);
-  padding: var(--sp-4);
+  padding: var(--sp-4) 0 0;
+  border-top: 2px solid var(--ink);
 }
 
 .steps__item::before {
   content: counter(krok);
   display: block;
   font-family: var(--font-serif);
-  font-size: 1.75rem;
+  font-size: 3.5rem;
   font-weight: 700;
   line-height: 1;
   color: var(--accent);
-  margin-bottom: var(--sp-2);
+  margin-bottom: var(--sp-3);
+  font-variant-numeric: tabular-nums;
 }
 
 .steps__title {
-  font-family: var(--font-serif);
-  font-size: 1.125rem;
+  font-size: 1.25rem;
   font-weight: 700;
-  margin: 0 0 var(--sp-1);
+  letter-spacing: -0.01em;
+  margin: 0 0 var(--sp-2);
 }
 
 .steps__text {
   margin: 0;
   color: var(--ink-soft);
-  font-size: 0.9375rem;
+  font-size: 1rem;
+  max-width: 36ch;
 }
 
 .steps__cta {
@@ -4709,7 +4859,6 @@ td.empty,
 }
 
 .partner-card__name {
-  font-family: var(--font-serif);
   font-size: 1.0625rem;
   line-height: 1.3;
   /* Miejsce na trzy wiersze nazwy w każdej karcie: grupy partnerów są osobnymi siatkami, więc
@@ -4820,7 +4969,6 @@ td.empty,
    instytucji, której organizator nie mógł odczytać z samego logotypu – a nie objaśnienie
    czegoś, co widać obok. Kolor jest przygaszony, bo pierwszym planem kafla zostaje znak. */
 .partner-strip__name {
-  font-family: var(--font-serif);
   font-size: 0.875rem;
   font-weight: 600;
   line-height: 1.3;
@@ -4880,8 +5028,7 @@ td.empty,
   font-family: var(--font-sans);
   font-size: 0.8125rem;
   font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: 0;
   color: var(--muted);
 }
 
@@ -5028,8 +5175,7 @@ td.empty,
   margin: 0 0 var(--sp-2);
   font-size: 0.8125rem;
   font-family: var(--font-sans);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: 0;
   color: var(--muted);
 }
 
@@ -5316,9 +5462,13 @@ td.empty,
 }
 
 @media (prefers-color-scheme: dark) {
-  .score-option__value {
+  :root:where(:not([data-scheme="light"])) .score-option__value {
     color: var(--accent);
   }
+}
+
+:root:where([data-scheme="dark"]) .score-option__value {
+  color: var(--accent);
 }
 
 .score-option__label {
@@ -5440,10 +5590,9 @@ fieldset:disabled .score-option {
 
 .feedback__title {
   display: block;
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  letter-spacing: 0;
   color: var(--accent-ink);
   margin-bottom: var(--sp-1);
 }
@@ -5480,9 +5629,13 @@ fieldset:disabled .score-option {
 }
 
 @media (prefers-color-scheme: dark) {
-  .result-summary__points {
+  :root:where(:not([data-scheme="light"])) .result-summary__points {
     color: var(--accent);
   }
+}
+
+:root:where([data-scheme="dark"]) .result-summary__points {
+  color: var(--accent);
 }
 
 /* 7.4 Koordynator */
@@ -5712,6 +5865,59 @@ fieldset:disabled .score-option {
   font-size: 0.8125rem;
 }
 
+/* 7.1d Pas „Zarejestruj się” na końcu strony głównej (templates/cms/home_page.html). Grafit na całą
+   szerokość okna, jak stopka – domyka stronę jednym wezwaniem po tym, jak czytelnik przeszedł
+   przez terminy, kroki i warsztaty. Pokazuje się wyłącznie anonimowi przy otwartej rejestracji. */
+.cta-band {
+  margin: 0 calc(50% - 50vw) calc(var(--sp-12) * -1);
+  padding: clamp(3rem, 7vw, 5rem) var(--bleed-pad);
+  background: linear-gradient(120deg, var(--red-600), var(--red-800));
+  color: var(--t-on-accent);
+}
+
+.cta-band__inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-6) var(--sp-8);
+}
+
+.cta-band h2 {
+  margin: 0 0 var(--sp-2);
+  color: inherit;
+  font-family: var(--font-serif);
+  font-size: clamp(1.75rem, 1.2rem + 2vw, 2.75rem);
+  letter-spacing: -0.015em;
+}
+
+.cta-band p {
+  margin: 0;
+  max-width: 48ch;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 1.0625rem;
+}
+
+/* Na czerwieni przycisk akcentu zlałby się z tłem – wezwanie jest białe z czerwonym napisem. */
+.cta-band .btn {
+  min-height: 3rem;
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  background: var(--t-on-accent);
+  border-color: var(--t-on-accent);
+  color: var(--red-700);
+}
+
+.cta-band .btn:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent-soft);
+  color: var(--red-800);
+}
+
+.cta-band :focus-visible {
+  outline-color: var(--t-on-accent);
+}
+
 /* --- 8. Narzędzia i dostępność -------------------------------------------------------------- */
 
 .visually-hidden {
@@ -5758,6 +5964,20 @@ fieldset:disabled .score-option {
 
   .hero {
     padding: var(--sp-8) var(--sp-4);
+  }
+
+  .hero-slide {
+    min-height: 0;
+  }
+
+  /* Na telefonie pole prążków schodzi za tekst – przygaszone, żeby hasło zostało pierwszym planem. */
+  .hero::after,
+  .hero-slide--intro::after,
+  .hero-slide--news::after {
+    inset: -30% -40% -30% 0;
+    opacity: 0.55;
+    -webkit-mask-image: linear-gradient(to bottom, transparent, #000 55%);
+    mask-image: linear-gradient(to bottom, transparent, #000 55%);
   }
 
   .card,
@@ -6200,7 +6420,6 @@ img.captcha {
   z-index: 60;
   background: var(--navy-900);
   color: rgba(var(--t-primary-contrast-rgb), 0.9);
-  border-top: 3px solid var(--accent-rule);
   box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.25);
   font-size: 0.875rem;
 }
@@ -6263,8 +6482,7 @@ img.captcha {
   display: block;
   font-size: 0.8rem;
   font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  letter-spacing: 0;
   color: var(--muted);
   margin-bottom: var(--sp-2);
 }

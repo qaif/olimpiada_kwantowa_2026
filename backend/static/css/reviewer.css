@@ -79,15 +79,18 @@
 
 .queue-stat__label {
   font-size: 0.8125rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0;
   color: var(--muted);
 }
 
 @media (prefers-color-scheme: dark) {
-  .queue-stat__value {
+  :root:where(:not([data-scheme="light"])) .queue-stat__value {
     color: var(--accent);
   }
+}
+
+:root:where([data-scheme="dark"]) .queue-stat__value {
+  color: var(--accent);
 }
 
 /* Krótka pomoc dla osoby oceniającej po raz pierwszy. */

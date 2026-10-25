@@ -3,24 +3,24 @@
 :root {
   --cm-bg: var(--bg, #ffffff);
   --cm-text: var(--text, #1f2328);
-  --cm-caret: var(--accent, #138a52);
+  --cm-caret: var(--text, #15181d);
   --cm-gutter-bg: var(--bg-2, #f6f8fa);
   --cm-gutter-text: var(--text-muted, #8b949e);
   --cm-border: var(--border, #d8dee4);
   --cm-panel-bg: var(--bg-2, #f6f8fa);
-  --cm-accent: var(--accent, #138a52);
-  --cm-accent-contrast: var(--accent-contrast, #ffffff);
-  --cm-active-line: rgba(120, 140, 160, 0.09);
-  --cm-selection: rgba(19, 138, 82, 0.2);
-  --cm-selection-match: rgba(19, 138, 82, 0.12);
+  --cm-accent: var(--text, #15181d);
+  --cm-accent-contrast: var(--bg, #ffffff);
+  --cm-active-line: rgba(21, 24, 29, 0.05);
+  --cm-selection: rgba(21, 24, 29, 0.14);
+  --cm-selection-match: rgba(21, 24, 29, 0.08);
   --cm-search-match: rgba(255, 196, 0, 0.3);
   --cm-search-outline: rgba(200, 150, 0, 0.6);
   --cm-search-selected: rgba(255, 140, 0, 0.45);
-  --cm-bracket-match: rgba(19, 138, 82, 0.15);
-  --cm-bracket-outline: rgba(19, 138, 82, 0.5);
+  --cm-bracket-match: rgba(21, 24, 29, 0.1);
+  --cm-bracket-outline: rgba(161, 15, 15, 0.5);
   --cm-bracket-bad: rgba(220, 40, 40, 0.25);
 
-  --syn-command: #0b57d0;
+  --syn-command: #1f4fa3;
   --syn-atom: #8250df;
   --syn-number: #0a7d5a;
   --syn-string: #0a7d5a;
@@ -36,13 +36,13 @@
 
 [data-theme='dark'] {
   --cm-active-line: rgba(255, 255, 255, 0.05);
-  --cm-selection: rgba(64, 196, 128, 0.28);
-  --cm-selection-match: rgba(64, 196, 128, 0.16);
+  --cm-selection: rgba(236, 238, 242, 0.2);
+  --cm-selection-match: rgba(236, 238, 242, 0.12);
   --cm-search-match: rgba(255, 196, 0, 0.25);
   --cm-search-outline: rgba(255, 196, 0, 0.55);
   --cm-search-selected: rgba(255, 140, 0, 0.45);
-  --cm-bracket-match: rgba(64, 196, 128, 0.2);
-  --cm-bracket-outline: rgba(64, 196, 128, 0.6);
+  --cm-bracket-match: rgba(236, 238, 242, 0.14);
+  --cm-bracket-outline: rgba(240, 139, 131, 0.6);
   --cm-bracket-bad: rgba(255, 80, 80, 0.3);
 
   --syn-command: #79b8ff;
@@ -101,7 +101,7 @@
 
 /* Remote collaborator name labels (y-codemirror.next) */
 .cm-ySelectionInfo {
-  font-family: system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 11px !important;
   border-radius: 3px 3px 3px 0;
 }

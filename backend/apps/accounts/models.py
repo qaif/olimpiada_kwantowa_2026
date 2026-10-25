@@ -540,6 +540,10 @@ class UserPreference(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="preference")
     language = models.CharField("język interfejsu", max_length=8, blank=True)
     high_contrast = models.BooleanField("tryb wysokiego kontrastu", default=False)
+    #: ``""`` = jak w systemie (``prefers-color-scheme``), ``"light"`` / ``"dark"`` = wymuszony.
+    #: Bez ``choices`` z tego samego powodu, co ``language``: zbiór sprawdza warstwa zapisu
+    #: (``apps.accounts.preferences.COLOR_SCHEMES``), a pusta wartość znaczy „nie wybierałem”.
+    color_scheme = models.CharField("motyw kolorystyczny", max_length=8, blank=True)
     updated_at = models.DateTimeField("zmienione", auto_now=True)
 
     class Meta:
@@ -547,7 +551,10 @@ class UserPreference(models.Model):
         verbose_name_plural = "ustawienia interfejsu"
 
     def __str__(self) -> str:
-        return f"{self.user_id}: {self.language or 'auto'}{', kontrast' if self.high_contrast else ''}"
+        scheme = f", {self.color_scheme}" if self.color_scheme else ""
+        return (
+            f"{self.user_id}: {self.language or 'auto'}{', kontrast' if self.high_contrast else ''}{scheme}"
+        )
 
 
 class Membership(models.Model):

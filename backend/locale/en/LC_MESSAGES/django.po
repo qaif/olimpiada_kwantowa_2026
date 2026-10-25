@@ -9787,3 +9787,18 @@ msgstr "This account was created from an invitation. Before you sign in in any w
 msgid ""
 "Ta praca nie jest już Ci przydzielona – plik rozwiązania nie jest dostępny."
 msgstr "This solution is no longer assigned to you – the solution file is not available."
+
+msgid "Motyw: ciemny. Przełącz na jasny"
+msgstr "Theme: dark. Switch to light"
+
+msgid "Motyw: jasny. Przełącz na systemowy"
+msgstr "Theme: light. Switch to system"
+
+msgid "Motyw: jak w systemie. Przełącz na ciemny"
+msgstr "Theme: follows the system. Switch to dark"
+
+msgid "Gotowi na zadania?"
+msgstr "Ready for the problems?"
+
+msgid "Załóż konto uczestnika. Zadania, terminy i wyniki znajdziesz w jednym miejscu, a udział jest bezpłatny."
+msgstr "Create a participant account. Problems, deadlines and results in one place, and taking part is free."
