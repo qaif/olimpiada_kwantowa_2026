@@ -1,6 +1,16 @@
 // Per-browser UI preferences (theme, language, font size, layout…).
 const KEY = 'webtex:prefs';
-const defaults = { theme: 'system', lang: null, fontSize: 14, autoCompile: false, layout: 'both', sidebarWidth: 240, split: 0.5 };
+const defaults = {
+  theme: 'system',
+  lang: null,
+  fontSize: 14,
+  autoCompile: false,
+  layout: 'both',
+  sidebarWidth: 240,
+  split: 0.5,
+  mathPreview: true,
+  quickLint: true,
+};
 
 let state = { ...defaults };
 try {

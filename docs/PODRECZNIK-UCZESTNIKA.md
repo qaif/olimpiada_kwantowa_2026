@@ -331,6 +331,15 @@ Dobrze wiedzieć:
   po `\eqref{` Twoje etykiety, a także Twoje własne `\newcommand`. Wybierasz strzałkami, zatwierdzasz
   Enter albo Tab, kolejne pola szablonu przechodzisz Tabem; Ctrl+Spacja otwiera listę ręcznie. To
   zwykłe podpowiedzi składni, nie asystent AI – działają na każdym etapie i nic nie wysyłają poza edytor,
+- **błędy prosto w kodzie**: po kompilacji linie z błędem są podkreślone na czerwono (ostrzeżenia
+  na żółto), na marginesie jest ikona, a po najechaniu myszą widać komunikat LaTeX-a; F8 przenosi
+  do następnego problemu, Shift+F8 do poprzedniego, a liczba błędów stoi też przy nazwie pliku.
+  Część pomyłek (niedomknięta klamra, `$` albo `\begin{…}`, `\ref` do nieistniejącej etykiety,
+  brakujący `\usepackage`) edytor pokazuje od razu, jeszcze przed kompilacją,
+- **podgląd wzoru**: najedź myszą na wzór albo postaw w nim kursor, a zobaczysz go złożonego; pod
+  edytorem jest **licznik słów i znaków** (bez poleceń i wzorów – przydatny przy limicie długości),
+  a sprawdzanie pisowni działa po polsku i pomija polecenia oraz wzory. Podgląd i szybkie
+  sprawdzanie wyłączysz w Ustawieniach edytora,
 - źródła projektu (ZIP) możesz pobrać z edytora w każdej chwili,
 - konto z rolą organizatora, recenzenta czy opiekuna nie otwiera edytora jako uczestnik – do
   rozwiązywania zadań potrzebne jest zwykłe konto uczestnika.

@@ -12,6 +12,25 @@ podsekcją `### <tytuł>` wydania `## v<x.y.z> – <data tagu> – <opis tagu>`.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – Edytor LaTeX (webTEX): błędy w kodzie, podgląd wzorów, pisownia, licznik słów
+
+- Problemy z kompilacji prosto w edytorze: podkreślenie (błędy czerwone, ostrzeżenia żółte), ikona na
+  marginesie, tło linii, dymek z komunikatem i kontekstem z logu, F8 / Shift+F8 – następny / poprzedni,
+  liczba błędów i ostrzeżeń przy pliku w drzewie. Numery linii kotwiczone w treści, więc znaczniki
+  przesuwają się z tekstem i znikają z poprawianych linii oraz przy następnej kompilacji.
+- Szybkie sprawdzanie bez kompilacji (czysty JS, bez chktex): klamry, `$`, `\(`/`\[`, `\begin`/`\end`,
+  pusta linia we wzorze, `\ref` do nieistniejącej etykiety, powtórzony `\label`, polecenia z
+  niedołączonych pakietów (akcja „Dodaj `\usepackage{…}`”), podpowiedź zamiast `$$…$$`. Mało szumu:
+  reguły milczą przy nietypowych klasach, nieznanych pakietach i etykietach z makr.
+- Podgląd wzorów (KaTeX w paczce, offline) po najechaniu i przy kursorze we wzorze, z makrami z projektu
+  i przybliżeniami poleceń `physics`; przełącznik w ustawieniach.
+- Sprawdzanie pisowni w języku dokumentu (`lang` z `babel`/`polyglossia`, inaczej język interfejsu),
+  z pominięciem poleceń, wzorów i etykiet; licznik słów i znaków pliku albo zaznaczenia na pasku stanu.
+- `Package epstopdf: Shell escape feature is not enabled` (każda kompilacja z `graphicx`, shell escape
+  jest wyłączony) nie trafia już na listę ostrzeżeń; zostaje w surowym logu.
+- Opis: `webtex/README.md` („Problemy w kodzie, podgląd wzorów, pisownia”), `PODRECZNIK-UCZESTNIKA.md`
+  § 3b; testy `webtex/client/test/latex-diagnostics.test.js`, `webtex/server/test/logParser.test.js`.
+
 ## [Unreleased] – GitLab CE pod gitlab.<domena>
 
 - Blok `gitlab.{$SITE_DOMAIN}` w `deploy/Caddyfile` (`reverse_proxy gitlab:80`, bez strony prac
