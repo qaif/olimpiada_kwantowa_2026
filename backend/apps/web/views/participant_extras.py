@@ -110,7 +110,12 @@ class PreferencesView(View):
         if language not in available_languages(request):
             language = ""
         high_contrast = request.POST.get("high_contrast") == "1"
-        state = save_preferences(request, language=language, high_contrast=high_contrast)
+        # Motyw przychodzi tylko z własnego przycisku (``system``/``light``/``dark``); formularze
+        # języka i kontrastu pola nie mają i zostawiają bieżący wybór (``None``).
+        color_scheme = request.POST.get("color_scheme")
+        state = save_preferences(
+            request, language=language, high_contrast=high_contrast, color_scheme=color_scheme
+        )
         response = HttpResponseRedirect(safe_next_url(request))
         # Ciasteczko języka ustawiamy sami, zamiast montować ``django.views.i18n.set_language``:
         # ten widok zapisuje **dwie** rzeczy naraz, a dwa formularze na jeden przełącznik

@@ -54,7 +54,9 @@ def test_tokens_registry_matches_app_css():
 def test_roles_are_defined_once_through_theme_tokens():
     """Wariant ciemny przestawia tokeny motywu, a nie role – wtedy motyw jasny wygrywa kolejnością."""
     _light, _dark = _blocks()
-    start = APP_CSS.index("@media (prefers-color-scheme: dark) {\n  :root {\n    --t-bg")
+    start = APP_CSS.index(
+        '@media (prefers-color-scheme: dark) {\n  :root:where(:not([data-scheme="light"])) {\n    --t-bg'
+    )
     dark_block = APP_CSS[start : APP_CSS.index("}\n}", start)]
     assert re.findall(r"^\s+--(?!t-)[a-z]", dark_block, re.M) == []
 
@@ -64,7 +66,7 @@ def test_roles_are_defined_once_through_theme_tokens():
 BRAND_LITERALS = {v.lower() for k, v in CLASSIC_LIGHT.items() if not k.startswith(("on-", "logo"))} | {
     v.lower() for v in CLASSIC_DARK_OVERRIDES.values()
 }
-BRAND_RGB = ("244, 241, 232", "239, 138, 130", "18, 35, 63", "161, 15, 15", "212, 50, 40")
+BRAND_RGB = ("244, 246, 249", "239, 138, 130", "21, 24, 29", "161, 15, 15", "212, 50, 40")
 #: Bloki, w których literał jest świadomy: tokeny, tryb wysokiego kontrastu, plakaty (grafika do
 #: druku), wydruk, kreator instalacji (osobna strona bez ``app.css``) i wartości oznaczone „stała”.
 EXEMPT_FILES = {"setup.css"}
@@ -131,6 +133,11 @@ def test_auto_theme_emits_dark_media_block():
     generated = build_tokens_css(tokens, "auto")
     assert "@media (prefers-color-scheme: dark)" in generated.css
     assert "color-scheme: light dark;" in generated.css
+    # Przełącznik motywu w pasku konta: wariant systemowy omija wymuszony jasny, a wymuszony ciemny
+    # ma własny blok poza ``@media`` z tą samą paletą.
+    assert ':root:where(:not([data-scheme="light"])) {' in generated.css
+    assert ':root:where([data-scheme="dark"]) {' in generated.css
+    assert generated.css.count("--t-bg: #000010;") == 2
 
 
 def test_auto_without_dark_warns():

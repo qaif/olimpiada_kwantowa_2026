@@ -86,6 +86,7 @@ PASSTHROUGH = (
     "interface_language",
     "interface_direction",
     "interface_contrast",
+    "interface_scheme",
     "app_version",
     "site_edition_label",
     "cms_menu",

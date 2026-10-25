@@ -63,7 +63,7 @@ def test_competition_without_theme_touches_no_theme_table(client_for, competitio
     assert not [q["sql"] for q in queries.captured_queries if "themes_" in q["sql"]]
     html = response.content.decode()
     assert "data-theme=" not in html and "tokens.css" not in html and "theme-preview-bar" not in html
-    assert '<meta name="theme-color" content="#12233f" media="(prefers-color-scheme: light)">' in html
+    assert '<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">' in html
 
 
 def test_csp_without_theme_is_the_old_policy(client_for, competition, settings):
@@ -85,7 +85,7 @@ def test_themed_page_links_theme_after_app_css(client_for, themed, example):
     assert 'data-layout-header="split"' in html and 'data-layout-cards="outline"' in html
     # Kolor paska przeglądarki z motywu zamiast dwóch metaznaczników classic.
     assert '<meta name="theme-color" content="#3c4bff">' in html
-    assert "#12233f" not in html
+    assert 'content="#ffffff"' not in html
 
 
 def test_themed_page_uses_package_slots_and_app_defaults(client_for, themed):

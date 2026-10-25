@@ -164,6 +164,79 @@ def test_contrast_switch_does_not_reset_the_language(web_client, participant, en
     assert preference.high_contrast is True
 
 
+# --- (b2) motyw kolorystyczny -----------------------------------------------------------------------
+
+
+def test_scheme_attribute_is_absent_by_default(web_client):
+    """Bez wyboru strona idzie za ``prefers-color-scheme`` przeglądarki – atrybutu nie ma."""
+    content = web_client.get("/statystyki/").content.decode()
+
+    assert "data-scheme" not in html_tag(content)
+
+
+@pytest.mark.parametrize("scheme", ["dark", "light"])
+def test_scheme_toggle_reaches_the_document(web_client, scheme):
+    web_client.post(PREFERENCES_URL, {"color_scheme": scheme, "next": "/statystyki/"})
+
+    content = web_client.get("/statystyki/").content.decode()
+
+    assert f'data-scheme="{scheme}"' in html_tag(content)
+
+
+def test_system_scheme_removes_the_attribute(web_client):
+    web_client.post(PREFERENCES_URL, {"color_scheme": "dark", "next": "/statystyki/"})
+    web_client.post(PREFERENCES_URL, {"color_scheme": "system", "next": "/statystyki/"})
+
+    content = web_client.get("/statystyki/").content.decode()
+
+    assert "data-scheme" not in html_tag(content)
+
+
+def test_unknown_scheme_means_system(web_client):
+    web_client.post(PREFERENCES_URL, {"color_scheme": "sepia", "next": "/statystyki/"})
+
+    content = web_client.get("/statystyki/").content.decode()
+
+    assert "data-scheme" not in html_tag(content)
+
+
+def test_scheme_is_stored_on_the_account(web_client, participant):
+    web_client.force_login(participant.user)
+
+    web_client.post(PREFERENCES_URL, {"color_scheme": "dark", "next": "/me/"})
+
+    assert UserPreference.objects.get(user=participant.user).color_scheme == "dark"
+
+
+def test_contrast_switch_keeps_the_scheme(web_client, participant):
+    """Formularz kontrastu nie niesie pola motywu i nie może go przy okazji skasować."""
+    web_client.force_login(participant.user)
+    web_client.post(PREFERENCES_URL, {"color_scheme": "dark", "next": "/me/"})
+
+    web_client.post(PREFERENCES_URL, {"high_contrast": "1", "next": "/me/"})
+
+    preference = UserPreference.objects.get(user=participant.user)
+    assert preference.color_scheme == "dark"
+    assert preference.high_contrast is True
+
+
+def test_scheme_button_cycles_system_dark_light(web_client):
+    """Przycisk mówi, co zrobi kliknięcie, i wysyła następny stan cyklu: system → ciemny → jasny."""
+    content = web_client.get("/statystyki/", HTTP_ACCEPT_LANGUAGE="pl").content.decode()
+    assert 'aria-label="Motyw: jak w systemie. Przełącz na ciemny"' in content
+    assert 'name="color_scheme" value="dark"' in content
+
+    web_client.post(PREFERENCES_URL, {"color_scheme": "dark", "next": "/statystyki/"})
+    content = web_client.get("/statystyki/", HTTP_ACCEPT_LANGUAGE="pl").content.decode()
+    assert 'aria-label="Motyw: ciemny. Przełącz na jasny"' in content
+    assert 'name="color_scheme" value="light"' in content
+
+    web_client.post(PREFERENCES_URL, {"color_scheme": "light", "next": "/statystyki/"})
+    content = web_client.get("/statystyki/", HTTP_ACCEPT_LANGUAGE="pl").content.decode()
+    assert 'aria-label="Motyw: jasny. Przełącz na systemowy"' in content
+    assert 'name="color_scheme" value="system"' in content
+
+
 # --- (c) przełącznik w pasku konta ----------------------------------------------------------------
 
 

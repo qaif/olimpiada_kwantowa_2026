@@ -1017,3 +1017,243 @@
     display: none;
   }
 }
+
+/* --- 9. Grafitowa rama (redesign 2026-10) ------------------------------------------------------------
+   Panel koordynatora jest stanowiskiem pracy, nie stroną informacyjną, więc dostaje własną ramę:
+   kolumna menu w graficie (``--brand`` – ten sam, co stopka serwisu i przycisk główny), treść na
+   przygaszonym blacie (``--bg-muted``), a na nim białe karty. Czerwień jest tylko sygnałem: pozycja
+   bieżąca, liczniki, sprawy „do zrobienia”. Wszystko z ról tokenów – tryb ciemny, wymuszony motyw
+   i wysoki kontrast (czarna kolumna, biały tekst, żółte akcenty) działają bez osobnych reguł; kolory
+   „na graficie” idą z ``--t-primary-contrast-rgb``, jak w stopce. Reguły stoją **po** sekcjach 1–8
+   i nadpisują wyłącznie barwy i cienie – układ, klasy i zachowanie menu zostają. */
+
+/* Blat treści: przygaszony, zaokrąglony, z oddechem; karty i tabele (``--surface``) stoją na nim. */
+.kp .panel__main {
+  padding: var(--sp-6);
+  background: var(--bg-muted);
+  border-radius: var(--radius-lg);
+}
+
+@media (max-width: 899.98px) {
+  .kp .panel__main {
+    padding: var(--sp-4);
+  }
+}
+
+/* Nagłówki w panelu są o stopień mniejsze niż w serwisie informacyjnym – ekran roboczy, nie plakat. */
+.kp .page-head h1 {
+  font-size: clamp(1.625rem, 1.3rem + 1vw, 2.125rem);
+  margin-bottom: var(--sp-2);
+}
+
+.kp .page-head .eyebrow {
+  font-size: 0.875rem;
+}
+
+.kp .section__head h2 {
+  font-size: 1.375rem;
+}
+
+.kp .card,
+.kp .kp-card,
+.kp .stage-card,
+.kp .pdf-pane,
+.kp .form-pane {
+  box-shadow: none;
+}
+
+/* Kolumna menu w graficie. */
+.kp .panel-nav {
+  color: var(--brand-ink);
+  background: var(--brand);
+  border: 0;
+  border-radius: var(--radius-lg);
+  box-shadow: none;
+}
+
+.kp .panel-nav__summary {
+  color: var(--brand-ink);
+}
+
+.kp-summary__where {
+  color: rgba(var(--t-primary-contrast-rgb), 0.65);
+}
+
+.kp .panel-nav__body {
+  border-top-color: rgba(var(--t-primary-contrast-rgb), 0.12);
+}
+
+.kp .panel-nav__input {
+  color: var(--brand-ink);
+  background: rgba(var(--t-primary-contrast-rgb), 0.08);
+  border-color: rgba(var(--t-primary-contrast-rgb), 0.22);
+}
+
+.kp .panel-nav__input::placeholder {
+  color: rgba(var(--t-primary-contrast-rgb), 0.55);
+}
+
+.kp .panel-nav__input:hover {
+  border-color: rgba(var(--t-primary-contrast-rgb), 0.45);
+}
+
+.kp .panel-nav__input:focus,
+.kp .panel-nav__input:focus-visible {
+  border-color: var(--brand-ink);
+  outline-color: var(--accent-on-brand);
+}
+
+.kp .panel-nav__go {
+  color: var(--brand-ink);
+  background: transparent;
+  border-color: rgba(var(--t-primary-contrast-rgb), 0.4);
+}
+
+.kp .panel-nav__go:hover {
+  color: var(--brand-ink);
+  background: rgba(var(--t-primary-contrast-rgb), 0.12);
+  border-color: var(--brand-ink);
+}
+
+.kp .kp-palette-open {
+  color: rgba(var(--t-primary-contrast-rgb), 0.85);
+  background: rgba(var(--t-primary-contrast-rgb), 0.06);
+  border-color: rgba(var(--t-primary-contrast-rgb), 0.28);
+}
+
+.kp .kp-palette-open:hover {
+  color: var(--brand-ink);
+  background: rgba(var(--t-primary-contrast-rgb), 0.12);
+}
+
+.kp .kp-kbd {
+  color: rgba(var(--t-primary-contrast-rgb), 0.85);
+  background: rgba(var(--t-primary-contrast-rgb), 0.1);
+  border-color: rgba(var(--t-primary-contrast-rgb), 0.28);
+}
+
+.kp .kp-quick {
+  border-bottom-color: rgba(var(--t-primary-contrast-rgb), 0.12);
+}
+
+.kp .kp-quick__heading,
+.kp .panel-nav__heading {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: rgba(var(--t-primary-contrast-rgb), 0.62);
+}
+
+.kp .panel-nav__heading:hover {
+  color: var(--brand-ink);
+  background: rgba(var(--t-primary-contrast-rgb), 0.08);
+}
+
+.kp .kp-quick__heading .kp-icon,
+.kp .kp-icon--heading {
+  color: var(--accent-on-brand);
+}
+
+.kp .panel-nav__group + .panel-nav__group {
+  border-top-color: rgba(var(--t-primary-contrast-rgb), 0.12);
+}
+
+.kp .kp-quick__link,
+.kp .panel-nav__link,
+.kp .panel-nav__sublink {
+  color: rgba(var(--t-primary-contrast-rgb), 0.85);
+}
+
+.kp .panel-nav__sublink {
+  color: rgba(var(--t-primary-contrast-rgb), 0.72);
+}
+
+.kp .kp-quick__link:hover,
+.kp .panel-nav__link:hover,
+.kp .panel-nav__sublink:hover {
+  color: var(--brand-ink);
+  background: rgba(var(--t-primary-contrast-rgb), 0.08);
+}
+
+.kp .kp-quick__link[aria-current="page"],
+.kp .panel-nav__link--active,
+.kp .panel-nav__sublink--active {
+  color: var(--brand-ink);
+  background: rgba(var(--t-primary-contrast-rgb), 0.14);
+  border-inline-start-color: var(--accent-on-brand);
+}
+
+.kp .kp-sub__toggle {
+  color: rgba(var(--t-primary-contrast-rgb), 0.6);
+}
+
+.kp .kp-sub__toggle:hover {
+  color: var(--brand-ink);
+  background: rgba(var(--t-primary-contrast-rgb), 0.08);
+}
+
+/* Licznik na graficie: jaśniejszy stopień czerwieni (ten sam, co kreska akcentu w stopce), bo ciemna
+   czerwień marki ginęłaby na ciemnym tle. */
+.kp .panel-nav__badge {
+  color: var(--t-on-accent);
+  background: var(--accent-rule);
+}
+
+/* Pierścień fokusu w kolumnie: ciemna czerwień akcentu jest na graficie niewidoczna. */
+.kp .panel-nav :focus-visible {
+  outline-color: var(--accent-on-brand);
+}
+
+/* Sprawy „co wymaga uwagi”: karta z linią stanu na krawędzi początkowej, jak etapy na stronie głównej. */
+.kp .attention__link {
+  border: 1px solid var(--line);
+  border-inline-start: 4px solid var(--line-strong);
+  border-radius: var(--radius);
+  box-shadow: none;
+}
+
+.kp .attention__link:hover {
+  border-color: var(--ink);
+  border-inline-start-color: var(--ink);
+}
+
+.kp .attention__item--due .attention__link {
+  background: var(--accent-soft);
+  border-color: var(--line);
+  border-inline-start-color: var(--accent);
+  box-shadow: none;
+}
+
+.kp .attention__item--due .attention__link:hover {
+  border-color: var(--accent);
+}
+
+.kp .attention__item--due .attention__value {
+  color: var(--accent-ink);
+}
+
+.kp .kp-allclear,
+.kp .kp-quiet {
+  border-radius: var(--radius);
+}
+
+/* Szybkie skróty: po najechaniu kafel przechodzi w grafit – ta sama odpowiedź, co kolumna menu. */
+.kp .kp-shortcuts__link {
+  background: var(--surface);
+}
+
+.kp .kp-shortcuts__link:hover {
+  color: var(--brand-ink);
+  background: var(--brand);
+  border-color: var(--brand);
+}
+
+.kp .kp-shortcuts__link:hover .kp-icon {
+  color: var(--accent-on-brand);
+}
+
+.kp .kp-pinlist__link:hover {
+  color: var(--brand-ink);
+  background: var(--brand);
+}

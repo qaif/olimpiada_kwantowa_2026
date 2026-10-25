@@ -27,9 +27,9 @@ Wszystkie w `:root` (sekcja 2 arkusza). Poza blokami tokenów w arkuszu nie ma k
 | `--surface`, `--surface-2`, `--surface-inset` | tła kart, pasów, nagłówków tabel |
 | `--ink`, `--ink-soft`, `--muted` | tekst: podstawowy, treść komórek, drugoplanowy |
 | `--line`, `--line-strong` | kreski: zwykła i wyraźna (obrys kontrolek) |
-| `--brand`, `--brand-ink`, `--brand-soft` | granat nagłówka/stopki i tekst na nim |
+| `--brand`, `--brand-ink`, `--brand-soft` | grafit („atrament”) stopki, przycisku głównego i stanów wybranych oraz tekst na nim |
 | `--accent`, `--accent-ink`, `--accent-soft` | czerwień z logotypu **na jasnym tle** |
-| `--accent-on-brand`, `--accent-rule` | akcent **na granacie** (tekst / gruba kreska) |
+| `--accent-on-brand`, `--accent-rule` | akcent **na graficie** (tekst / gruba kreska) – stopka, pasek cookie, odliczanie |
 | `--ok`, `--warn`, `--danger`, `--info` + `-ink` / `-soft` | statusy |
 | `--neutral-ink`, `--neutral-soft` | status „bez znaczenia” |
 | `--link`, `--link-hover`, `--focus` | odnośniki i pierścień fokusu |
@@ -45,8 +45,8 @@ i jest błędem.
 --sp-1 4px   --sp-2 8px   --sp-3 12px   --sp-4 16px   --sp-6 24px   --sp-8 32px   --sp-12 48px
 --radius-sm 4px   --radius 8px   --radius-lg 14px
 --shadow-sm   --shadow   --shadow-inset
---container 1100px   --reading 68ch
---font-sans (Inter)   --font-serif (Source Serif 4 – nagłówki, liczby KPI, legendy)
+--container 1200px   --reading 68ch   --bleed-pad (wcięcie elementu pełnej szerokości do linii treści; ustawia .page)
+--font-sans (Inter – także nagłówki)   --font-serif (Source Serif 4 – hasło w hero, liczby KPI, numery kroków, lead artykułu, cytaty)
 ```
 
 Nie wpisuj `padding: 14px`. Skala jest po to, żeby dwa panele pisane przez dwie osoby miały ten
@@ -55,8 +55,13 @@ sam rytm pionowy.
 ### Warianty motywu
 
 - **jasny** – domyślny, na nim projektujemy,
-- **ciemny** – `@media (prefers-color-scheme: dark)` nadpisuje **tylko tokeny** (plus trzy wyjątki
-  komponentowe, opisane komentarzem w arkuszu),
+- **ciemny** – `@media (prefers-color-scheme: dark)` nadpisuje **tylko tokeny** (plus kilka wyjątków
+  komponentowych, opisanych komentarzem w arkuszu). Od 2026-10 przeglądający może go **wymusić albo
+  wyłączyć** przyciskiem motywu w pasku konta (monitor / księżyc / słońce): wybór trafia w atrybut
+  `data-scheme="dark|light"` na `<html>` (`apps.accounts.preferences`, konto albo sesja), a arkusz ma
+  bliźniaczy blok tokenów `:root:where([data-scheme="dark"])` i omija `data-scheme="light"` w bloku
+  systemowym. Nowa reguła ciemna poza tokenami musi mieć obie postaci (`:where(:not([data-scheme="light"]))`
+  w `@media` i `:where([data-scheme="dark"])` poza nim),
 - **wysoki kontrast** – `:root[data-contrast="high"]`, czerń/biel/żółć, każda krawędź 2 px,
   cienie zgaszone, fokus 4 px. Włącza go przełącznik w pasku konta – ikona kółka wypełnionego
   w połowie (`.account-bar__btn--icon`, nazwa dostępna „Wysoki kontrast: włącz/wyłącz”).

@@ -299,4 +299,21 @@
   </section>
 {% endif %}
 
+{% comment %}
+  Pas zamykający stronę główną: jedno wezwanie do rejestracji po tym, jak czytelnik przeszedł
+  przez terminy, kroki i warsztaty. Tylko dla anonima przy otwartym oknie rejestracji – zalogowany
+  ma odnośnik do panelu w hero, a poza oknem wezwanie prowadziłoby do odmowy.
+{% endcomment %}
+{% if not user.is_authenticated and registration.is_open %}
+  <section class="cta-band" aria-labelledby="cta-band-title">
+    <div class="cta-band__inner">
+      <div>
+        <h2 id="cta-band-title">{% translate "Gotowi na zadania?" %}</h2>
+        <p>{% translate "Załóż konto uczestnika. Zadania, terminy i wyniki znajdziesz w jednym miejscu, a udział jest bezpłatny." %}</p>
+      </div>
+      <a class="btn btn--accent" href="{% url 'web:register' %}">{% translate "Zarejestruj się" %}</a>
+    </div>
+  </section>
+{% endif %}
+
 {% endblock %}

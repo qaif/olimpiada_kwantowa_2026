@@ -6,7 +6,7 @@
   arabski interfejs (I18N-01 § 4) odwraca cały układ jednym atrybutem, a arkusze trzymają się
   właściwości logicznych, więc żadna reguła nie musi pytać, w jakim języku jest strona.
 {% endcomment %}
-<html lang="{{ interface_language|default:'pl' }}" dir="{{ interface_direction|default:'ltr' }}"{% if interface_contrast %} data-contrast="{{ interface_contrast }}"{% endif %}{% if settings.cms.SiteSettings.ga_measurement_id and not no_analytics %} data-ga-id="{{ settings.cms.SiteSettings.ga_measurement_id }}"{% endif %}{% theme_html_attrs %}>
+<html lang="{{ interface_language|default:'pl' }}" dir="{{ interface_direction|default:'ltr' }}"{% if interface_contrast %} data-contrast="{{ interface_contrast }}"{% endif %}{% if interface_scheme %} data-scheme="{{ interface_scheme }}"{% endif %}{% if settings.cms.SiteSettings.ga_measurement_id and not no_analytics %} data-ga-id="{{ settings.cms.SiteSettings.ga_measurement_id }}"{% endif %}{% theme_html_attrs %}>
 <head>
   {% comment %}
     Tag Google (gtag.js) – dokładnie tam, gdzie każe go wkleić instrukcja Google Analytics:
@@ -33,8 +33,8 @@
     Kolor paska przeglądarki dopasowany do nagłówka (granat) i do tła ciemnego wariantu –
     ten sam podział, co w tokenach arkusza (@media prefers-color-scheme).
   {% endcomment %}
-  {% theme_default %}<meta name="theme-color" content="#12233f" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#0f1726" media="(prefers-color-scheme: dark)">{% endtheme_default %}
+  {% theme_default %}<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#171a20" media="(prefers-color-scheme: dark)">{% endtheme_default %}
   <meta name="description" content="{% block description %}{% translate "Ogólnopolska olimpiada dla uczniów szkół ponadpodstawowych: terminy etapów, zadania, wyniki oraz panel uczestnika, recenzenta i komitetu." %}{% endblock %}">
   {% comment %}
     Favikona, logotyp nagłówka i obraz udostępniania: grafika **konkursu**, jeśli ją wskazano

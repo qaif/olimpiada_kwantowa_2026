@@ -101,3 +101,40 @@
     </svg>
   </button>
 </form>
+{% comment %}
+  Motyw kolorystyczny: jeden przycisk przechodzi przez trzy stany – jak w systemie (domyślnie,
+  za ``prefers-color-scheme``), ciemny, jasny. Stan zapisuje ``apps.accounts.preferences`` tak samo
+  jak kontrast (konto albo sesja), a arkusz czyta go z ``data-scheme`` na ``<html>``. Ikona pokazuje
+  stan **bieżący** (monitor / księżyc / słońce), a nazwa dostępna mówi, co zrobi kliknięcie.
+  Osobny formularz, bo nie niesie pola ``high_contrast`` w inną stronę – każdy przycisk zmienia
+  dokładnie jedno ustawienie, resztę warstwa zapisu zostawia bez zmian.
+{% endcomment %}
+<form method="post" action="{% url 'web:account-preferences' %}" class="inline account-bar__prefs">
+  {% csrf_token %}
+  <input type="hidden" name="next" value="{{ request.get_full_path }}">
+  <input type="hidden" name="language" value="{{ interface_language }}">
+  <input type="hidden" name="high_contrast" value="{% if interface_high_contrast %}1{% else %}0{% endif %}">
+  {% if interface_scheme == "dark" %}
+    {% translate "Motyw: ciemny. Przełącz na jasny" as scheme_label %}
+  {% elif interface_scheme == "light" %}
+    {% translate "Motyw: jasny. Przełącz na systemowy" as scheme_label %}
+  {% else %}
+    {% translate "Motyw: jak w systemie. Przełącz na ciemny" as scheme_label %}
+  {% endif %}
+  <button type="submit" name="color_scheme" value="{{ interface_scheme_next }}"
+          class="btn btn--small btn--ghost account-bar__btn account-bar__btn--icon"
+          aria-label="{{ scheme_label }}" title="{{ scheme_label }}">
+    <svg class="pref-icon" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" focusable="false"
+         fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+      {% if interface_scheme == "dark" %}
+        <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/>
+      {% elif interface_scheme == "light" %}
+        <circle cx="12" cy="12" r="4"/>
+        <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>
+      {% else %}
+        <rect x="3" y="4" width="18" height="12" rx="2"/>
+        <path d="M8 20h8M12 16v4"/>
+      {% endif %}
+    </svg>
+  </button>
+</form>
