@@ -367,13 +367,14 @@ check "deploy/gitlab: bez sieci edge portalu" $?
 for f in "$WORK/pelny.yml"; do
   awk '/^networks:/ {n=1} n && /subnet: / {print $NF}' "$f" | sort >"$WORK/podsieci.txt"
 done
-# Piętnaście: edge, internal, cache, clamav_egress, livekit_signal, errors, errors_ingest, errors_front,
-# errors_egress, mail, mail_egress, meet, tex_front, tex_api (edytor LaTeX, TEX-01), gitlab_front (GitLab).
+# Szesnaście: edge, internal, cache, clamav_egress, livekit_signal, errors, errors_ingest, errors_front,
+# errors_egress, mail, mail_egress, meet, tex_front, tex_api (edytor LaTeX, TEX-01), gitlab_front (GitLab),
+# tasker_front (Tasker – klon Jiry, osobny projekt compose).
 # `rc` przed `check` – `$(tr …)` w opisie nadpisałoby `$?`
 # (do scalenia z main 11.10.2026 ta kontrola przechodziła zawsze, przy każdej liczbie sieci).
-[ "$(sort -u "$WORK/podsieci.txt" | wc -l)" -eq 15 ] && [ "$(wc -l <"$WORK/podsieci.txt")" -eq 15 ]
+[ "$(sort -u "$WORK/podsieci.txt" | wc -l)" -eq 16 ] && [ "$(wc -l <"$WORK/podsieci.txt")" -eq 16 ]
 rc=$?
-check "piętnaście sieci, piętnaście różnych podsieci [$(tr '\n' ' ' <"$WORK/podsieci.txt")]" $rc
+check "szesnaście sieci, szesnaście różnych podsieci [$(tr '\n' ' ' <"$WORK/podsieci.txt")]" $rc
 
 # 15. Hasło Redisa: bez REDIS_PASSWORD (serwer sprzed zmiany, .env.example) adresy są dotychczasowe
 #     i Redis bez `requirepass`; z hasłem – `:hasło@` w obu adresach, `requirepass` i healthcheck
@@ -427,11 +428,11 @@ check "plik podstawowy: publicznie wyłącznie proxy, mail (25) i mailpit na 127
 E2E_REPO_DIR="$ROOT" docker compose --env-file "$ENV_FILE" -f "$BASE" -f "$DJ_OVERLAY" -f "$ROOT/docker-compose.e2e-djcms.yml" \
   --profile djcms config >"$WORK/e2e.yml" 2>/dev/null
 awk '/^networks:/ {n=1} n && /subnet: / {print $NF}' "$WORK/e2e.yml" | sort >"$WORK/e2e-podsieci.txt"
-# Czternaście: jak wyżej bez `errors` (baza GlitchTipa – profil `monitoring`, którego E2E nie włącza).
-[ "$(wc -l <"$WORK/e2e-podsieci.txt")" -eq 14 ] && ! grep -q '^172\.30\.' "$WORK/e2e-podsieci.txt" &&
+# Piętnaście: jak wyżej bez `errors` (baza GlitchTipa – profil `monitoring`, którego E2E nie włącza).
+[ "$(wc -l <"$WORK/e2e-podsieci.txt")" -eq 15 ] && ! grep -q '^172\.30\.' "$WORK/e2e-podsieci.txt" &&
   [ -z "$(comm -12 "$WORK/podsieci.txt" "$WORK/e2e-podsieci.txt")" ]
 rc=$?
-check "nakładka E2E: czternaście sieci, żadna na podsieci projektu dev [$(tr '\n' ' ' <"$WORK/e2e-podsieci.txt")]" $rc
+check "nakładka E2E: piętnaście sieci, żadna na podsieci projektu dev [$(tr '\n' ' ' <"$WORK/e2e-podsieci.txt")]" $rc
 # …a stałe adresy proxy i mynetworks Postfiksa – w przesuniętych podsieciach (inaczej Docker nie
 # przydzieli adresu spoza podsieci, a relay odrzuci pocztę z web).
 got="$(web_trust "$WORK/e2e.yml" | cut -d'|' -f2-3)|$(awk '/^  mail:$/ {on=1; next} on && /^  [^ ]/ {on=0} on' "$WORK/e2e.yml" | sed -n 's/^      POSTFIX_mynetworks: //p')"

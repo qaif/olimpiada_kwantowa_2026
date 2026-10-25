@@ -132,6 +132,10 @@ networks:
     ipam: !override
       config:
         - subnet: ${E2E_GITLAB_FRONT_SUBNET:-172.31.16.0/24}
+  tasker_front:
+    ipam: !override
+      config:
+        - subnet: ${E2E_TASKER_FRONT_SUBNET:-172.31.17.0/24}
 
 secrets:
   extra_ca:
