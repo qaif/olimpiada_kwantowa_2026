@@ -12,6 +12,23 @@ podsekcją `### <tytuł>` wydania `## v<x.y.z> – <data tagu> – <opis tagu>`.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – Historia wersji w edytorze LaTeX (TEX-01, Uzupełnienie B)
+
+- webTEX zapisuje wersje projektów: po ustaniu zmian (2 min), co 10 min ciągłej pracy, po udanej
+  kompilacji uruchomionej przez użytkownika i przy złożeniu rozwiązania. Spis w SQLite (`snapshots`),
+  treść w `/data/projects/<id>/history/` (stan Yjs + pliki binarne po sha256, identyczna treść raz).
+- Panel **Historia** w edytorze: wersje z autorami zmian, różnice plik po pliku względem bieżącego
+  stanu, `.zip` wersji, przywrócenie projektu albo pliku jako nowa zmiana (współpracownicy widzą ją
+  na żywo), z zapisem stanu sprzed przywrócenia („Cofnij przywrócenie”); wersje z nazwą. Czytelnicy
+  tylko oglądają; `sharing_locked` odcina historię jak projekt.
+- Przechowywanie: wszystko z 24 h, potem co godzinę do 7 dni, potem co dzień;
+  `WEBTEX_HISTORY_KEEP_DAYS` (365) i `WEBTEX_HISTORY_MAX_MB` (100 na projekt), złożenia i wersje
+  z nazwą poza przerzedzaniem i limitem rozmiaru.
+- `POST /api/integration/build` przyjmuje opcjonalne `label`; platforma wysyła „Złożone jako
+  rozwiązanie – wersja N” (zgodne wstecz w obie strony). `server/history-cli.js` – lista wersji
+  uczestnika i `.zip` wersji dla komisji odwoławczej (OPERACJE § 55.5).
+- Kopia nocna `webtex-<stamp>.tar.gpg` obejmuje historię bez zmian w skrypcie (OPERACJE § 55.4).
+
 ## [Unreleased] – GitLab CE pod gitlab.<domena>
 
 - Blok `gitlab.{$SITE_DOMAIN}` w `deploy/Caddyfile` (`reverse_proxy gitlab:80`, bez strony prac

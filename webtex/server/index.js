@@ -6,6 +6,7 @@ import { config, configErrors } from './config.js';
 import { authRouter, loadUser, userFromCookieHeader } from './auth.js';
 import { attachCollab, flushAll } from './collab.js';
 import { compilerStatus, joinRouter, projectsRouter, roleFor } from './projects.js';
+import { flushHistory, startHistorySweep } from './history.js';
 import { integrationRouter } from './integration.js';
 import { aiRouter } from './ai.js';
 import { llmConfig } from './llm/index.js';
@@ -62,6 +63,8 @@ attachCollab(server, (req, projectId) => {
   return role ? { user, role } : null;
 });
 
+startHistorySweep();
+
 server.listen(config.port, config.host, async () => {
   const { backend } = await compilerStatus();
   console.log(`webTEX listening on http://localhost:${config.port}  (data: ${config.dataDir}, compiler: ${backend})`);
@@ -76,6 +79,7 @@ server.listen(config.port, config.host, async () => {
 
 async function shutdown() {
   console.log('Shutting down, saving documents…');
+  await flushHistory().catch((err) => console.error(err));
   await flushAll().catch((err) => console.error(err));
   process.exit(0);
 }

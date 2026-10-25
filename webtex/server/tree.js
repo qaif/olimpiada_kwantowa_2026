@@ -42,7 +42,7 @@ function assertParent(projectId, parentId) {
   return parentId;
 }
 
-function findChild(projectId, parentId, name) {
+export function findChild(projectId, parentId, name) {
   return one(
     `SELECT id, kind FROM entities WHERE project_id = ? AND parent_id IS ? AND name = ?`,
     projectId,
@@ -51,8 +51,7 @@ function findChild(projectId, parentId, name) {
   );
 }
 
-function insertEntity(projectId, parentId, name, kind, size = null) {
-  const id = newId();
+export function insertEntity(projectId, parentId, name, kind, size = null, id = newId()) {
   run(
     `INSERT INTO entities (id, project_id, parent_id, name, kind, size, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
     id,
