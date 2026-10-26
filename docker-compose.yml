@@ -654,7 +654,7 @@ services:
     # z tego obrazu (commit b00526b, ten sam co w minio-init), a HOME=/ nie jest miejscem na konfigurację.
     # Obraz deklaruje też VOLUME /bitnami/minio/data i /certs – Compose zakłada na nie małe puste wolumeny
     # anonimowe; serwer ich nie używa.
-    image: bitnamilegacy/minio:2025.4.22@sha256:50cec18ac4184af4671a78aedd5554942c8ae105d51a465fa82037949046da01
+    image: bitnamilegacy/minio:2025.5.24@sha256:451fe6858cb770cc9d0e77ba811ce287420f781c7c1b806a386f6896471a349c
     user: "0:0"
     restart: unless-stopped
     logging: *default-logging
@@ -690,7 +690,7 @@ services:
     # przypięte digestem listy manifestów – ten sam tag nie może już cicho zmienić treści.
     # `user: "0:0"`, bo obraz biegnie domyślnie jako uid 1001, a dawny minio/mc – jako root: polityki
     # z deploy/minio/ czyta się wtedy niezależnie od praw, z jakimi wdrożenie położyło je na serwerze.
-    image: bitnamilegacy/minio-client:2025.4.16@sha256:8a86e441decf053093c5977d49290298295f850c7843652f93e970ab15871dd1
+    image: bitnamilegacy/minio-client:2025.5.21@sha256:00dcc4e58ada0df45bb7d9ee435af98295f96c27c3c68292ce78ec700a87b511
     user: "0:0"
     logging: *default-logging
     entrypoint: >
@@ -1208,7 +1208,7 @@ services:
 
   mailpit:
     profiles: [dev]
-    image: axllent/mailpit:v1.30
+    image: axllent/mailpit:v1.31
     logging: *default-logging
     # Wyłącznie na pętli zwrotnej hosta: podgląd poczty deweloperskiej (z linkami aktywacji i resetu
     # hasła) nie ma być widoczny z sieci, w której stoi laptop – tak jak porty z docker-compose.dev.yml.
