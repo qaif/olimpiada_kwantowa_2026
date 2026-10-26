@@ -167,7 +167,7 @@ dependencies = [
     # (``include_local_variables``, ``max_request_body_size``, ``before_send_transaction``), więc
     # przeskok wersji ma być świadomy i z przebiegiem ``apps/monitoring/tests``. Linia 3.x (dziś
     # alfa) zmienia API zakresów – osobne zadanie.
-    "sentry-sdk>=2.71,<2.72",
+    "sentry-sdk>=2.71,<2.73",
 ]
 
 [project.optional-dependencies]
