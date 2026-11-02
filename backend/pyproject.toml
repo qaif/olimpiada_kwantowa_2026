@@ -140,7 +140,7 @@ dependencies = [
     # wewnętrznych elementach ReportLaba (``ttfonts.uharfbuzz``, ``shapeStr``, ``ShapedStr.__shapeData__``),
     # a te współpracują z konkretnym API ``uharfbuzz``; sprawdzone na 0.56.2. Kontrakt pilnuje
     # ``apps/medals/tests/test_typesetting.py::test_reportlab_shaping_internals_are_still_there``.
-    "uharfbuzz>=0.56,<0.57",
+    "uharfbuzz>=0.56,<0.58",
     # Ocena AI (``apps.ai_grading``) – oficjalne SDK Anthropic. W zwykłych zależnościach, bo sugestie
     # liczy worker produkcyjny; funkcja jest jednak domyślnie wyłączona (flaga ``ai_grading``),
     # a import biblioteki jest leniwy – wewnątrz ``apps.ai_grading.client`` – więc konkurs bez
