@@ -147,7 +147,7 @@ dependencies = [
     # oceny AI nie ładuje jej nigdy. Linia 1.x: pierwsza z parametrami ``fallbacks`` i
     # ``output_config`` w ``beta.messages.stream`` (sprawdzone na 1.8.0 z 24.09.2026). Górna granica
     # przy następnej wersji głównej, jak wszędzie w tym pliku.
-    "anthropic>=1.8,<2",
+    "anthropic>=1.8,<3",
     # Pozostali dostawcy oceny AI (``apps.ai_grading.providers``, prośba organizatora z 24.09.2026).
     # Oficjalne SDK, import leniwy wewnątrz dostawcy – brak pakietu wyłącza jednego dostawcę
     # („niedostępny” w ustawieniach), a nie serwis. ``openai`` obsługuje też dostawcę „Meta”
