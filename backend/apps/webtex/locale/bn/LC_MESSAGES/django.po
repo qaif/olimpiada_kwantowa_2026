@@ -44,6 +44,13 @@ msgid ""
 "– Twoja praca w edytorze jest zapisana."
 msgstr "LaTeX কম্পাইলার সাময়িকভাবে অনুপলব্ধ। কয়েক মিনিট পরে আবার চেষ্টা করুন – সম্পাদকে আপনার কাজ সংরক্ষিত আছে।"
 
+msgid ""
+"Edytor LaTeX kompiluje teraz bardzo wiele rozwiązań naraz i Twoje nie "
+"zmieściło się w kolejce. Spróbuj ponownie za minutę – Twoja praca w edytorze "
+"jest zapisana. Jeśli termin jest blisko, pobierz PDF z edytora i wyślij go "
+"zwykłym formularzem."
+msgstr "LaTeX সম্পাদক এই মুহূর্তে একসঙ্গে অনেক বেশি সমাধান কম্পাইল করছে এবং আপনারটি সারিতে জায়গা পায়নি। এক মিনিট পরে আবার চেষ্টা করুন – সম্পাদকে আপনার কাজ সংরক্ষিত আছে। সময়সীমা কাছাকাছি হলে সম্পাদক থেকে PDF ডাউনলোড করে সাধারণ ফর্মের মাধ্যমে পাঠান।"
+
 msgid "Potwierdzam, że to rozwiązanie właściwego zadania"
 msgstr "আমি নিশ্চিত করছি যে এটি সঠিক সমস্যার সমাধান"
 

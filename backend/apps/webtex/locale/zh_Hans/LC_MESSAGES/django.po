@@ -44,6 +44,13 @@ msgid ""
 "– Twoja praca w edytorze jest zapisana."
 msgstr "LaTeX 编译器暂时不可用。请几分钟后再试——你在编辑器中的内容已保存。"
 
+msgid ""
+"Edytor LaTeX kompiluje teraz bardzo wiele rozwiązań naraz i Twoje nie "
+"zmieściło się w kolejce. Spróbuj ponownie za minutę – Twoja praca w edytorze "
+"jest zapisana. Jeśli termin jest blisko, pobierz PDF z edytora i wyślij go "
+"zwykłym formularzem."
+msgstr "LaTeX 编辑器此刻正在同时编译大量解答，你的解答未能进入队列。请一分钟后重试——你在编辑器中的内容已保存。如果截止时间临近，请从编辑器下载 PDF，并通过常规表单提交。"
+
 msgid "Potwierdzam, że to rozwiązanie właściwego zadania"
 msgstr "我确认这是对应题目的解答"
 

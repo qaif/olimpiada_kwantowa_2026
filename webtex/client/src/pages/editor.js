@@ -8,6 +8,7 @@ import { ProjectConnection } from '../editor/provider.js';
 import { FileTree, buildPaths } from '../editor/filetree.js';
 import { LogPanel } from '../editor/logs.js';
 import { Outline } from '../editor/outline.js';
+import { autoCompileDelay, isBusyError } from '../editor/compileBackoff.js';
 import { createEditor, mergeSymbols } from '../editor/codemirror.js';
 import { preloadMathPreview } from '../editor/mathpreview.js';
 import { compileDiagnostics, countIssuesByFile } from '../editor/latex/diagnostics.js';
@@ -50,6 +51,10 @@ export async function renderEditor(root, projectId) {
   let compiling = false;
   let compileQueued = false;
   let autoTimer = null;
+  // Server compile queue (deadline rush): refusals in a row and the last queue wait pace auto-compiles.
+  let busyRefusals = 0;
+  let busyRetryAfter = 0;
+  let lastQueuedMs = 0;
   const disposers = [];
   const lastFileKey = `webtex:last-file:${projectId}`;
 
@@ -232,7 +237,7 @@ export async function renderEditor(root, projectId) {
       if (initial) openEntity(initial);
       else showPlaceholder(t('editor.selectFile'));
       // First compile on open, like Overleaf.
-      if (project.mainFileId) compile(true);
+      if (project.mainFileId) compile({ auto: true });
     },
     onEvent: handleEvent,
     onClose: () => {
@@ -290,11 +295,15 @@ export async function renderEditor(root, projectId) {
   }
 
   // Auto-compile after local edits.
+  const scheduleCompile = () => {
+    clearTimeout(autoTimer);
+    const delay = autoCompileDelay({ refusals: busyRefusals, retryAfterSec: busyRetryAfter, queuedMs: lastQueuedMs });
+    autoTimer = setTimeout(() => compile({ auto: true }), delay);
+  };
   const onLocalUpdate = (_u, origin) => {
     historyPanel?.projectChanged();
     if (origin === conn || !prefs.get('autoCompile') || readOnly) return;
-    clearTimeout(autoTimer);
-    autoTimer = setTimeout(() => compile(true), 2500);
+    scheduleCompile();
   };
   ydoc.on('update', onLocalUpdate);
 
@@ -580,22 +589,44 @@ export async function renderEditor(root, projectId) {
   });
 
   // ---------- compile ----------
-  function setCompiling(on) {
+  function setCompiling(on, label = t('editor.compiling')) {
     compiling = on;
     compileBtn.disabled = on;
     compileBtn.classList.toggle('busy', on);
-    compileBtn.querySelector('span:last-child').textContent = on ? t('editor.compiling') : t('editor.recompile');
+    compileBtn.querySelector('span:last-child').textContent = on ? label : t('editor.recompile');
+  }
+
+  // While the compile request is pending, ask where it is: „W kolejce (n)” instead of „Kompilowanie…”.
+  function watchQueue() {
+    let stopped = false;
+    let timer = null;
+    const poll = async () => {
+      try {
+        const s = await api.get(`/api/projects/${projectId}/compile/status`);
+        if (stopped || !compiling) return;
+        if (s.state === 'queued') setCompiling(true, t('editor.queued', { n: s.position }));
+        else setCompiling(true);
+      } catch {}
+      if (!stopped) timer = setTimeout(poll, 2000);
+    };
+    // A compile that starts at once never shows the queue: first look after a second.
+    timer = setTimeout(poll, 1000);
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+    };
   }
 
   // `auto`: started by the editor itself (after typing, on open), not by the user; the server keeps a
   // history version only for the user's own successful compiles.
-  async function compile(auto = false) {
+  async function compile({ auto = false } = {}) {
     clearTimeout(autoTimer);
     if (compiling) {
       compileQueued = compileQueued === 'manual' || !auto ? 'manual' : 'auto';
       return;
     }
     setCompiling(true);
+    const stopWatching = watchQueue();
     // Treść plików w chwili zlecenia: kompilacja widzi właśnie ją, a numery linii z logu odnoszą się do niej.
     const sent = new Map();
     for (const e of entities) {
@@ -605,6 +636,8 @@ export async function renderEditor(root, projectId) {
     try {
       const stateVector = btoa(String.fromCharCode(...Y.encodeStateVector(ydoc)));
       const r = await api.post(`/api/projects/${projectId}/compile`, { stateVector, stopOnFirstError: !!prefs.get('stopOnFirstError'), auto });
+      busyRefusals = 0;
+      lastQueuedMs = r.queuedMs || 0;
       lastResult = r;
       logs.setResult(r);
       updateLogBadge();
@@ -625,13 +658,24 @@ export async function renderEditor(root, projectId) {
         if (r.status !== 'unavailable' || r.issues?.length) showLogs(true);
       }
     } catch (err) {
-      toast(err.message, 'error');
+      if (isBusyError(err)) {
+        busyRefusals++;
+        busyRetryAfter = Number(err.data.retryAfter) || 0;
+        // Automatic compiles back off quietly (one notice per busy period); an explicit one says why.
+        if (!auto || busyRefusals === 1) toast(err.data.error === 'too_many_compiles' ? t('editor.compileQueuedAlready') : t('editor.compilerBusy'), 'error');
+        compileQueued = false;
+        scheduleCompile(); // try again later, waiting longer after each refusal
+      } else toast(err.message, 'error');
     } finally {
+      stopWatching();
       setCompiling(false);
       if (compileQueued) {
         const queued = compileQueued;
         compileQueued = false;
-        compile(queued === 'auto');
+        // Edits made while a compile sat in a long queue: let the line shrink before the next automatic
+        // one. A compile the user asked for (button, Ctrl+S) runs at once and stays a manual one.
+        if (queued === 'auto' && lastQueuedMs > 5000) scheduleCompile();
+        else compile({ auto: queued === 'auto' });
       }
     }
   }

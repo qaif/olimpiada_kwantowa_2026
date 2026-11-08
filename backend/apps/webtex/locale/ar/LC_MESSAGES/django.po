@@ -45,6 +45,13 @@ msgid ""
 "– Twoja praca w edytorze jest zapisana."
 msgstr "مترجم LaTeX غير متاح مؤقتًا. حاول مرة أخرى بعد بضع دقائق – عملك في المحرر محفوظ."
 
+msgid ""
+"Edytor LaTeX kompiluje teraz bardzo wiele rozwiązań naraz i Twoje nie "
+"zmieściło się w kolejce. Spróbuj ponownie za minutę – Twoja praca w edytorze "
+"jest zapisana. Jeśli termin jest blisko, pobierz PDF z edytora i wyślij go "
+"zwykłym formularzem."
+msgstr "يقوم محرر LaTeX الآن بترجمة عدد كبير جدًا من الحلول في الوقت نفسه، ولم يتسع طابور الانتظار لحلّك. حاول مرة أخرى بعد دقيقة – عملك في المحرر محفوظ. إذا كان الموعد النهائي قريبًا، فنزّل ملف PDF من المحرر وأرسله عبر النموذج المعتاد."
+
 msgid "Potwierdzam, że to rozwiązanie właściwego zadania"
 msgstr "أؤكد أن هذا حل المسألة الصحيحة"
 

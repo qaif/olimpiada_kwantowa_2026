@@ -1,3 +1,4 @@
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -20,6 +21,16 @@ export const config = {
     memory: env.COMPILE_MEMORY || '1g',
     cpus: env.COMPILE_CPUS || '2',
     keepBuilds: 3,
+    // Local backend: rlimits of every TeX process (server/tex/limits.pl). COMPILE_MEMORY is then the
+    // address space per process, not per compile.
+    cpuSec: Number(env.COMPILE_CPU_SECONDS || env.COMPILE_TIMEOUT || 90),
+    maxFileMb: Number(env.COMPILE_MAX_FILE_MB || 256),
+    // Global queue (server/compileQueue.js, docs/OPERACJE.md § 55).
+    concurrency: Number(env.COMPILE_CONCURRENCY) || os.availableParallelism(),
+    queueMax: Number(env.COMPILE_QUEUE_MAX || 100),
+    buildMaxWaitSec: Number(env.COMPILE_BUILD_MAX_WAIT || 60),
+    queueMaxWaitSec: Number(env.COMPILE_QUEUE_MAX_WAIT || 120),
+    queueWarnSec: Number(env.COMPILE_QUEUE_WARN || 30),
   },
   // Quantum Olympiad platform integration (docs/tasks/TEX-01.md): SSO + signed server-to-server API.
   integration: {
