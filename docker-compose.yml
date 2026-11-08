@@ -1191,7 +1191,6 @@ services:
       # Historia wersji projektów (docs/OPERACJE.md § 55.5): ile dni i ile MB na projekt.
       HISTORY_KEEP_DAYS: ${WEBTEX_HISTORY_KEEP_DAYS:-365}
       HISTORY_MAX_MB: ${WEBTEX_HISTORY_MAX_MB:-100}
-
       # Kolejka kompilacji (docs/OPERACJE.md § 55.6): ile latexmk naraz (≈ vCPU serwera), ile żądań
       # może czekać i limit pamięci jednego procesu TeX-a (RLIMIT_AS, webtex/server/tex/limits.pl).
       # Wartości domyślne z testu obciążeniowego z 22.10.2026 (6 vCPU, mem_limit 2g).
