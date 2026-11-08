@@ -11,6 +11,7 @@ import { Outline } from '../editor/outline.js';
 import { createEditor, mergeSymbols, scanFile } from '../editor/codemirror.js';
 import { PdfViewer } from '../editor/pdfviewer.js';
 import { AiPanel } from '../editor/ai.js';
+import { HistoryPanel } from '../editor/history.js';
 import { avatar, userColor, userMenuButton } from './common.js';
 
 const IMAGE_PREVIEW = /\.(png|jpe?g|gif|svg|webp|bmp)$/i;
@@ -62,6 +63,7 @@ export async function renderEditor(root, projectId) {
     ? h('a.btn.small', { href: project.returnUrl, title: t('editor.backToOlympiad') }, icon('arrowLeft'), h('span.hide-sm', t('editor.backToOlympiad')))
     : null;
   const zipBtn = h('a.icon-btn', { href: `/api/projects/${projectId}/download`, title: t('editor.downloadZip') }, icon('download'));
+  const historyBtn = h('button.btn.small.history-toggle', { title: t('history.title'), onclick: () => toggleHistory() }, icon('history'), h('span.hide-sm', t('history.title')));
 
   const header = h(
     'header.topbar.editor-top',
@@ -73,6 +75,7 @@ export async function renderEditor(root, projectId) {
     h('div.spacer'),
     backBtn,
     onlineEl,
+    historyBtn,
     layoutBtn,
     zipBtn,
     shareBtn,
@@ -159,7 +162,8 @@ export async function renderEditor(root, projectId) {
   const split2 = h('div.splitter', { role: 'separator', 'aria-orientation': 'vertical' });
   const workspace = h('div.workspace', sidebar, split1, editorPane, split2, pdfPane);
   const overlay = h('div.page-overlay', { hidden: true });
-  const page = h('div.editor-page', header, workspace, overlay);
+  const historyHost = h('div.history-host', { hidden: true });
+  const page = h('div.editor-page', header, workspace, historyHost, overlay);
   root.replaceChildren(page);
 
   // ---------- components ----------
@@ -216,7 +220,7 @@ export async function renderEditor(root, projectId) {
       if (initial) openEntity(initial);
       else showPlaceholder(t('editor.selectFile'));
       // First compile on open, like Overleaf.
-      if (project.mainFileId) compile();
+      if (project.mainFileId) compile(true);
     },
     onEvent: handleEvent,
     onClose: () => {
@@ -260,6 +264,9 @@ export async function renderEditor(root, projectId) {
         filePathEl.textContent = paths.get(currentId) || '';
       }
       renderOnline();
+      historyPanel?.projectChanged();
+    } else if (ev.type === 'history') {
+      historyPanel?.refresh();
     } else if (ev.type === 'ai') {
       setAiEnabled(!!ev.enabled, true);
     } else if (ev.type === 'project') {
@@ -272,9 +279,10 @@ export async function renderEditor(root, projectId) {
 
   // Auto-compile after local edits.
   const onLocalUpdate = (_u, origin) => {
+    historyPanel?.projectChanged();
     if (origin === conn || !prefs.get('autoCompile') || readOnly) return;
     clearTimeout(autoTimer);
-    autoTimer = setTimeout(() => compile(), 2500);
+    autoTimer = setTimeout(() => compile(true), 2500);
   };
   ydoc.on('update', onLocalUpdate);
 
@@ -467,16 +475,18 @@ export async function renderEditor(root, projectId) {
     compileBtn.querySelector('span:last-child').textContent = on ? t('editor.compiling') : t('editor.recompile');
   }
 
-  async function compile() {
+  // `auto`: started by the editor itself (after typing, on open), not by the user; the server keeps a
+  // history version only for the user's own successful compiles.
+  async function compile(auto = false) {
     clearTimeout(autoTimer);
     if (compiling) {
-      compileQueued = true;
+      compileQueued = compileQueued === 'manual' || !auto ? 'manual' : 'auto';
       return;
     }
     setCompiling(true);
     try {
       const stateVector = btoa(String.fromCharCode(...Y.encodeStateVector(ydoc)));
-      const r = await api.post(`/api/projects/${projectId}/compile`, { stateVector, stopOnFirstError: !!prefs.get('stopOnFirstError') });
+      const r = await api.post(`/api/projects/${projectId}/compile`, { stateVector, stopOnFirstError: !!prefs.get('stopOnFirstError'), auto });
       lastResult = r;
       logs.setResult(r);
       updateLogBadge();
@@ -497,8 +507,9 @@ export async function renderEditor(root, projectId) {
     } finally {
       setCompiling(false);
       if (compileQueued) {
+        const queued = compileQueued;
         compileQueued = false;
-        compile();
+        compile(queued === 'auto');
       }
     }
   }
@@ -609,6 +620,23 @@ export async function renderEditor(root, projectId) {
     if (notify) toast(t('ai.disabled'), 'error');
   }
   if (project.ai && prefs.get('aiOpen')) toggleAi(true);
+
+  // ---------- version history ----------
+  let historyPanel = null;
+  function toggleHistory(open = historyHost.hidden) {
+    historyHost.hidden = !open;
+    historyBtn.classList.toggle('active', open);
+    if (!open) {
+      historyPanel?.destroy();
+      historyPanel = null;
+      return;
+    }
+    historyPanel = new HistoryPanel(historyHost, {
+      projectId,
+      getText: (id) => texts.get(id)?.toString() ?? null,
+      onClose: () => toggleHistory(false),
+    });
+  }
 
   // ---------- dialogs ----------
   shareBtn.addEventListener('click', () => openShare());
@@ -784,6 +812,7 @@ export async function renderEditor(root, projectId) {
     editor?.destroy();
     pdf.destroy();
     aiPanel?.destroy();
+    historyPanel?.destroy();
     conn.destroy();
     for (const um of undoManagers.values()) um.destroy();
     ydoc.destroy();

@@ -65,6 +65,10 @@ msgstr "A inscrição na etapa está desclassificada."
 msgid "Zadanie %(number)s. %(title)s"
 msgstr "Problema %(number)s. %(title)s"
 
+#, python-format
+msgid "Złożone jako rozwiązanie – wersja %(version)s"
+msgstr "Enviado como solução – versão %(version)s"
+
 msgid ""
 "To zadanie nie przyjmuje rozwiązań w PDF – edytor LaTeX nie złoży go za "
 "Ciebie."

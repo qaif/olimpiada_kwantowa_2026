@@ -67,6 +67,10 @@ msgstr "Участие в этапе дисквалифицировано."
 msgid "Zadanie %(number)s. %(title)s"
 msgstr "Задача %(number)s. %(title)s"
 
+#, python-format
+msgid "Złożone jako rozwiązanie – wersja %(version)s"
+msgstr "Отправлено как решение – версия %(version)s"
+
 msgid ""
 "To zadanie nie przyjmuje rozwiązań w PDF – edytor LaTeX nie złoży go za "
 "Ciebie."

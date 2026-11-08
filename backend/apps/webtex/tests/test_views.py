@@ -17,6 +17,7 @@ from apps.accounts.models import CompetitionRole
 from apps.competitions.models import StageEntry, StageEntryStatus
 from apps.submissions.models import Submission
 from apps.tenancy.tests.factories import grant_membership
+from apps.webtex import client as webtex_client
 from apps.webtex import services
 
 from .conftest import INTERNAL_URL, enable, json_response, make_participant, pdf_response
@@ -190,9 +191,11 @@ def test_submit_builds_pdf_and_creates_new_versions(web, competition, problem, p
     call = webtex.calls[0]
     assert call["method"] == "POST"
     assert call["url"] == f"{INTERNAL_URL}/api/integration/build"
+    # ``label`` – podpis wersji w historii projektu webTEX (numer, który dostanie to złożenie).
     assert json.loads(call["data"]) == {
         "sub": str(participant.user.pk),
         "project": f"{competition.slug}/s{problem.stage_id}/p3",
+        "label": "Złożone jako rozwiązanie – wersja 1",
     }
     t, v1 = (part.split("=", 1)[1] for part in call["headers"]["X-Webtex-Signature"].split(","))
     expected = hmac.new(
@@ -206,6 +209,7 @@ def test_submit_builds_pdf_and_creates_new_versions(web, competition, problem, p
 
     second = web.post(submit_url(problem), {"confirmed": "1"}, **HX)
     assert "wersja 2" in second.content.decode()
+    assert json.loads(webtex.calls[1]["data"])["label"] == "Złożone jako rozwiązanie – wersja 2"
     assert Submission.objects.filter(entry__participant=participant, problem=problem).count() == 2
 
 
@@ -397,3 +401,12 @@ def test_card_panel_costs_no_queries_when_off(
         html = template.render(context)
 
     assert html == ""
+
+
+def test_build_without_label_keeps_the_original_body(webtex):
+    """Zgodność wstecz: bez podpisu ciało żądania jest takie jak przed historią wersji webTEX."""
+    webtex_client.build_pdf("7", "oq/s1/p2", max_bytes=1024 * 1024)
+    webtex_client.build_pdf("7", "oq/s1/p2", max_bytes=1024 * 1024, label="x" * 300)
+
+    assert json.loads(webtex.calls[0]["data"]) == {"sub": "7", "project": "oq/s1/p2"}
+    assert json.loads(webtex.calls[1]["data"])["label"] == "x" * webtex_client.MAX_LABEL_LENGTH

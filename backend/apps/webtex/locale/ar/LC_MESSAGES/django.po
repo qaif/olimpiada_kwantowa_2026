@@ -66,6 +66,10 @@ msgstr "تم استبعاد التسجيل في المرحلة."
 msgid "Zadanie %(number)s. %(title)s"
 msgstr "المسألة %(number)s. %(title)s"
 
+#, python-format
+msgid "Złożone jako rozwiązanie – wersja %(version)s"
+msgstr "أُرسل كحلّ – النسخة %(version)s"
+
 msgid ""
 "To zadanie nie przyjmuje rozwiązań w PDF – edytor LaTeX nie złoży go za "
 "Ciebie."

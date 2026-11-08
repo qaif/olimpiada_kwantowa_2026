@@ -332,6 +332,13 @@ Dobrze wiedzieć:
   Enter albo Tab, kolejne pola szablonu przechodzisz Tabem; Ctrl+Spacja otwiera listę ręcznie. To
   zwykłe podpowiedzi składni, nie asystent AI – działają na każdym etapie i nic nie wysyłają poza edytor,
 - źródła projektu (ZIP) możesz pobrać z edytora w każdej chwili,
+- **historia wersji** (przycisk **„Historia”** w nagłówku edytora): edytor sam zapisuje wersje
+  projektu – po chwili bez pisania, przy kompilacji i przy każdym złożeniu („Złożone jako
+  rozwiązanie – wersja N”); możesz też zapisać wersję z nazwą. Przy każdej wersji widać, czym różni
+  się od obecnego tekstu (usunięte wiersze na czerwono), można ją pobrać jako ZIP albo **przywrócić**
+  – cały projekt albo jeden plik. Bieżący stan zapisuje się przed przywróceniem, więc „Cofnij
+  przywrócenie” wraca do niego. Wersje z ostatniej doby są wszystkie, starsze – co godzinę, a po
+  tygodniu jedna na dzień,
 - konto z rolą organizatora, recenzenta czy opiekuna nie otwiera edytora jako uczestnik – do
   rozwiązywania zadań potrzebne jest zwykłe konto uczestnika.
 

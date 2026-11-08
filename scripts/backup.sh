@@ -323,7 +323,8 @@ fi
 # Złożone rozwiązania są w MinIO (krok 2) – tu chodzi o to, czego jeszcze nikt nie złożył: projekty
 # uczestników w edytorze (TEX-01). Wolumen `webtex_data` ginie razem z serwerem, a z nim szkice
 # pisane w trakcie etapu. Do paczki idą baza SQLite (`/data/webtex.db`: konta, projekty, powiązania
-# z platformą) i `/data/projects` (pliki, stan współedycji). `/data/compiles` i `/data/outputs` NIE:
+# z platformą, spis historii wersji) i `/data/projects` (pliki, stan współedycji, treść historii
+# wersji w `projects/<id>/history/`, OPERACJE § 55.5). `/data/compiles` i `/data/outputs` NIE:
 # to katalogi robocze i PDF-y kompilacji, które edytor odtwarza przy następnej kompilacji.
 #
 # Przełącznikiem jest profil `latex` w COMPOSE_PROFILES (po wczytaniu .env – ta sama wartość, której

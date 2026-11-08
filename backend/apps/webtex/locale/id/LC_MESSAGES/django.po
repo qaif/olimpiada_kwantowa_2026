@@ -65,6 +65,10 @@ msgstr "Pendaftaran tahap didiskualifikasi."
 msgid "Zadanie %(number)s. %(title)s"
 msgstr "Soal %(number)s. %(title)s"
 
+#, python-format
+msgid "Złożone jako rozwiązanie – wersja %(version)s"
+msgstr "Dikirim sebagai solusi – versi %(version)s"
+
 msgid ""
 "To zadanie nie przyjmuje rozwiązań w PDF – edytor LaTeX nie złoży go za "
 "Ciebie."

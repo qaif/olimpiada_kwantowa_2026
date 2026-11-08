@@ -65,6 +65,10 @@ msgstr "该阶段的报名已被取消资格。"
 msgid "Zadanie %(number)s. %(title)s"
 msgstr "第 %(number)s 题. %(title)s"
 
+#, python-format
+msgid "Złożone jako rozwiązanie – wersja %(version)s"
+msgstr "已作为解答提交 – 第 %(version)s 版"
+
 msgid ""
 "To zadanie nie przyjmuje rozwiązań w PDF – edytor LaTeX nie złoży go za "
 "Ciebie."

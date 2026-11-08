@@ -65,6 +65,10 @@ msgstr "The stage entry is disqualified."
 msgid "Zadanie %(number)s. %(title)s"
 msgstr "Problem %(number)s. %(title)s"
 
+#, python-format
+msgid "Złożone jako rozwiązanie – wersja %(version)s"
+msgstr "Submitted as solution – version %(version)s"
+
 msgid ""
 "To zadanie nie przyjmuje rozwiązań w PDF – edytor LaTeX nie złoży go za "
 "Ciebie."
