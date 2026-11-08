@@ -12,6 +12,72 @@ podsekcją `### <tytuł>` wydania `## v<x.y.z> – <data tagu> – <opis tagu>`.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – pyasn1 0.6.5, pypdf 6.21.4, oauthlib 4.0.1 i podbicia zależności (wydanie zbiorcze v0.54.0)
+
+- Bezpieczeństwo, `backend/uv.lock` (8.11.2026: Trivy obrazu `web` i pip-audit czerwone na `main`):
+  pyasn1 0.6.4 → 0.6.5 (GHSA-2qm8-x737-gmw5; CVE-2026-119194…119197, DoS przy dekodowaniu ASN.1),
+  pypdf 6.21.2 → 6.21.4 (GHSA-42gh-23hr-vphw, GHSA-5849-834g-hvw5; CVE-2026-119203…119209, DoS na
+  spreparowanym PDF-ie), oauthlib 4.0.0 → 4.0.1 (GHSA-3jp2-3mrg-2vxc). `djcms/uv.lock` tych pakietów
+  nie ma. Pakiety Debiana w obrazie – bez znalezisk; `.security/trivyignore.yaml` bez zmian.
+- `backend/pyproject.toml`: uharfbuzz `<0.58` (0.57.0), sentry-sdk `<2.74` (2.73.0), anthropic `<3`
+  (2.6.0, API `2026-10-21`: klucz w `Authorization: Bearer`, bez `temperature`/`top_p`/`top_k` – ocena AI
+  ich nie wysyła, `document` tylko w wiadomości `user`; nowa zależność `opentelemetry-api`). Zamiast
+  PR-ów #158, #160, #161, którym brakowało aktualizacji `uv.lock`.
+- djcms: djangocms-text 1.0.2, ruff 0.17.1 (#154); obrazy compose: `bitnamilegacy/minio` 2025.5.24,
+  `bitnamilegacy/minio-client` 2025.5.21, mailpit v1.31 (#153; `scripts/backup.sh`/`restore.sh`
+  i `scripts/loadtest/` zostają przy dotychczasowym `minio-client` przypiętym skrótem); akcje CI:
+  setup-uv 10.3.2, setup-python 7.1.0, docker/login-action 4.7.0, codeql-action 4.39.1 (#159).
+
+## [Unreleased] – Historia wersji w edytorze LaTeX (TEX-01, Uzupełnienie B)
+
+- webTEX zapisuje wersje projektów: po ustaniu zmian (2 min), co 10 min ciągłej pracy, po udanej
+  kompilacji uruchomionej przez użytkownika i przy złożeniu rozwiązania. Spis w SQLite (`snapshots`),
+  treść w `/data/projects/<id>/history/` (stan Yjs + pliki binarne po sha256, identyczna treść raz).
+- Panel **Historia** w edytorze: wersje z autorami zmian, różnice plik po pliku względem bieżącego
+  stanu, `.zip` wersji, przywrócenie projektu albo pliku jako nowa zmiana (współpracownicy widzą ją
+  na żywo), z zapisem stanu sprzed przywrócenia („Cofnij przywrócenie”); wersje z nazwą. Czytelnicy
+  tylko oglądają; `sharing_locked` odcina historię jak projekt.
+- Przechowywanie: wszystko z 24 h, potem co godzinę do 7 dni, potem co dzień;
+  `WEBTEX_HISTORY_KEEP_DAYS` (365) i `WEBTEX_HISTORY_MAX_MB` (100 na projekt), złożenia i wersje
+  z nazwą poza przerzedzaniem i limitem rozmiaru.
+- `POST /api/integration/build` przyjmuje opcjonalne `label`; platforma wysyła „Złożone jako
+  rozwiązanie – wersja N” (zgodne wstecz w obie strony). `server/history-cli.js` – lista wersji
+  uczestnika i `.zip` wersji dla komisji odwoławczej (OPERACJE § 55.5).
+- Kopia nocna `webtex-<stamp>.tar.gpg` obejmuje historię bez zmian w skrypcie (OPERACJE § 55.4).
+
+## [Unreleased] – Edytor LaTeX (webTEX): błędy w kodzie, podgląd wzorów, pisownia, licznik słów
+
+- Problemy z kompilacji prosto w edytorze: podkreślenie (błędy czerwone, ostrzeżenia żółte), ikona na
+  marginesie, tło linii, dymek z komunikatem i kontekstem z logu, F8 / Shift+F8 – następny / poprzedni,
+  liczba błędów i ostrzeżeń przy pliku w drzewie. Numery linii kotwiczone w treści, więc znaczniki
+  przesuwają się z tekstem i znikają z poprawianych linii oraz przy następnej kompilacji.
+- Szybkie sprawdzanie bez kompilacji (czysty JS, bez chktex): klamry, `$`, `\(`/`\[`, `\begin`/`\end`,
+  pusta linia we wzorze, `\ref` do nieistniejącej etykiety, powtórzony `\label`, polecenia z
+  niedołączonych pakietów (akcja „Dodaj `\usepackage{…}`”), podpowiedź zamiast `$$…$$`. Mało szumu:
+  reguły milczą przy nietypowych klasach, nieznanych pakietach i etykietach z makr.
+- Podgląd wzorów (KaTeX w paczce, offline) po najechaniu i przy kursorze we wzorze, z makrami z projektu
+  i przybliżeniami poleceń `physics`; przełącznik w ustawieniach.
+- Sprawdzanie pisowni w języku dokumentu (`lang` z `babel`/`polyglossia`, inaczej język interfejsu),
+  z pominięciem poleceń, wzorów i etykiet; licznik słów i znaków pliku albo zaznaczenia na pasku stanu.
+- `Package epstopdf: Shell escape feature is not enabled` (każda kompilacja z `graphicx`, shell escape
+  jest wyłączony) nie trafia już na listę ostrzeżeń; zostaje w surowym logu.
+- Opis: `webtex/README.md` („Problemy w kodzie, podgląd wzorów, pisownia”), `PODRECZNIK-UCZESTNIKA.md`
+  § 3b; testy `webtex/client/test/latex-diagnostics.test.js`, `webtex/server/test/logParser.test.js`.
+
+## [Unreleased] – webTEX: kolejka kompilacji na termin składania
+
+- Globalna kolejka kompilacji edytora LaTeX (`webtex/server/compileQueue.js`): najwyżej
+  `WEBTEX_COMPILE_CONCURRENCY` latexmk naraz (domyślnie 6 = vCPU serwera), złożenia z platformy przed
+  kompilacjami z edytora, zlewanie powtórzonych kompilacji projektu, jedna w toku + jedna w kolejce na
+  uczestnika, pełna kolejka albo za długie czekanie → 503 `compiler_busy` (platforma: osobny komunikat
+  „…nie zmieściło się w kolejce…”, 10 języków).
+- Edytor: „W kolejce (n)” na przycisku kompilacji, auto-kompilacja z rosnącą przerwą przy przeciążeniu.
+- Limity każdego procesu TeX-a (`webtex/server/tex/limits.pl`: pamięć, czas procesora, rozmiar pliku,
+  bez zrzutów, `nice 10`), zabijanie całej grupy procesów po przekroczeniu czasu, `init: true` w compose.
+- Stan kolejki w `/api/health` (tylko z wnętrza kontenera) i w podpisanym `/api/integration/health`;
+  ostrzeżenie w logu przy czekaniu > 30 s. Test obciążeniowy `webtex/scripts/load-test.mjs`, wyniki
+  i zalecenia: `docs/OPERACJE.md` § 55.6.
+
 ## [Unreleased] – GitLab CE pod gitlab.<domena>
 
 - Blok `gitlab.{$SITE_DOMAIN}` w `deploy/Caddyfile` (`reverse_proxy gitlab:80`, bez strony prac

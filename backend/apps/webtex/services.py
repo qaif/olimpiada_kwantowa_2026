@@ -211,6 +211,22 @@ def precheck_submission(stage, problem, *, now=None) -> None:
         raise DomainError(_("Termin oddania rozwiązań minął."), "DEADLINE_PASSED", http.HTTP_403_FORBIDDEN)
 
 
+def submission_label(user, stage, problem) -> str:
+    """Podpis wersji w historii projektu webTEX: numer, który dostanie to złożenie.
+
+    Liczony przed kompilacją, więc gdy serwis odrzuci pracę już po niej (np. termin minął w trakcie),
+    historia edytora ma wersję z numerem, której w serwisie nie ma – kompilacja i tak się odbyła.
+    """
+    from django.db.models import Max
+
+    from apps.submissions.models import Submission
+
+    top = Submission.objects.filter(
+        entry__participant__user=user, entry__stage_id=stage.pk, problem=problem
+    ).aggregate(top=Max("version"))["top"]
+    return _("Złożone jako rozwiązanie – wersja %(version)s") % {"version": (top or 0) + 1}
+
+
 def submit_from_editor(request, stage, problem, competition):
     """Pobiera świeży PDF z webTEX i składa go zwykłą ścieżką uploadu.
 
@@ -222,6 +238,7 @@ def submit_from_editor(request, stage, problem, competition):
         str(request.user.pk),
         project_key(competition, stage, problem),
         max_bytes=int(problem.max_file_mb) * 1024 * 1024,
+        label=submission_label(request.user, stage, problem),
     )
     return create_submission(
         request.user, stage, problem.number, ContentFile(pdf, name=PDF_NAME), request=request

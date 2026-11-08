@@ -18,6 +18,7 @@ services:
     build: .
     image: webtex:latest
     restart: unless-stopped
+    init: true                                             # reaps TeX processes left by a killed compile
     ports:
       - "${PORT:-3000}:3000"
     volumes:

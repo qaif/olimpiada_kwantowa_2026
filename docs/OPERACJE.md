@@ -105,6 +105,7 @@ musi mieć wiersz z poprawną wartością domyślną, a każda flaga z tabeli �
 | Edytor LaTeX webTEX (pisanie i składanie rozwiązań) | `latex_editor` | flaga konkursu | wył. | § 55 | — |
 | Host i klucz edytora LaTeX | `WEBTEX_HOST`, `WEBTEX_SHARED_KEY` | `.env` | puste (wył.) | § 55.1 | — |
 | Udostępnianie linków / asystent AI w edytorze LaTeX | ustawienia etapu (`/coordinator/stages/<id>/latex/`) | pole etapu | wył. / wył. | § 55.3 | — |
+| Historia wersji w edytorze LaTeX: przechowywanie, limit na projekt | `WEBTEX_HISTORY_KEEP_DAYS`, `WEBTEX_HISTORY_MAX_MB` | `.env` | 365 dni, 100 MB | § 55.5 | — |
 <!-- funkcje-i-flagi: koniec -->
 
 ---
@@ -7560,13 +7561,15 @@ zmiennych: `webtex/README.md`). Klucze zostają po stronie serwera edytora, prze
 ### 55.4. Dane i kopie
 
 Projekty uczniów (szkice) leżą w wolumenie `webtex_data`: baza SQLite `/data/webtex.db` (konta
-edytora, projekty, członkostwa, powiązania z platformą), `/data/projects/<id>/` (stan dokumentów
-i pliki projektu) oraz `/data/compiles/` i `/data/outputs/` (katalogi robocze i PDF-y kompilacji).
+edytora, projekty, członkostwa, powiązania z platformą, spis wersji z historii – § 55.5),
+`/data/projects/<id>/` (stan dokumentów, pliki projektu i w `history/` treść jego wersji) oraz
+`/data/compiles/` i `/data/outputs/` (katalogi robocze i PDF-y kompilacji).
 **Złożone** rozwiązania są w MinIO i w kopii zapasowej jak każde inne. **Niezłożone szkice** trafiają
 do kopii nocnej, gdy profil `latex` jest włączony: paczka `webtex-<stamp>.tar.gpg` (§ 1.2, podkrok 2c)
 z migawką bazy i `projects/` – bez `compiles/` i `outputs/`, które edytor odtwarza przy następnej
-kompilacji. Kopia jest z 3:15, więc po odtworzeniu brakuje tego, co uczestnicy napisali od tamtej
-pory. Projekty kopiowane są sekundy po migawce bazy – plik dodany albo usunięty dokładnie w tych
+kompilacji. Historia wersji (§ 55.5) jest w tej samej paczce: spis wersji w bazie, ich treść
+w `projects/<id>/history/` – osobnego kroku kopii nie ma. Kopia jest z 3:15, więc po odtworzeniu
+brakuje tego, co uczestnicy napisali od tamtej pory (wersje z tego czasu też). Projekty kopiowane są sekundy po migawce bazy – plik dodany albo usunięty dokładnie w tych
 sekundach może być w `projects/`, a nie w bazie (lub odwrotnie); treść tekstu jest w `projects/`.
 
 **Odtwarzanie** (ręczne – `scripts/restore.sh` tej paczki nie obsługuje poza `--fetch`; zasada jak
@@ -7609,3 +7612,144 @@ Plik `webtex-przed-$S.tar` i rozszyfrowany `webtex-restore-$S.tar` trzymaj tydzi
 Na **nowym** serwerze: wdrożenie z profilem `latex` (§ 55.1), `docker compose up -d webtex` raz
 (powstaje wolumen), potem kroki 1–4. Bez profilu `latex` (edytor wyłączony) paczki nie powstają;
 ostatnią kopią szkiców jest ta z ostatniej nocy przed wyłączeniem (30 dni w `daily/`, 365 w `monthly/`).
+
+**Jeden projekt zamiast całego wolumenu.** Gdy szkic zepsuł się jednemu uczestnikowi, zwykle
+wystarczy historia wersji w edytorze (§ 55.5) – bez odtwarzania kopii i bez zatrzymywania edytora.
+
+### 55.5. Historia wersji
+
+Edytor sam zapisuje wersje każdego projektu: po chwili bez zmian (2 min), co 10 min ciągłej pracy,
+przy każdej udanej kompilacji uruchomionej przez uczestnika (przycisk, Ctrl+S – nie automatyczna po
+pisaniu) i przy **złożeniu rozwiązania** – ta wersja ma podpis „Złożone jako rozwiązanie – wersja N”
+(N z serwisu, w języku uczestnika) i jest dowodem przy odwołaniu: pokazuje szkic w chwili złożenia.
+Uczestnik i współpracownicy z prawem edycji mogą też zapisać wersję z nazwą. Panel **Historia**
+w edytorze: lista wersji z autorami zmian, porównanie z bieżącym stanem (plik po pliku), pobranie
+wersji jako `.zip`, przywrócenie całego projektu albo jednego pliku. Przywrócenie to nowa zmiana
+(współpracownicy widzą ją na żywo), a stan sprzed niej zostaje zapisany jako wersja – „Cofnij
+przywrócenie”. Osoby z dostępem tylko do odczytu historię oglądają, nie przywracają; po wyłączeniu
+udostępniania na etapie (§ 55.3) współpracownicy tracą ją razem z projektem.
+
+**Przechowywanie.** Wszystkie wersje z ostatniej doby, potem jedna na godzinę do 7 dni, potem jedna
+na dzień; nic starszego niż `WEBTEX_HISTORY_KEEP_DAYS` dni – to dotyczy także złożeń (domyślnie
+365, `0` = bez limitu). Ponad `WEBTEX_HISTORY_MAX_MB` na projekt (domyślnie 100) znikają najstarsze wersje
+automatyczne; złożenia i wersje z nazwą zostają (przerzedzanie ich nie dotyczy), najnowsza też.
+Treść jest zapisana raz, choćby była w wielu wersjach (identyczne pliki i stany – po sha256), więc
+typowy szkic to kilkadziesiąt–kilkaset KB historii. Zmiana zmiennych: `.env`, potem
+`docker compose up -d webtex`; nowe zasady obejmują stare wersje przy najbliższym przeglądzie (co godzinę).
+
+**Wersja dla komisji (odwołanie).** Uczestnik może ją pobrać sam (`.zip` w panelu Historia). Bez
+niego – na serwerze, po identyfikatorze użytkownika platformy (`sub` w tokenie SSO = `User.pk`):
+
+```bash
+docker compose exec -T webtex node server/history-cli.js list 1234     # id, czas UTC, rodzaj, projekt, podpis
+docker compose exec -T webtex node server/history-cli.js zip <id> > wersja.zip
+```
+
+Projekt to `<konkurs>/s<etap>/p<zadanie>`, rodzaj `submission` – złożenie (podpis z numerem wersji
+z serwisu). `.zip` zawiera pliki projektu w stanie z tej chwili. Treść leży w wolumenie jako
+`projects/<id>/history/states/<sha256>.gz` (stan dokumentów Yjs) i `history/blobs/<sha256>` (obrazy
+itp.), spis w tabeli `snapshots` bazy edytora. Wyłączenie historii: `HISTORY_ENABLED=false`
+w środowisku usługi `webtex` (compose tej zmiennej nie przekazuje – nakładka
+`docker-compose.override.yml`); zapisane wersje zostają na dysku.
+
+### 55.6. Termin składania: kolejka kompilacji i obciążenie
+
+W ostatniej godzinie przed terminem setki uczestników kompilują naraz (auto-kompilacja co kilka
+sekund pisania) i składają PDF przyciskiem „Złóż PDF z edytora”, a wszystko to robi **jeden** kontener
+`webtex` (`mem_limit` 2g, `pids_limit` 512). Bez limitu każde żądanie od razu uruchamiało własny
+latexmk: w teście obciążeniowym 150 uczestników dobiło pamięć kontenera do 2047 MiB (limit), latexmk
+mielił ~19 s zamiast 0,4 s, budowanie do złożenia czekało do 47–75 s (Django czeka 120 s) i część
+połączeń zrywało. Dlatego wszystkie kompilacje idą przez kolejkę (`webtex/server/compileQueue.js`):
+
+- najwyżej **`WEBTEX_COMPILE_CONCURRENCY`** kompilacji naraz (domyślnie 6), nigdy dwie tego samego projektu,
+- **złożenia mają pierwszeństwo**: `POST /api/integration/build` (platforma) wchodzi przed kompilacje
+  z edytora, więc czeka tylko na zwolnienie miejsca – a wątki gunicorna platformy nie wiszą,
+- kolejne kompilacje tego samego projektu czekające w kolejce **zlewają się** w jedną (najnowszą);
+  każdy uczestnik ma najwyżej jedną kompilację w toku i jedną w kolejce (trzecia: 429),
+- gdy czeka już **`WEBTEX_COMPILE_QUEUE_MAX`** kompilacji z edytora (domyślnie 150; złożenia mają
+  własne tyle samo miejsc) albo kompilacja czekała dłużej niż 120 s (złożenie: 60 s) – odpowiedź
+  **503 `compiler_busy`**. Edytor pokazuje wtedy „Kompilator jest teraz bardzo obciążony…” i sam ponawia
+  z rosnącą przerwą (5 s, 10 s, 20 s… do minuty); platforma przy złożeniu – „Edytor LaTeX kompiluje
+  teraz bardzo wiele rozwiązań naraz… Jeśli termin jest blisko, pobierz PDF z edytora i wyślij go
+  zwykłym formularzem” (`backend/apps/webtex/client.py`),
+- przycisk kompilacji pokazuje miejsce w kolejce: **„W kolejce (n)”**; auto-kompilacja po kompilacji,
+  która czekała, odczekuje dłużej (połowę tego czekania, do 20 s),
+- każdy proces TeX-a ma własne limity (`webtex/server/tex/limits.pl`, rlimity dziedziczone przez wszystko,
+  co uruchomi kompilacja, w Landlocku jak dotąd): pamięć **`WEBTEX_COMPILE_MEMORY`** (1g przestrzeni
+  adresowej na proces), czas procesora = `WEBTEX_COMPILE_TIMEOUT`, plik do 256 MB, bez zrzutów pamięci,
+  `nice 10` (pełna kolejka oddaje procesor `web` i bazie). Po przekroczeniu czasu ginie cała grupa
+  procesów kompilacji (latexmk, pdflatex, biber), a `init: true` w compose sprząta osierocone procesy –
+  wcześniej zabijany był sam latexmk, a pdflatex z pętli w dokumencie kręcił się dalej.
+
+**Obserwowanie w czasie terminu** (na serwerze, w `/opt/olimpiada`):
+
+```bash
+# stan kolejki co 5 s (licznik `queue` widać tylko z wnętrza kontenera – przez Caddy /api/health go nie ma)
+watch -n5 "docker compose exec -T webtex node -e \"fetch('http://127.0.0.1:3000/api/health').then(r=>r.json()).then(j=>console.log(JSON.stringify(j.queue,null,1)))\""
+docker stats --no-stream $(docker compose ps -q webtex)        # pamięć (limit 2 GiB) i PIDs (512)
+docker compose logs -f --since 10m webtex | grep -E 'queue wait|dropped after'
+```
+
+Pola `queue`: `running`/`concurrency` – kompilacje w toku; `queued` (w tym `queuedBuilds` – złożenia)
+i `oldestQueuedMs` – ile czeka najstarsza; `avgWaitMs`, `p95WaitMs`, `maxWaitMs` – czekanie kompilacji
+rozpoczętych w ostatnich 5 min; liczniki od startu: `completed`, `coalesced` (zlane), `rejected`
+(503/429), `expired` (odrzucone po czasie), `abandoned` (przeglądarka zamknięta w kolejce). W logu
+**`compile queue wait N s`** pojawia się, gdy kompilacja czekała ponad 30 s (najwyżej raz na 30 s, z liczbą
+pominiętych), a **`dropped after N s in the queue`** – gdy odpadła po czasie. Ten sam obiekt `queue`
+zwraca podpisane `GET /api/integration/health` (sieć `tex_api`).
+
+Jak czytać: `oldestQueuedMs` stale powyżej ~30 s i rosnące `rejected` = popyt ponad moc – uczestnicy
+dostają „przeciążony”, ale złożenia (pierwszeństwo) przechodzą; rosnące **`expired` przy `queuedBuilds`
+> 0** = nie przechodzą także złożenia, wtedy (najlepiej przed terminem) przedłużyć termin etapu albo
+przypomnieć o zwykłym formularzu. Podnoszenie `WEBTEX_COMPILE_CONCURRENCY` powyżej liczby vCPU **nie
+pomaga** (niżej) – zjada tylko pamięć.
+
+**Test obciążeniowy** (`webtex/scripts/load-test.mjs`): gra platformę (tokeny SSO z `WEBTEX_SHARED_KEY`,
+podpisane budowanie) i przeglądarki uczestników (kompilacje z ciasteczkiem sesji), zakłada projekty
+`load-…` (30% z cięższym dokumentem: TikZ, quantikz, 6 stron), raportuje p50/p95, odmowy, błędy,
+liczniki kolejki i szczyt pamięci/PIDs z `docker stats`. Uruchamiać na serwerze testowym albo lokalnie,
+**nie** na produkcji (zostawia konta i projekty testowe w `webtex_data`):
+
+```bash
+cd webtex
+WEBTEX_SHARED_KEY=<klucz z .env> node scripts/load-test.mjs --url http://localhost:3001 \
+  --users 150 --rounds 3 --builds 150 --spread 30 --json /tmp/wynik.json
+```
+
+Wyniki z 22.10.2026 (stos deweloperski z tym samym `webtex` co w produkcji – obraz z pełnym TeX Live 2026,
+Landlock, `mem_limit` 2g, `pids_limit` 512 – ograniczony do 6 CPU jak serwer produkcyjny; każdy uczestnik
+3 kompilacje z edytora jedna po drugiej, do tego jedno złożenie na uczestnika, wszystko w ciągu 30 s;
+najwyżej 16 złożeń naraz, jak wątki gunicorna platformy):
+
+| Uczestnicy | `COMPILE_CONCURRENCY` | Edytor p50 / p95 | Złożenie p50 / p95 (max) | latexmk p50 | Szczyt pamięci | PIDs | Błędy |
+|---:|---:|---:|---:|---:|---:|---:|---|
+| 50 | 6 | 0,6 / 1,3 s | 0,7 / 1,4 s (1,5) | 0,4 s | 326 MiB | 28 | 0 |
+| 150 | 3 | 21,7 / 43,3 s | 4,5 / 5,4 s (6,0) | 0,4 s | 264 MiB | 21 | 0 |
+| 150 | 4 | 18,7 / 36,8 s ¹ | 3,5 / 4,5 s (5,2) ¹ | 0,4 s | 301 MiB | 24 | 0 |
+| 150 | **6** | **9,8 / 16,9 s** | **0,9 / 1,7 s (2,0)** | 0,4 s | **411 MiB** | 30 | 0 |
+| 150 | 12 | 13,4 / 24,4 s | 2,2 / 4,0 s (4,8) | 1,0 s | 714 MiB | 48 | 0 |
+| 150 | 300 (≈ bez kolejki) | 20,6 / 37,4 s | 5,2 / 37,2 s (47,4) | 18,9 s | **2047 MiB = limit** | 224 | 2 zerwane połączenia |
+| 300 (kolejka 100) | 6 | 6,9 / 46,5 s | 6,2 / 17,4 s (19,1) | 0,4 s | 450 MiB | 30 | 0; 600 odmów 503 z edytora, 14 złożeń 503 (300 złożeń naraz, bez limitu 16) |
+
+¹ Pomiar na końcowym obrazie równolegle z pełnym przebiegiem testów backendu na tym samym hoście – czasy
+o 20–40% gorsze niż w pozostałych wierszach. W tych samych warunkach 150 uczestników przy 6 naraz:
+edytor 13,3 / 23,6 s, złożenie 1,7 / 2,7 s (max 3,4), 420 MiB – proporcje bez zmian.
+
+Wnioski i zalecenia:
+
+- **`WEBTEX_COMPILE_CONCURRENCY` = liczba vCPU serwera** (produkcja: **6**, domyślna wartość compose).
+  Kompilacja jest ograniczona procesorem: 12 naraz na 6 CPU to dwa razy wolniejszy latexmk i gorsze
+  czasy wszystkich, a „bez kolejki” – pamięć na limicie i zerwane połączenia. Mniej niż vCPU (3–4)
+  marnuje moc: kolejka dłuższa, złożenia 3–5× wolniejsze. TeX działa z `nice 10`, więc `web` i baza
+  dostają procesor mimo pełnej kolejki.
+- **`WEBTEX_MEM_LIMIT=2g` wystarcza** przy 6 naraz (szczyt ~0,4 GiB; przy 12 – 0,7 GiB). Zapas jest
+  na dokumenty z dużymi obrazkami i na tmpfs `/tmp` (do 512 MB, liczy się do limitu). Przy większym
+  serwerze: ok. 0,3 GiB + 0,15 GiB × `COMPILE_CONCURRENCY` + tmpfs, czyli 2g do ok. 8 naraz, powyżej
+  `WEBTEX_MEM_LIMIT=3g`.
+- `WEBTEX_COMPILE_QUEUE_MAX=150` – przy 150 uczestnikach odmów nie było (każdy ma w kolejce najwyżej jedną
+  kompilację, więc kolejka z edytora nie przekracza liczby piszących). Przy kilkuset piszących naraz
+  kolejka się zapełnia, a czekanie w niej przekracza minutę – lepiej szybka odmowa z ponowieniem niż
+  przycisk „W kolejce (250)”.
+- Wąskim gardłem przy terminie jest moc obliczeniowa, nie pamięć: 6 vCPU to ok. 12 kompilacji/s.
+  Przy zawodach z kilkuset uczestnikami piszącymi w LaTeX-u na raz warto na ten dzień większy serwer
+  (i proporcjonalnie `WEBTEX_COMPILE_CONCURRENCY`).

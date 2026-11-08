@@ -6,6 +6,7 @@ import { config, configErrors } from './config.js';
 import { authRouter, loadUser, userFromCookieHeader } from './auth.js';
 import { attachCollab, flushAll } from './collab.js';
 import { compilerStatus, joinRouter, projectsRouter, roleFor } from './projects.js';
+import { flushHistory, startHistorySweep } from './history.js';
 import { integrationRouter } from './integration.js';
 import { aiRouter } from './ai.js';
 import { llmConfig } from './llm/index.js';
@@ -30,7 +31,14 @@ app.use('/api/integration', integrationRouter);
 app.use(express.json({ limit: '5mb' }));
 app.use(loadUser);
 
-app.get('/api/health', async (_req, res) => res.json({ ok: true, ...(await compilerStatus()) }));
+// Queue counters only for local callers (`docker compose exec webtex …`, the healthcheck); from the
+// internet (through Caddy) just ok + backend. The platform reads them from /api/integration/health.
+const isLoopback = (req) => /^(::1|127\.\d+\.\d+\.\d+|::ffff:127\.\d+\.\d+\.\d+)$/.test(req.socket.remoteAddress || '');
+app.get('/api/health', async (req, res) => {
+  const { backend, queue } = await compilerStatus();
+  res.set('Cache-Control', 'no-store');
+  res.json({ ok: true, backend, ...(isLoopback(req) ? { queue } : {}) });
+});
 app.use('/api/auth', authRouter);
 app.use('/api/projects', projectsRouter);
 app.use('/api/join', joinRouter);
@@ -62,9 +70,12 @@ attachCollab(server, (req, projectId) => {
   return role ? { user, role } : null;
 });
 
+startHistorySweep();
+
 server.listen(config.port, config.host, async () => {
   const { backend } = await compilerStatus();
   console.log(`webTEX listening on http://localhost:${config.port}  (data: ${config.dataDir}, compiler: ${backend})`);
+  console.log(`Compile queue: ${config.compiler.concurrency} at a time, at most ${config.compiler.queueMax} waiting`);
   if (config.integration.enabled) console.log(`Olympiad platform integration enabled (issuer: ${config.integration.issuer})`);
   const llm = llmConfig();
   for (const problem of llm.errors) console.warn(`webTEX: AI assistant configuration: ${problem}`);
@@ -76,6 +87,7 @@ server.listen(config.port, config.host, async () => {
 
 async function shutdown() {
   console.log('Shutting down, saving documents…');
+  await flushHistory().catch((err) => console.error(err));
   await flushAll().catch((err) => console.error(err));
   process.exit(0);
 }

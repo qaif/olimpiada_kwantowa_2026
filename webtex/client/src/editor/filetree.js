@@ -19,6 +19,7 @@ export class FileTree {
     this.mainId = null;
     this.expanded = new Set();
     this.dragId = null;
+    this.badges = new Map(); // id -> { error, warning } z ostatniej kompilacji
 
     // Dropping on empty space = project root.
     this.el.addEventListener('dragover', (e) => this.onDragOver(e, null));
@@ -34,6 +35,28 @@ export class FileTree {
   setMain(id) {
     this.mainId = id;
     this.render();
+  }
+
+  /** Liczby błędów i ostrzeżeń przy plikach: Map(id -> { error, warning }). */
+  setBadges(badges) {
+    const same =
+      badges.size === this.badges.size &&
+      [...badges].every(([id, c]) => this.badges.get(id)?.error === c.error && this.badges.get(id)?.warning === c.warning);
+    if (same) return;
+    this.badges = badges;
+    this.render();
+  }
+
+  badge(id) {
+    const c = this.badges.get(id);
+    if (!c || (!c.error && !c.warning)) return null;
+    const title = t('editor.fileProblems', { errors: c.error, warnings: c.warning });
+    return h(
+      'span.tree-badges',
+      { title, 'aria-label': title },
+      c.error ? h('span.count.count-error', String(c.error)) : null,
+      c.warning ? h('span.count.count-warning', String(c.warning)) : null,
+    );
   }
 
   setReadOnly(ro) {
@@ -85,6 +108,7 @@ export class FileTree {
           isFolder ? icon(open ? 'chevronDown' : 'chevronRight', 14) : h('span.tree-indent'),
           icon(isFolder ? (open ? 'folderOpen' : 'folder') : e.kind === 'doc' ? 'fileText' : IMAGE_EXT.test(e.name) ? 'image' : 'file'),
           h('span.tree-name', e.name),
+          isFolder ? null : this.badge(e.id),
           e.id === this.mainId ? h('span.tree-main', { title: t('editor.mainFile') }, t('editor.main')) : null,
         );
         row.addEventListener('click', () => {

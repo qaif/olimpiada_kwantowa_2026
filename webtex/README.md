@@ -13,9 +13,12 @@
 - **Udostępnianie linkiem**: osobny link do edycji i do podglądu (tylko odczyt). Właściciel widzi listę członków, może zmienić im rolę, usunąć ich albo unieważnić linki.
 - **Kompilacja** silnikami `pdflatex`, `xelatex` i `lualatex` przez `latexmk`, z automatycznym uruchamianiem bibtex/biber i ponownymi przebiegami. Każda kompilacja startuje w świeżym kontenerze Docker **bez dostępu do sieci**, z limitami pamięci, CPU, liczby procesów i czasu.
 - **Czytelne logi**: błędy, ostrzeżenia i problemy składu (over/underfull box) wyciągnięte z logu TeX-a, z plikiem i numerem linii. Kliknięcie przenosi do miejsca w kodzie. Pełny log jest też dostępny.
+- **Problemy prosto w kodzie**: po kompilacji błędy i ostrzeżenia są podkreślone w edytorze, z ikoną na marginesie, dymkiem (komunikat i kontekst z logu) i licznikiem przy pliku w drzewie; F8 / Shift+F8 przechodzi do następnego / poprzedniego. Szybkie sprawdzanie bez kompilacji łapie niedomknięte klamry, `$` i środowiska, odsyłacze do nieistniejących etykiet, powtórzone `\label` i polecenia z pakietów, których nie dołączono (z akcją „Dodaj `\usepackage{…}`”).
+- **Podgląd wzorów**: najechanie na wzór albo kursor we wzorze pokazuje go złożonego przez KaTeX (offline, z makrami z projektu). **Licznik słów i znaków** bieżącego pliku (bez poleceń i wzorów) na pasku stanu, a pisownia sprawdzana w języku dokumentu (np. polskim) z pominięciem poleceń i wzorów.
 - **SyncTeX w obie strony**: z kodu do PDF-u (podświetla odpowiedni fragment) i z PDF-u do kodu (dwuklik na stronie).
 - **Edytor CodeMirror 6**: kolorowanie składni LaTeX-a i BibTeX-a, kontekstowe autouzupełnianie (opis niżej), wyszukiwanie i zamiana, skróty (Ctrl+B, Ctrl+I, Ctrl+/, Ctrl+S kompiluje), sprawdzanie pisowni w przeglądarce.
 - **Konspekt dokumentu** (sekcje, rozdziały) z nawigacją, **podgląd PDF** w pdf.js z powiększaniem i dopasowaniem do szerokości, **tryb ciemny**, **interfejs po polsku i angielsku**.
+- **Historia wersji**: wersje zapisują się same (po chwili bez zmian, co 10 minut ciągłej pracy, po udanej kompilacji, przy złożeniu na platformie) albo z nazwą. Panel „Historia” pokazuje autorów zmian i różnice plik po pliku względem bieżącego stanu, pobiera wersję jako `.zip` i przywraca cały projekt albo jeden plik jako nową, wspólną zmianę (z „Cofnij przywrócenie”). Opis niżej.
 
 ## Szybki start
 
@@ -80,8 +83,22 @@ Wszystkie ustawienia to zmienne środowiskowe (szablon: [`.env.example`](.env.ex
 | `COMPILE_BACKEND` | `auto` | `auto` (lokalny `latexmk`, a jeśli go nie ma, to Docker), `local` albo `docker` |
 | `COMPILE_IMAGE` | `webtex-texlive` | Obraz Dockera używany do kompilacji |
 | `COMPILE_TIMEOUT` | `90` | Limit czasu jednej kompilacji w sekundach |
-| `COMPILE_MEMORY` | `1g` | Limit pamięci kontenera kompilacji (tylko `docker`) |
+| `COMPILE_MEMORY` | `1g` | Limit pamięci kontenera kompilacji (`docker`); przy `local` limit przestrzeni adresowej każdego procesu TeX-a (`server/tex/limits.pl`) |
 | `COMPILE_CPUS` | `2` | Limit CPU kontenera kompilacji (tylko `docker`) |
+| `HISTORY_ENABLED` | `true` | `false` wyłącza historię wersji (zapisane wersje zostają na dysku) |
+| `HISTORY_KEEP_DAYS` | `365` | Wersje starsze niż tyle dni są usuwane (`0` = nigdy) |
+| `HISTORY_MAX_MB` | `100` | Limit historii na projekt; ponad nim znikają najstarsze wersje automatyczne |
+| `HISTORY_IDLE_SEC` | `120` | Wersja automatyczna po tylu sekundach bez zmian |
+| `HISTORY_ACTIVE_SEC` | `600` | …i co najmniej co tyle sekund ciągłej pracy |
+| `COMPILE_CPU_SECONDS` | `COMPILE_TIMEOUT` | Limit czasu procesora każdego procesu TeX-a (tylko `local`) |
+| `COMPILE_MAX_FILE_MB` | `256` | Największy plik, jaki może zapisać kompilacja (tylko `local`) |
+| `COMPILE_CONCURRENCY` | liczba CPU | Ile kompilacji naraz (globalna kolejka, `server/compileQueue.js`) |
+| `COMPILE_QUEUE_MAX` | `100` | Ile kompilacji może czekać; dalsze dostają 503 `compiler_busy` |
+| `COMPILE_QUEUE_MAX_WAIT` | `120` | Po tylu sekundach w kolejce kompilacja z edytora dostaje 503 |
+| `COMPILE_BUILD_MAX_WAIT` | `60` | To samo dla budowania PDF-u do złożenia (`/api/integration/build`) |
+| `COMPILE_QUEUE_WARN` | `30` | Ostrzeżenie w logu, gdy kompilacja czekała dłużej niż tyle sekund |
+
+Wszystkie kompilacje idą przez jedną kolejkę: najwyżej `COMPILE_CONCURRENCY` naraz, nigdy dwie jednego projektu, budowanie do złożenia (platforma) przed kompilacjami z edytora, użytkownik ma najwyżej jedną kompilację w toku i jedną w kolejce, a kolejne żądania tego samego projektu zastępują czekające (każdy dostaje najnowszy wynik). Edytor pokazuje na przycisku „W kolejce (n)” i rzadziej kompiluje automatycznie, gdy serwer jest zajęty. Stan kolejki: `GET /api/health` z pętli zwrotnej (`queue`) i podpisane `GET /api/integration/health`. Test obciążeniowy: `scripts/load-test.mjs`.
 
 Za reverse proxy (nginx, Caddy) trzeba przepuścić WebSockety na ścieżce `/ws/` i ustawić `SECURE_COOKIES=true`, jeśli serwujesz przez HTTPS.
 
@@ -101,6 +118,9 @@ server/
   logParser.js     parser logu TeX-a: błędy, ostrzeżenia, stos plików
   synctex.js       parser SyncTeX: wyszukiwanie w przód i wstecz
   templates.js     szablony nowych projektów (także szablon rozwiązania olimpiady)
+  history.js       historia wersji: migawki, przerzedzanie, porównanie, przywracanie
+  history-cli.js   lista wersji i eksport wersji do .zip z wiersza poleceń (dla operatora)
+  linediff.js      diff wierszy (Myers), wspólny dla serwera i klienta
   integration.js   integracja z platformą olimpiady: SSO, build, sharing, health
   integrationCrypto.js  JWT HS256, podpisy żądań, wyprowadzanie kluczy (czyste funkcje, testowane)
   tex/biber-guard.pl    nakładka na biber blokująca źródła spoza projektu
@@ -118,6 +138,8 @@ data/
   webtex.db                        SQLite (WAL)
   projects/<id>/ydoc.bin           stan Y.Doc (zapis z opóźnieniem ~1,5 s)
   projects/<id>/blobs/<entityId>   pliki binarne
+  projects/<id>/history/states/<sha256>.gz  stany Y.Doc zapisanych wersji (gzip, każdy raz)
+  projects/<id>/history/blobs/<sha256>      pliki binarne zapisanych wersji (każdy raz)
   compiles/<id>/                   katalog roboczy kompilacji (pliki projektu + pliki pomocnicze)
   outputs/<id>/<buildId>/          output.pdf, output.synctex.gz, output.log, latexmk.txt (trzy ostatnie buildy)
 ```
@@ -133,6 +155,15 @@ data/
 - **Definicje z projektu** (`scan.js`): `\newcommand`, `\renewcommand`, `\providecommand`, `\def`, `\DeclareMathOperator`, `\DeclarePairedDelimiter`, `\NewDocumentCommand` (z liczbą argumentów), `\newenvironment`, `\newtheorem`, `\label`, `\bibitem`, klucze `.bib` i wczytane pakiety. Wynik jest buforowany per plik i liczony od nowa tylko po zmianie pliku. Komendy z pakietu, którego projekt nie wczytuje, mają w opisie „wymaga `\usepackage{…}`” i niższą pozycję.
 - **Ranking** (`rank.js`, `options.js`): dopasowanie rozmyte CodeMirrora (dokładne > prefiks > początek słowa > rozmyte), a w obrębie podobnego dopasowania premia za częstość i świeżość użycia (licznik z półokresem 7 dni w `localStorage` pod `webtex:completion-usage`, tylko w tej przeglądarce), za definicje z projektu i za kontekst.
 - **Klawiatura**: lista otwiera się sama podczas pisania, Ctrl+Spacja wymusza ją (z komendami obu trybów), strzałki i PageUp/PageDown wybierają, Enter albo Tab zatwierdza, Esc zamyka. Lista ma etykietę dla czytników ekranu w języku interfejsu, a panel obok opisuje zaznaczoną pozycję (składnia, opis, pakiet, miejsce definicji).
+
+**Historia wersji** (`server/history.js`, panel `client/src/editor/history.js`). Wersja to wiersz tabeli `snapshots` (czas, rodzaj, podpis, autorzy, drzewo plików jako JSON) wskazujący treść po sha256: stan `Y.encodeStateAsUpdate` projektu i pliki binarne – identyczna treść jest zapisana raz, a wersja automatyczna bez zmian od poprzedniej nie powstaje wcale. Wersje automatyczne powstają po `HISTORY_IDLE_SEC` bez zmian i co `HISTORY_ACTIVE_SEC` ciągłej pracy; kompilacja zapisuje wersję, gdy uda się i uruchomił ją użytkownik (automatyczna kompilacja po pisaniu wysyła `auto: true` i wersji nie robi); `POST /api/integration/build` zapisuje wersję `submission` z opcjonalnym `label`. Autorzy wersji to użytkownicy, którzy zmienili projekt od poprzedniej (z połączeń WebSocket i żądań REST), plus ten, kto ją wywołał. Przechowywanie: wszystko z 24 h, potem najnowsza z każdej godziny do 7 dni, potem z każdego dnia; nic starszego niż `HISTORY_KEEP_DAYS`; ponad `HISTORY_MAX_MB` najstarsze – złożenia (`submission`) i wersje z nazwą (`manual`) przerzedzaniu ani limitowi rozmiaru nie podlegają. Przywrócenie najpierw zapisuje bieżący stan (`pre-restore`, cel „Cofnij przywrócenie”), potem nakłada różnicę na żywy `Y.Doc` jako minimalne edycje wierszy (`linediff.js`, transakcja `restore`) i przepisuje drzewo plików – historia Yjs nie jest przepisywana, a podłączeni współpracownicy dostają zmianę jak każdą inną. API: `GET /api/projects/:id/history`, `POST …/history {label}`, `GET …/history/:snap` (pliki ze statusem względem bieżącego stanu), `GET …/history/:snap/files/:entity`, `GET …/history/:snap/download`, `POST …/history/:snap/restore {entityId?}`; odczyt dla każdego członka, zapis i przywracanie od roli `editor`.
+
+**Problemy w kodzie, podgląd wzorów, pisownia.** Wszystko liczy się w przeglądarce; czyste moduły w `client/src/editor/latex/` (`structure.js`, `lint.js`, `diagnostics.js`, `prose.js`, `macros.js`, testy w `client/test/latex-diagnostics.test.js`), podpięte do CodeMirrora w `client/src/editor/diagnostics.js`, `mathpreview.js` i `spellcheck.js`.
+
+- **Po kompilacji** (`diagnostics.js`): problemy z logu (`server/logParser.js`) trafiają do pliku, którego dotyczą, jako diagnostyki `@codemirror/lint`: błędy na czerwono, ostrzeżenia na żółto, problemy składu kropkowane; podkreślone jest polecenie przed miejscem błędu (z kontekstu `l.<n>` logu), nazwa z ostrzeżenia (np. etykieta) albo cała linia. Kompilacja widzi tekst z chwili zlecenia, więc numer linii jest kotwiczony w treści tej linii: po dopisaniu tekstu wyżej znacznik przesuwa się razem z nią, a znika z linii, którą ktoś zmienił (zwykle to poprawka), i przy następnej kompilacji. Licznik przy pliku w drzewie liczy błędy i ostrzeżenia z ostatniej kompilacji.
+- **Bez kompilacji** (`lint.js`, `structure.js`, co ok. 0,5 s po zmianie): klamry `{`/`}`, `$`, `$$`, `\(`/`\)`, `\[`/`\]`, `\begin`/`\end` (także złe `\end{x}`), pusta linia we wzorze, `$` we wzorze wyświetlanym, `\ref`/`\eqref`/`\cref` do etykiety, której nie ma w projekcie, powtórzony `\label`, polecenie albo środowisko z katalogu podpowiedzi, którego pakiet nie jest wczytany, i podpowiedź, by zamiast `$$…$$` pisać `\[…\]`. Komentarze, `\verb`, `verbatim`/`lstlisting` i treść definicji makr są pomijane, a niedokończony kod w linii, w której właśnie piszesz, czeka, aż kursor ją opuści. Reguła pakietów milczy przy klasach ładujących dużo (np. `beamer`), nieznanych pakietach i własnych `.sty`; reguła odsyłaczy — przy etykietach tworzonych makrami i pakiecie `xr`. Wyłączenie: Ustawienia → „Sprawdzaj kod w trakcie pisania”.
+- **Podgląd wzorów** (`mathpreview.js`, `macros.js`): `$…$`, `\(…\)`, `\[…\]`, `$$…$$` i otoczenia `equation`, `align`, `gather`, `multline`, `alignat`, `eqnarray` (zamieniane na odpowiedniki KaTeX-a, bez `\label` i `\nonumber`). Makra z projektu: proste `\newcommand`/`\renewcommand`/`\def`, `\DeclareMathOperator`, `\DeclarePairedDelimiter`, `\NewDocumentCommand` z samymi argumentami `m`; przy wczytanym `physics` przybliżenia jego poleceń (`\expval`, `\dv`, `\pdv`, `\abs`, `\comm`, `\mqty`…). KaTeX jest w paczce aplikacji i wczytuje się przy pierwszym podglądzie; błąd składni pokazuje komunikat zamiast wzoru. Wyłączenie: Ustawienia → „Podgląd wzorów”.
+- **Pisownia i licznik** (`spellcheck.js`, `prose.js`): treść edytora ma atrybut `lang` z preambuły (`babel`, `polyglossia`, `polski`), a gdy jej brak — z języka interfejsu, więc przeglądarka sprawdza tekst polskim słownikiem; polecenia, wzory i argumenty-nazwy (`\label{…}`, `\usepackage{…}`, `\includegraphics{…}`…) mają `spellcheck=false`. Pasek pod edytorem liczy słowa i znaki (ze spacjami; bez spacji w podpowiedzi) tekstu między `\begin{document}` a `\end{document}` bez poleceń, wzorów i komentarzy, a przy zaznaczeniu — zaznaczonego fragmentu.
 
 **Kompilacja.** Przed każdą kompilacją bieżąca treść projektu jest przyrostowo zapisywana do `data/compiles/<id>/`, a usunięte pliki są sprzątane. Potem uruchamiany jest `latexmk -pdf|-xelatex|-lualatex -g -f -interaction=nonstopmode -synctex=1 -file-line-error -jobname=output <plik główny>`. Opcja `-g` wymusza co najmniej jeden przebieg, więc każda jawna kompilacja daje świeży PDF i log. Kompilacje jednego projektu idą po kolei. Log jest parsowany po stronie serwera, a PDF i dane SyncTeX są kopiowane do katalogu builda.
 
@@ -339,9 +370,12 @@ Na zawodach asystent AI to pomoc niedozwolona. W trybie integracji (`WEBTEX_INTE
 - **Share links**: one link for editors, another for read-only viewers. Owners can see members, change their role, remove them, or revoke the links.
 - **Compilation** with `pdflatex`, `xelatex` or `lualatex` via `latexmk`, which runs bibtex/biber and extra passes automatically. Every compile runs in a fresh Docker container **with no network access**, with memory, CPU, process-count and time limits.
 - **Readable logs**: errors, warnings and typesetting issues (over/underfull boxes) are parsed from the TeX log with file and line, and clicking one jumps to the source. The raw log is also available.
+- **Problems right in the code**: after a compile, errors and warnings are underlined in the editor with a gutter marker, a hover tooltip (message and log context) and a per-file count in the file tree; F8 / Shift+F8 jumps to the next / previous one. Markers follow edits and disappear from lines you change. A quick check that needs no compile flags unbalanced braces, `$` and environments, references to missing labels, duplicate `\label`s, commands from packages that are not loaded (with an “Add `\usepackage{…}`” action) and `$$…$$`.
+- **Formula preview**: hovering a formula, or putting the cursor in one, shows it rendered by KaTeX (bundled, offline, with the project's simple macros and approximations of `physics`). A **word and character count** of the current file (without commands and formulas) sits in the status bar; spell-check uses the document language (e.g. Polish) and skips commands and formulas.
 - **Two-way SyncTeX**: source to PDF (highlights the matching spot) and PDF to source (double-click a page).
 - **CodeMirror 6 editor**: LaTeX and BibTeX highlighting; context-aware completion that runs offline in the browser: ~380 commands and 60 environments with descriptions (Polish or English) and snippet templates, math vs. text mode (Greek letters, operators and quantum notation from `braket`/`physics` only in math), `\begin{…}` with an automatic `\end{…}`, the innermost open environment after `\end{`, labels with file and line after `\ref{`/`\eqref{`, packages after `\usepackage{`, the project's own `\newcommand`/`\DeclareMathOperator`/`\newenvironment` definitions, `\cite` keys from `.bib`, file paths, ranking by fuzzy match plus local usage history (`localStorage`), Tab or Enter to accept; search and replace; shortcuts (Ctrl+B, Ctrl+I, Ctrl+/, Ctrl+S to compile); browser spell-check.
 - **Document outline** with navigation, a **pdf.js preview** with zoom and fit-to-width, **dark mode**, and a **Polish and English UI**.
+- **Version history**: versions are saved automatically (when edits settle, every 10 minutes of continuous work, after a successful compile, on submission to the olympiad platform) or by name. The History panel shows who changed what, a per-file diff against the current state, downloads a version as `.zip` and restores the whole project or one file as a new, shared change (with "Undo restore"). Retention: everything for 24 h, hourly for 7 days, daily after; `HISTORY_KEEP_DAYS`, `HISTORY_MAX_MB` per project.
 
 ## Quick start
 
@@ -379,7 +413,7 @@ Both images use the **full, current TeX Live** (`scheme-full` without docs and s
 
 ## Configuration
 
-All settings are environment variables. See the table above and [`.env.example`](.env.example): `PORT`, `HOST`, `DATA_DIR`, `ALLOW_REGISTRATION`, `SECURE_COOKIES`, `MAX_UPLOAD_MB`, `COMPILE_BACKEND` (`auto` | `local` | `docker`), `COMPILE_IMAGE`, `COMPILE_TIMEOUT`, `COMPILE_MEMORY`, `COMPILE_CPUS`. Behind a reverse proxy, forward WebSockets on `/ws/`.
+All settings are environment variables. See the table above and [`.env.example`](.env.example): `PORT`, `HOST`, `DATA_DIR`, `ALLOW_REGISTRATION`, `SECURE_COOKIES`, `MAX_UPLOAD_MB`, `COMPILE_BACKEND` (`auto` | `local` | `docker`), `COMPILE_IMAGE`, `COMPILE_TIMEOUT`, `COMPILE_MEMORY`, `COMPILE_CPUS`, `COMPILE_CPU_SECONDS`, `COMPILE_MAX_FILE_MB`, the global compile queue: `COMPILE_CONCURRENCY` (default: CPU count), `COMPILE_QUEUE_MAX`, `COMPILE_QUEUE_MAX_WAIT`, `COMPILE_BUILD_MAX_WAIT`, `COMPILE_QUEUE_WARN`, and version history: `HISTORY_ENABLED`, `HISTORY_KEEP_DAYS`, `HISTORY_MAX_MB`, `HISTORY_IDLE_SEC`, `HISTORY_ACTIVE_SEC`. Behind a reverse proxy, forward WebSockets on `/ws/`.
 
 ## Architecture
 
@@ -387,6 +421,7 @@ All settings are environment variables. See the table above and [`.env.example`]
 - **Collaboration protocol**: WebSocket at `/ws/projects/:id`, authenticated by the session cookie with an `Origin` check. Binary frames carry standard `y-protocols` messages (`0` = sync, `1` = awareness). JSON text frames carry server events (`tree`, `project`). Updates from viewers are dropped.
 - **Compile pipeline**: the project is incrementally materialised into `data/compiles/<id>/`, then `latexmk -g -f … -synctex=1 -file-line-error -jobname=output <main>` runs, either locally or in the `webtex-texlive` container. The log is parsed into issues, and the PDF, SyncTeX data and logs are kept in `data/outputs/<id>/<buildId>/` (last three builds).
 - **Client** (Vite, no framework): CodeMirror 6 with `y-codemirror.next`, a pdf.js viewer and a small hand-written WebSocket provider.
+- **Version history** (`server/history.js`): a `snapshots` row per version points at content-addressed files in `data/projects/<id>/history/` (gzipped `Y.Doc` states and binary files by sha256, each stored once). Restoring applies the difference to the live `Y.Doc` as minimal line edits after saving the current state, so collaborators receive it like any edit and nothing in the Yjs history is rewritten.
 
 ## Security
 

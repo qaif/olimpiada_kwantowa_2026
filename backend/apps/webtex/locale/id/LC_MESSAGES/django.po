@@ -44,6 +44,13 @@ msgid ""
 "– Twoja praca w edytorze jest zapisana."
 msgstr "Kompiler LaTeX sementara tidak tersedia. Coba lagi dalam beberapa menit – pekerjaan Anda di editor sudah tersimpan."
 
+msgid ""
+"Edytor LaTeX kompiluje teraz bardzo wiele rozwiązań naraz i Twoje nie "
+"zmieściło się w kolejce. Spróbuj ponownie za minutę – Twoja praca w edytorze "
+"jest zapisana. Jeśli termin jest blisko, pobierz PDF z edytora i wyślij go "
+"zwykłym formularzem."
+msgstr "Editor LaTeX sedang mengompilasi sangat banyak solusi saat ini dan solusi Anda tidak masuk ke antrean. Coba lagi dalam satu menit – pekerjaan Anda di editor sudah tersimpan. Jika tenggat sudah dekat, unduh PDF dari editor dan kirimkan melalui formulir biasa."
+
 msgid "Potwierdzam, że to rozwiązanie właściwego zadania"
 msgstr "Saya menyatakan bahwa ini solusi untuk soal yang benar"
 
@@ -64,6 +71,10 @@ msgstr "Pendaftaran tahap didiskualifikasi."
 #, python-format
 msgid "Zadanie %(number)s. %(title)s"
 msgstr "Soal %(number)s. %(title)s"
+
+#, python-format
+msgid "Złożone jako rozwiązanie – wersja %(version)s"
+msgstr "Dikirim sebagai solusi – versi %(version)s"
 
 msgid ""
 "To zadanie nie przyjmuje rozwiązań w PDF – edytor LaTeX nie złoży go za "

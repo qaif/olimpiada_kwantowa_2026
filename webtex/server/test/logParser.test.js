@@ -224,3 +224,25 @@ test(
     assert.equal(issue.line, 9);
   },
 );
+
+test('the epstopdf shell-escape warning (every compile with graphicx, shell escape off) is not an issue', () => {
+  const log = [
+    '(./main.tex',
+    '(/usr/share/texlive/texmf-dist/tex/latex/epstopdf-pkg/epstopdf-base.sty',
+    'Package epstopdf Warning: Shell escape feature is not enabled.',
+    ')',
+    "Package hyperref Warning: Token not allowed in a PDF string (Unicode):",
+    '(hyperref)                removing `math shift\' on input line 12.',
+    '',
+    ')',
+  ].join('\n');
+  const issues = pick(parseLog(log));
+  assert.deepEqual(issues, [
+    {
+      level: 'warning',
+      file: 'main.tex',
+      line: 12,
+      message: "Package hyperref: Token not allowed in a PDF string (Unicode): removing `math shift' on input line 12.",
+    },
+  ]);
+});

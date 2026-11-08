@@ -8,9 +8,16 @@ import { ProjectConnection } from '../editor/provider.js';
 import { FileTree, buildPaths } from '../editor/filetree.js';
 import { LogPanel } from '../editor/logs.js';
 import { Outline } from '../editor/outline.js';
-import { createEditor, mergeSymbols, scanFile } from '../editor/codemirror.js';
+import { autoCompileDelay, isBusyError } from '../editor/compileBackoff.js';
+import { createEditor, mergeSymbols } from '../editor/codemirror.js';
+import { preloadMathPreview } from '../editor/mathpreview.js';
+import { compileDiagnostics, countIssuesByFile } from '../editor/latex/diagnostics.js';
+import { scanLintInfo } from '../editor/latex/lint.js';
+import { previewMacros } from '../editor/latex/macros.js';
+import { documentLanguage } from '../editor/latex/prose.js';
 import { PdfViewer } from '../editor/pdfviewer.js';
 import { AiPanel } from '../editor/ai.js';
+import { HistoryPanel } from '../editor/history.js';
 import { avatar, userColor, userMenuButton } from './common.js';
 
 const IMAGE_PREVIEW = /\.(png|jpe?g|gif|svg|webp|bmp)$/i;
@@ -38,9 +45,16 @@ export async function renderEditor(root, projectId) {
   let currentId = null;
   let editor = null;
   let lastResult = null;
+  // Problemy z ostatniej kompilacji i treść plików wysłana do niej (do mapowania linii po edycjach).
+  let compileState = null; // { issues, texts: Map(id -> tekst) }
+  const liveCompileCounts = new Map(); // id -> { error, warning } po edycjach w otwartym pliku
   let compiling = false;
   let compileQueued = false;
   let autoTimer = null;
+  // Server compile queue (deadline rush): refusals in a row and the last queue wait pace auto-compiles.
+  let busyRefusals = 0;
+  let busyRetryAfter = 0;
+  let lastQueuedMs = 0;
   const disposers = [];
   const lastFileKey = `webtex:last-file:${projectId}`;
 
@@ -62,6 +76,7 @@ export async function renderEditor(root, projectId) {
     ? h('a.btn.small', { href: project.returnUrl, title: t('editor.backToOlympiad') }, icon('arrowLeft'), h('span.hide-sm', t('editor.backToOlympiad')))
     : null;
   const zipBtn = h('a.icon-btn', { href: `/api/projects/${projectId}/download`, title: t('editor.downloadZip') }, icon('download'));
+  const historyBtn = h('button.btn.small.history-toggle', { title: t('history.title'), onclick: () => toggleHistory() }, icon('history'), h('span.hide-sm', t('history.title')));
 
   const header = h(
     'header.topbar.editor-top',
@@ -73,6 +88,7 @@ export async function renderEditor(root, projectId) {
     h('div.spacer'),
     backBtn,
     onlineEl,
+    historyBtn,
     layoutBtn,
     zipBtn,
     shareBtn,
@@ -124,10 +140,14 @@ export async function renderEditor(root, projectId) {
   const aiBtn = h('button.icon-btn.ai-toggle', { title: t('ai.title'), 'aria-label': t('ai.title'), hidden: !project.ai, onclick: () => toggleAi() }, icon('sparkles'));
   const editorHost = h('div.editor-host');
   const aiHost = h('div.ai-host', { hidden: true });
+  const wordsEl = h('span.status-words');
+  const problemsBtn = h('button.status-problems', { title: t('editor.problemsNext'), 'aria-label': t('editor.problemsNext'), hidden: true, onclick: () => editor?.nextDiagnostic() });
+  const statusBar = h('div.editor-status', { hidden: true }, wordsEl, h('div.spacer'), problemsBtn);
   const editorPane = h(
     'section.pane.pane-editor',
     h('div.pane-toolbar', filePathEl, h('div.spacer'), formatBar, h('span.toolbar-sep'), forwardBtn, aiBtn),
     h('div.editor-body', editorHost, aiHost),
+    statusBar,
   );
 
   // PDF pane
@@ -159,7 +179,8 @@ export async function renderEditor(root, projectId) {
   const split2 = h('div.splitter', { role: 'separator', 'aria-orientation': 'vertical' });
   const workspace = h('div.workspace', sidebar, split1, editorPane, split2, pdfPane);
   const overlay = h('div.page-overlay', { hidden: true });
-  const page = h('div.editor-page', header, workspace, overlay);
+  const historyHost = h('div.history-host', { hidden: true });
+  const page = h('div.editor-page', header, workspace, historyHost, overlay);
   root.replaceChildren(page);
 
   // ---------- components ----------
@@ -216,7 +237,7 @@ export async function renderEditor(root, projectId) {
       if (initial) openEntity(initial);
       else showPlaceholder(t('editor.selectFile'));
       // First compile on open, like Overleaf.
-      if (project.mainFileId) compile();
+      if (project.mainFileId) compile({ auto: true });
     },
     onEvent: handleEvent,
     onClose: () => {
@@ -260,6 +281,9 @@ export async function renderEditor(root, projectId) {
         filePathEl.textContent = paths.get(currentId) || '';
       }
       renderOnline();
+      historyPanel?.projectChanged();
+    } else if (ev.type === 'history') {
+      historyPanel?.refresh();
     } else if (ev.type === 'ai') {
       setAiEnabled(!!ev.enabled, true);
     } else if (ev.type === 'project') {
@@ -271,10 +295,15 @@ export async function renderEditor(root, projectId) {
   }
 
   // Auto-compile after local edits.
-  const onLocalUpdate = (_u, origin) => {
-    if (origin === conn || !prefs.get('autoCompile') || readOnly) return;
+  const scheduleCompile = () => {
     clearTimeout(autoTimer);
-    autoTimer = setTimeout(() => compile(), 2500);
+    const delay = autoCompileDelay({ refusals: busyRefusals, retryAfterSec: busyRetryAfter, queuedMs: lastQueuedMs });
+    autoTimer = setTimeout(() => compile({ auto: true }), delay);
+  };
+  const onLocalUpdate = (_u, origin) => {
+    historyPanel?.projectChanged();
+    if (origin === conn || !prefs.get('autoCompile') || readOnly) return;
+    scheduleCompile();
   };
   ydoc.on('update', onLocalUpdate);
 
@@ -290,6 +319,7 @@ export async function renderEditor(root, projectId) {
   function showPlaceholder(text) {
     editor?.destroy();
     editor = null;
+    statusBar.hidden = true;
     editorHost.replaceChildren(h('div.empty-state', text));
     filePathEl.textContent = '';
     outline.update(null);
@@ -308,7 +338,7 @@ export async function renderEditor(root, projectId) {
   // it changes, so completing in a large project does not re-read every file on each keystroke.
   const scanned = new Map(); // id -> { ytext, path, result }
   const observed = new WeakSet();
-  function symbols() {
+  function projectScan() {
     const results = [];
     for (const e of entities) {
       if (e.kind !== 'doc' || !/\.(tex|bib|ltx|sty|cls)$/i.test(e.name)) continue;
@@ -321,12 +351,92 @@ export async function renderEditor(root, projectId) {
           observed.add(yt);
           yt.observe(() => scanned.delete(e.id));
         }
-        c = { ytext: yt, path, result: scanFile(path, yt.toString()) };
+        c = { ytext: yt, path, result: scanLintInfo(path, yt.toString()) };
         scanned.set(e.id, c);
       }
-      results.push(c.result);
+      results.push({ id: e.id, path, info: c.result });
     }
-    return { ...mergeSymbols(results), files: [...paths.entries()].filter(([id]) => byId(id)?.kind !== 'folder').map(([, p]) => p) };
+    return results;
+  }
+  const projectFiles = () => [...paths.entries()].filter(([id]) => byId(id)?.kind !== 'folder').map(([, p]) => p);
+  function symbols() {
+    return { ...mergeSymbols(projectScan().map((r) => r.info)), files: projectFiles() };
+  }
+
+  // Szybkie sprawdzanie otwartego pliku widzi etykiety, pakiety i makra z całego projektu.
+  function lintContext() {
+    if (!currentId) return null;
+    return {
+      path: paths.get(currentId),
+      lint: prefs.get('quickLint') !== false,
+      readOnly,
+      project: { files: projectFiles(), others: projectScan().filter((r) => r.id !== currentId) },
+    };
+  }
+
+  // Makra do podglądu wzorów: liczone od nowa dopiero po zmianie któregoś pliku.
+  let macroCache = null;
+  const dropMacros = () => (macroCache = null);
+  ydoc.on('update', dropMacros);
+  function macros() {
+    if (!macroCache) {
+      const sources = entities
+        .filter((e) => e.kind === 'doc' && /\.(tex|ltx|sty|cls)$/i.test(e.name))
+        .map((e) => texts.get(e.id)?.toString() || '');
+      macroCache = previewMacros({ texts: sources, packages: symbols().packages });
+    }
+    return macroCache;
+  }
+
+  /** Język tekstu dla sprawdzania pisowni: z preambuły (babel/polyglossia), inaczej język interfejsu. */
+  function spellLanguage(ytext) {
+    const main = project.mainFileId && texts.get(project.mainFileId);
+    return documentLanguage(main?.toString() || '') || documentLanguage(ytext.toString()) || currentLang();
+  }
+
+  // ---------- problemy z kompilacji w edytorze i w drzewie plików ----------
+  function applyCompileDiagnostics() {
+    if (!editor || !currentId || !compileState) return;
+    const path = paths.get(currentId);
+    const compiled = compileState.texts.get(currentId) ?? null;
+    editor.setCompileDiagnostics(compileDiagnostics(compileState.issues, path, compiled, editor.view.state.doc.toString()));
+  }
+
+  function updateBadges() {
+    const badges = new Map();
+    if (compileState) {
+      const docs = entities.filter((e) => e.kind === 'doc').map((e) => [e.id, paths.get(e.id)]);
+      const counts = countIssuesByFile(compileState.issues, docs.map(([, p]) => p));
+      for (const [id, p] of docs) {
+        const c = liveCompileCounts.get(id) || counts.get(p);
+        if (c && (c.error || c.warning)) badges.set(id, { error: c.error, warning: c.warning });
+      }
+    }
+    tree.setBadges(badges);
+  }
+
+  function renderProblems(c) {
+    const any = c && (c.error || c.warning);
+    problemsBtn.hidden = !any;
+    if (!any) return;
+    problemsBtn.replaceChildren(
+      c.error ? h('span.count.count-error', String(c.error)) : null,
+      c.warning ? h('span.count.count-warning', String(c.warning)) : null,
+      icon('chevronDown', 14),
+    );
+  }
+
+  let statsTimer = null;
+  function updateStats() {
+    clearTimeout(statsTimer);
+    statsTimer = setTimeout(() => {
+      if (!editor || wordsEl.hidden) return;
+      const { file, selection } = editor.getStats();
+      const n = (x) => x.toLocaleString(currentLang());
+      const shown = selection || file;
+      wordsEl.textContent = t(selection ? 'editor.wordCountSelection' : 'editor.wordCount', { words: n(shown.words), chars: n(shown.characters) });
+      wordsEl.title = t('editor.wordCountTitle', { nospace: n(shown.charactersNoSpaces) });
+    }, 250);
   }
 
   let outlineTimer = null;
@@ -373,6 +483,19 @@ export async function renderEditor(root, projectId) {
       readOnly,
       fontSize: prefs.get('fontSize'),
       getSymbols: symbols,
+      getLintContext: lintContext,
+      getMacros: macros,
+      mathPreview: prefs.get('mathPreview') !== false,
+      spellLang: spellLanguage(ytext),
+      onDiagnostics: renderProblems,
+      onCompileDiagnostics: (list) => {
+        if (!compileState || currentId !== id) return;
+        const c = { error: 0, warning: 0 };
+        for (const d of list) if (d.severity in c) c[d.severity]++;
+        liveCompileCounts.set(id, c);
+        updateBadges();
+      },
+      onStats: () => updateStats(),
       onCompile: () => compile(),
       onForwardSearch: () => forwardSearch(),
       onCursorLine: (l) => outline.setCursorLine(l),
@@ -382,8 +505,14 @@ export async function renderEditor(root, projectId) {
       },
     });
     outline.update(/\.(tex|ltx)$/i.test(e.name) ? ytext.toString() : null);
+    statusBar.hidden = false;
+    wordsEl.hidden = !/\.(tex|ltx)$/i.test(e.name);
+    renderProblems(null);
+    applyCompileDiagnostics();
+    updateStats();
     if (line) editor.goToLine(line);
     editor.focus();
+    if (prefs.get('mathPreview') !== false && /\.(tex|ltx)$/i.test(e.name)) (window.requestIdleCallback || setTimeout)(() => preloadMathPreview());
   }
 
   function jumpTo(file, line) {
@@ -460,26 +589,62 @@ export async function renderEditor(root, projectId) {
   });
 
   // ---------- compile ----------
-  function setCompiling(on) {
+  function setCompiling(on, label = t('editor.compiling')) {
     compiling = on;
     compileBtn.disabled = on;
     compileBtn.classList.toggle('busy', on);
-    compileBtn.querySelector('span:last-child').textContent = on ? t('editor.compiling') : t('editor.recompile');
+    compileBtn.querySelector('span:last-child').textContent = on ? label : t('editor.recompile');
   }
 
-  async function compile() {
+  // While the compile request is pending, ask where it is: „W kolejce (n)” instead of „Kompilowanie…”.
+  function watchQueue() {
+    let stopped = false;
+    let timer = null;
+    const poll = async () => {
+      try {
+        const s = await api.get(`/api/projects/${projectId}/compile/status`);
+        if (stopped || !compiling) return;
+        if (s.state === 'queued') setCompiling(true, t('editor.queued', { n: s.position }));
+        else setCompiling(true);
+      } catch {}
+      if (!stopped) timer = setTimeout(poll, 2000);
+    };
+    // A compile that starts at once never shows the queue: first look after a second.
+    timer = setTimeout(poll, 1000);
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+    };
+  }
+
+  // `auto`: started by the editor itself (after typing, on open), not by the user; the server keeps a
+  // history version only for the user's own successful compiles.
+  async function compile({ auto = false } = {}) {
     clearTimeout(autoTimer);
     if (compiling) {
-      compileQueued = true;
+      compileQueued = compileQueued === 'manual' || !auto ? 'manual' : 'auto';
       return;
     }
     setCompiling(true);
+    const stopWatching = watchQueue();
+    // Treść plików w chwili zlecenia: kompilacja widzi właśnie ją, a numery linii z logu odnoszą się do niej.
+    const sent = new Map();
+    for (const e of entities) {
+      const yt = e.kind === 'doc' && texts.get(e.id);
+      if (yt) sent.set(e.id, yt.toString());
+    }
     try {
       const stateVector = btoa(String.fromCharCode(...Y.encodeStateVector(ydoc)));
-      const r = await api.post(`/api/projects/${projectId}/compile`, { stateVector, stopOnFirstError: !!prefs.get('stopOnFirstError') });
+      const r = await api.post(`/api/projects/${projectId}/compile`, { stateVector, stopOnFirstError: !!prefs.get('stopOnFirstError'), auto });
+      busyRefusals = 0;
+      lastQueuedMs = r.queuedMs || 0;
       lastResult = r;
       logs.setResult(r);
       updateLogBadge();
+      compileState = { issues: r.issues || [], texts: sent };
+      liveCompileCounts.clear();
+      applyCompileDiagnostics();
+      updateBadges();
       aiPanel?.setErrorCount(logs.counts().error);
       if (r.hasPdf && r.buildId) {
         const url = `/api/projects/${projectId}/builds/${r.buildId}/output.pdf`;
@@ -493,12 +658,24 @@ export async function renderEditor(root, projectId) {
         if (r.status !== 'unavailable' || r.issues?.length) showLogs(true);
       }
     } catch (err) {
-      toast(err.message, 'error');
+      if (isBusyError(err)) {
+        busyRefusals++;
+        busyRetryAfter = Number(err.data.retryAfter) || 0;
+        // Automatic compiles back off quietly (one notice per busy period); an explicit one says why.
+        if (!auto || busyRefusals === 1) toast(err.data.error === 'too_many_compiles' ? t('editor.compileQueuedAlready') : t('editor.compilerBusy'), 'error');
+        compileQueued = false;
+        scheduleCompile(); // try again later, waiting longer after each refusal
+      } else toast(err.message, 'error');
     } finally {
+      stopWatching();
       setCompiling(false);
       if (compileQueued) {
+        const queued = compileQueued;
         compileQueued = false;
-        compile();
+        // Edits made while a compile sat in a long queue: let the line shrink before the next automatic
+        // one. A compile the user asked for (button, Ctrl+S) runs at once and stays a manual one.
+        if (queued === 'auto' && lastQueuedMs > 5000) scheduleCompile();
+        else compile({ auto: queued === 'auto' });
       }
     }
   }
@@ -610,6 +787,23 @@ export async function renderEditor(root, projectId) {
   }
   if (project.ai && prefs.get('aiOpen')) toggleAi(true);
 
+  // ---------- version history ----------
+  let historyPanel = null;
+  function toggleHistory(open = historyHost.hidden) {
+    historyHost.hidden = !open;
+    historyBtn.classList.toggle('active', open);
+    if (!open) {
+      historyPanel?.destroy();
+      historyPanel = null;
+      return;
+    }
+    historyPanel = new HistoryPanel(historyHost, {
+      projectId,
+      getText: (id) => texts.get(id)?.toString() ?? null,
+      onClose: () => toggleHistory(false),
+    });
+  }
+
   // ---------- dialogs ----------
   shareBtn.addEventListener('click', () => openShare());
   function openShare() {
@@ -704,6 +898,14 @@ export async function renderEditor(root, projectId) {
           location.reload();
         })),
         row(t('editor.autoCompile'), h('input', { type: 'checkbox', checked: prefs.get('autoCompile'), onchange: (e) => prefs.set('autoCompile', e.target.checked) })),
+        row(t('editor.quickLint'), h('input', { type: 'checkbox', checked: prefs.get('quickLint') !== false, onchange: (e) => {
+          prefs.set('quickLint', e.target.checked);
+          editor?.refreshDiagnostics();
+        } })),
+        row(t('editor.mathPreview'), h('input', { type: 'checkbox', checked: prefs.get('mathPreview') !== false, onchange: (e) => {
+          prefs.set('mathPreview', e.target.checked);
+          editor?.setMathPreview(e.target.checked);
+        } })),
       ),
     });
   });
@@ -779,11 +981,14 @@ export async function renderEditor(root, projectId) {
 
   return () => {
     clearTimeout(autoTimer);
+    clearTimeout(statsTimer);
     for (const d of disposers) d();
     ydoc.off('update', onLocalUpdate);
+    ydoc.off('update', dropMacros);
     editor?.destroy();
     pdf.destroy();
     aiPanel?.destroy();
+    historyPanel?.destroy();
     conn.destroy();
     for (const um of undoManagers.values()) um.destroy();
     ydoc.destroy();

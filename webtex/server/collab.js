@@ -34,6 +34,7 @@ class SharedProject {
       const msg = encoding.toUint8Array(enc);
       for (const ws of this.conns.keys()) if (ws !== origin) send(ws, msg);
       this.schedulePersist();
+      if (origin !== 'load') changeListener?.(this.id, this.conns.get(origin)?.user.id ?? null);
     });
 
     this.awareness.on('update', ({ added, updated, removed }, origin) => {
@@ -113,6 +114,13 @@ function send(ws, msg) {
 }
 
 const projects = new Map();
+
+// Told about every change of a project's documents, with the editing user when it came over a
+// WebSocket (null for changes made by the server itself). Used by the version history.
+let changeListener = null;
+export function onDocChange(fn) {
+  changeListener = fn;
+}
 
 /** Returns the loaded shared project (loading it from disk if needed). */
 export async function getShared(projectId) {

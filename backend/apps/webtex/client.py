@@ -23,6 +23,8 @@ API_TIMEOUT_SECONDS = 10
 CONNECT_TIMEOUT_SECONDS = 5
 #: Najwięcej pozycji listy błędów LaTeX, które pokazujemy (kontrakt: webTEX oddaje do 20).
 MAX_ISSUES = 20
+#: Podpis wersji w historii projektu webTEX – dłuższy webTEX i tak przytnie (kontrakt: do 120 znaków).
+MAX_LABEL_LENGTH = 120
 
 BUILD_PATH = "/api/integration/build"
 SHARING_PATH = "/api/integration/sharing"
@@ -119,16 +121,22 @@ def _read_limited(response, limit_bytes: int) -> bytes | None:
     return b"".join(chunks)
 
 
-def build_pdf(sub: str, project: str, *, max_bytes: int) -> bytes:
+def build_pdf(sub: str, project: str, *, max_bytes: int, label: str | None = None) -> bytes:
     """Świeża kompilacja projektu uczestnika (``POST /api/integration/build``) – bajty PDF-u.
 
+    ``label`` (opcjonalne, TEX-01 § 2) to podpis wersji, którą webTEX zapisuje w historii projektu
+    przy udanej kompilacji – np. „Złożone jako rozwiązanie – wersja 2”. Bez niego ciało żądania jest
+    takie jak przed historią wersji, a starszy webTEX nieznane pole po prostu pomija.
+
     Odmowy webTEX (TEX-01 § 2) zamieniamy na komunikaty: ``404`` – uczestnik nie otwierał edytora
-    przy tym zadaniu, ``422`` – nie powstał PDF (lista błędów LaTeX), ``503`` – kompilator niedostępny.
+    przy tym zadaniu, ``422`` – nie powstał PDF (lista błędów LaTeX), ``503`` – kompilator niedostępny
+    albo (``compiler_busy``) przeciążony kolejką kompilacji.
     """
+    payload = {"sub": sub, "project": project}
+    if label:
+        payload["label"] = label[:MAX_LABEL_LENGTH]
     try:
-        response = _request(
-            "POST", BUILD_PATH, {"sub": sub, "project": project}, timeout=BUILD_TIMEOUT_SECONDS, stream=True
-        )
+        response = _request("POST", BUILD_PATH, payload, timeout=BUILD_TIMEOUT_SECONDS, stream=True)
     except requests.RequestException as exc:
         raise _unavailable() from exc
     try:
@@ -165,6 +173,17 @@ def build_pdf(sub: str, project: str, *, max_bytes: int) -> bytes:
                     "i złóż rozwiązanie ponownie. Poprzednia wersja (jeśli była) zostaje bez zmian."
                 ),
                 _issues(data),
+            )
+        if status == 503 and data.get("error") == "compiler_busy":
+            # Kolejka kompilacji webTEX jest pełna albo kompilacja czekała w niej za długo – typowe
+            # w ostatnich minutach przed terminem (docs/OPERACJE.md § 55). Ponowienie zwykle się udaje.
+            raise WebtexError(
+                "compiler_busy",
+                _(
+                    "Edytor LaTeX kompiluje teraz bardzo wiele rozwiązań naraz i Twoje nie zmieściło się "
+                    "w kolejce. Spróbuj ponownie za minutę – Twoja praca w edytorze jest zapisana. Jeśli "
+                    "termin jest blisko, pobierz PDF z edytora i wyślij go zwykłym formularzem."
+                ),
             )
         if status == 503:
             raise WebtexError(
