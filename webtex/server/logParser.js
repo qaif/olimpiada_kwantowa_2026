@@ -5,6 +5,11 @@ const FILE_LINE_ERROR = /^((?:\.{0,2}\/|[A-Za-z]:[\\/])?[^:\s][^:]*?\.\w+):(\d+)
 const LATEX_WARNING = /^((?:La|pdf|Xe|Lua)?TeX|LaTeX\s\w+|Class \S+|Package \S+) Warning: (.*)$/;
 const BAD_BOX = /^(Over|Under)full \\[hv]box \((.*?)\) (?:in paragraph |in alignment |detected |has occurred while \\output is active)?(?:at lines? (\d+)(?:--(\d+))?)?/;
 const LINE_REF = /on input line (\d+)/;
+// Ostrzeżenia bez znaczenia dla autora, obecne w każdej kompilacji: graphicx/pdftex.def wczytuje
+// epstopdf-base, a ten przy wyłączonym shell escape (u nas zawsze, patrz compiler.js) melduje, że nie
+// przekonwertuje plików .eps w locie. Zostają w surowym logu, ale nie w liście problemów.
+const HARMLESS_WARNINGS = [/^Package epstopdf: Shell escape feature is not enabled\b/];
+
 const FILE_TOKEN = /^(?:\.{0,2}\/|\/|[A-Za-z]:[\\/])?[^\s()"]*\.[A-Za-z0-9]{1,8}/;
 
 export function normalizePath(p, roots = []) {
@@ -107,15 +112,17 @@ export function parseLog(log, { roots = [] } = {}) {
       const lineNo = LINE_REF.exec(message);
       const file = currentFile();
       const isFont = /Font/.test(source);
+      const text = source.startsWith('Package') || source.startsWith('Class') ? `${source}: ${message}` : message;
+      i += cont.length;
+      updateStack(line);
+      if (HARMLESS_WARNINGS.some((re) => re.test(text))) continue;
       issues.push({
         level: isFont ? 'typesetting' : 'warning',
         file: isProjectFile(file) ? file : null,
         line: lineNo ? Number(lineNo[1]) : null,
-        message: source.startsWith('Package') || source.startsWith('Class') ? `${source}: ${message}` : message,
+        message: text,
         content: '',
       });
-      i += cont.length;
-      updateStack(line);
       continue;
     }
 
