@@ -12,6 +12,22 @@ podsekcją `### <tytuł>` wydania `## v<x.y.z> – <data tagu> – <opis tagu>`.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – pyasn1 0.6.5, pypdf 6.21.4, oauthlib 4.0.1 i podbicia zależności (wydanie zbiorcze v0.54.0)
+
+- Bezpieczeństwo, `backend/uv.lock` (8.11.2026: Trivy obrazu `web` i pip-audit czerwone na `main`):
+  pyasn1 0.6.4 → 0.6.5 (GHSA-2qm8-x737-gmw5; CVE-2026-119194…119197, DoS przy dekodowaniu ASN.1),
+  pypdf 6.21.2 → 6.21.4 (GHSA-42gh-23hr-vphw, GHSA-5849-834g-hvw5; CVE-2026-119203…119209, DoS na
+  spreparowanym PDF-ie), oauthlib 4.0.0 → 4.0.1 (GHSA-3jp2-3mrg-2vxc). `djcms/uv.lock` tych pakietów
+  nie ma. Pakiety Debiana w obrazie – bez znalezisk; `.security/trivyignore.yaml` bez zmian.
+- `backend/pyproject.toml`: uharfbuzz `<0.58` (0.57.0), sentry-sdk `<2.74` (2.73.0), anthropic `<3`
+  (2.6.0, API `2026-10-21`: klucz w `Authorization: Bearer`, bez `temperature`/`top_p`/`top_k` – ocena AI
+  ich nie wysyła, `document` tylko w wiadomości `user`; nowa zależność `opentelemetry-api`). Zamiast
+  PR-ów #158, #160, #161, którym brakowało aktualizacji `uv.lock`.
+- djcms: djangocms-text 1.0.2, ruff 0.17.1 (#154); obrazy compose: `bitnamilegacy/minio` 2025.5.24,
+  `bitnamilegacy/minio-client` 2025.5.21, mailpit v1.31 (#153; `scripts/backup.sh`/`restore.sh`
+  i `scripts/loadtest/` zostają przy dotychczasowym `minio-client` przypiętym skrótem); akcje CI:
+  setup-uv 10.3.2, setup-python 7.1.0, docker/login-action 4.7.0, codeql-action 4.39.1 (#159).
+
 ## [Unreleased] – Historia wersji w edytorze LaTeX (TEX-01, Uzupełnienie B)
 
 - webTEX zapisuje wersje projektów: po ustaniu zmian (2 min), co 10 min ciągłej pracy, po udanej
