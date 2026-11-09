@@ -28,7 +28,7 @@ dependencies = [
     "djangocms-text==1.0.2",
     # Wersje robocze / publikacja / historia – odpowiednik rewizji Wagtaila.
     "djangocms-versioning==2.8.0",
-    "django-fsm-2==4.2.4",
+    "django-fsm-2==4.3.0",
     # Biblioteka mediów (obrazy); dokumenty urzędowe zostają na domenie głównej (§ 1.2 p. 5).
     "django-filer==3.6.0",
     "easy-thumbnails==2.10.1",
