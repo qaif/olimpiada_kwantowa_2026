@@ -902,7 +902,12 @@ def approved_for_student(participant: Participant | None, problem) -> Translatio
     if participant is None or not participant.delegation_id:
         return None
     stage = problem.stage
-    if not stage.has_opened() or participant.delegation.edition_id != stage.edition_id:
+    # Zaplanowana publikacja zadania (PUB-01) – tłumaczenie jest treścią zadania w innym języku.
+    if (
+        not stage.has_opened()
+        or not problem.is_published()
+        or participant.delegation.edition_id != stage.edition_id
+    ):
         return None
     language = student_language(participant)
     if language is None:

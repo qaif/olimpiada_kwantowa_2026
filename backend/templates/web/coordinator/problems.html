@@ -4,7 +4,9 @@
 {% block panel_title %}Zadania: {{ stage.display_name }}{% endblock %}
 {% block panel_lead %}
   <p class="lead">Edycja {{ stage.edition.year_label }}. Treści zadań są jawne dla uczestników
-    dopiero po otwarciu etapu: {{ stage.opens_at|local_time }}. Koordynator widzi je wcześniej.</p>
+    dopiero po otwarciu etapu: {{ stage.opens_at|local_time }} – albo później, jeśli zadaniu
+    zaplanujesz własną chwilę publikacji (czas polski, liczy zegar serwera). Koordynator widzi je
+    zawsze.</p>
 {% endblock %}
 {% block panel_content %}
 
@@ -20,6 +22,7 @@
           <th scope="col">Nr</th>
           <th scope="col">Tytuł</th>
           <th scope="col">Treść PDF</th>
+          <th scope="col">Publikacja</th>
           <th scope="col">Formaty</th>
           <th scope="col">Limit</th>
           <th scope="col">Maks. punktów</th>
@@ -42,6 +45,15 @@
                 <span class="badge badge--warn">brak</span>
               {% endif %}
             </td>
+            <td>
+              {# PUB-01: chwila, od której treść widzą uczestnicy (późniejsza z otwarcia i planu). #}
+              {% if row.publication.published %}
+                <span class="badge badge--ok">opublikowane</span>
+              {% else %}
+                <span class="badge badge--warn">zaplanowane</span>
+              {% endif %}
+              <span class="hint">{{ row.publication.effective|local_datetime }}{% if not row.publication.scheduled %} (z otwarciem etapu){% endif %}</span>
+            </td>
             <td>{% for item in row.problem.allowed_formats %}<span class="tag">.{{ item }}</span> {% endfor %}</td>
             <td class="num">{{ row.problem.max_file_mb }} MB</td>
             <td class="num">{% if row.maximum is not None %}{{ row.maximum|points }}{% if row.problem.has_own_scale or row.problem.has_own_max %} <span class="hint">(własne)</span>{% endif %}{% else %}—{% endif %}</td>
@@ -60,7 +72,7 @@
             </td>
           </tr>
         {% empty %}
-          <tr><td colspan="8" class="empty">Ten etap nie ma jeszcze zadań.</td></tr>
+          <tr><td colspan="9" class="empty">Ten etap nie ma jeszcze zadań.</td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -71,6 +83,25 @@
       samo maksimum punktów w jego formularzu{% endif %}.</p>
   {% endif %}
 </section>
+
+{% if rows %}
+<section class="section" id="publikacja">
+  <div class="section__head"><h2 class="mt-0">Publikacja wszystkich zadań</h2></div>
+  <div class="card">
+    <p class="hint">Jedna chwila publikacji dla każdego zadania etapu. Do tej chwili uczestnicy nie widzą
+      ani tytułów, ani treści PDF, a upload rozwiązań jest zamknięty. Puste pole = wszystkie zadania
+      jawne razem z otwarciem etapu ({{ stage.opens_at|local_datetime }}). Pojedyncze zadanie zmienisz
+      w jego formularzu.</p>
+    <form method="post" action="{% url 'web:coordinator-stage-problems-publication' stage.pk %}" class="form" novalidate>
+      {% csrf_token %}
+      {{ publication_form.as_p }}
+      <div class="actions">
+        <button type="submit" class="btn btn--secondary">Zapisz publikację</button>
+      </div>
+    </form>
+  </div>
+</section>
+{% endif %}
 
 <section class="section">
   <div class="section__head"><h2 class="mt-0">Dodaj zadanie</h2></div>

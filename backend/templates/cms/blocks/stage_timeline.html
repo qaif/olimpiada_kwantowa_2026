@@ -71,6 +71,10 @@
           <div><dt>{% translate "Wyniki do" %}</dt><dd>{{ row.stage.review_deadline_at|local_datetime }}</dd></div>
           {# Okna reklamacji harmonogram nie pokazuje (decyzja organizatora z 20.09.2026): tryb i terminy reklamacji opisuje § 16 Regulaminu, a uczestnik widzi swoje okno w panelu. #}
         </dl>
+        {% if row.rules_url %}
+          {# ZOZ-01: dokument „Zasady Organizacji Zawodów” tego etapu, gdy jest opublikowany. #}
+          <p class="timeline__rules"><a href="{{ row.rules_url }}">{% translate "Zasady Organizacji Zawodów (ZOZ)" %}</a></p>
+        {% endif %}
       </li>
     {% endfor %}
   </ol>

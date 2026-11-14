@@ -12,12 +12,14 @@ from __future__ import annotations
 
 import re
 from datetime import date
+from functools import partial
 
 from django.conf import settings
 from django.core.cache import cache
 from django.urls import get_script_prefix, reverse
 from django.utils import timezone
 from django.utils.formats import date_format
+from django.utils.functional import SimpleLazyObject
 from django.utils.translation import get_language, gettext_lazy
 from django.utils.translation import gettext as _
 
@@ -112,6 +114,13 @@ def _status(stage: Stage, *, has_results: bool, now) -> tuple[str, str]:
     return STATUS_UPCOMING
 
 
+def _rules_url(rules_by_stage, stage_id: int) -> str:
+    """Adres ZOZ etapu albo pusty napis – wartość leniwego ``row["rules_url"]``."""
+    if stage_id not in rules_by_stage:
+        return ""
+    return reverse("web:stage-rules", args=[stage_id])
+
+
 def stage_rows(edition: Edition | None = None, now=None, *, competition=None) -> list[dict]:
     """Etapy edycji uporządkowane po ``opens_at`` wraz ze stanem i informacją o wynikach.
 
@@ -137,6 +146,14 @@ def stage_rows(edition: Edition | None = None, now=None, *, competition=None) ->
     published = set(
         ResultsPublication.objects.live().filter(stage__in=stages).values_list("stage_id", flat=True)
     )
+    # ZOZ etapów (ZOZ-01) – odnośnik przy etapie w harmonogramie. **Leniwie**: jedno zapytanie
+    # dla całej listy, i to dopiero wtedy, gdy ktoś sięgnie po ``rules_url``. Strona główna
+    # (``HomePage``) liczy te same wiersze, ale odnośnika nie pokazuje – jej budżet zapytań
+    # (``apps/core/tests/query_budgets.py``) zostaje bez zmian.
+    from apps.competitions.stage_rules import current_rules_by_stage
+
+    stage_ids = [stage.pk for stage in stages]
+    rules_by_stage = SimpleLazyObject(partial(current_rules_by_stage, stage_ids))
     rows = []
     for stage in stages:
         has_results = stage.pk in published
@@ -156,6 +173,7 @@ def stage_rows(edition: Edition | None = None, now=None, *, competition=None) ->
                 "badge_class": STATUS_BADGE[status],
                 "is_onsite_event": onsite,
                 "date_range": stage_date_range(stage) if onsite else "",
+                "rules_url": SimpleLazyObject(partial(_rules_url, rules_by_stage, stage.pk)),
             }
         )
     return rows

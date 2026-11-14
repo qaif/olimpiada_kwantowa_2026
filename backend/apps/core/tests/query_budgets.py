@@ -90,7 +90,11 @@ QUERY_BUDGETS: dict[str, int] = {
     # (jeden ``COUNT`` po indeksie ``notif_user_unread``, zapamiętany na żądaniu, więc kafel „Co nowego”
     # go nie powtarza) – i kafel „Najbliższy warsztat” (strona „Warsztaty”, ``cms.workshops_page``).
     # Zmierzone 46 na zimno – sufit = pomiar; nie rośnie z liczbą uczestników ani powiadomień.
-    "/me/": 46,
+    # +1 od 14.11.2026 (ZOZ-01): odnośnik „Zasady Organizacji Zawodów (ZOZ) tego etapu” na karcie
+    # etapu w zakładce „Zadania” – jedno zapytanie o obowiązującą wersję (``stage_rules.current_rules``),
+    # tylko na tej zakładce. Planowana publikacja zadań (PUB-01) nie dokłada nic: chwila kolejnej
+    # publikacji liczy się z tej samej listy zadań, co karty.
+    "/me/": 47,
     # 50 + 1 od 23.09.2026: odnośnik „Plakaty do pobrania” w stopce – patrz komentarz przy ``"/"``.
     # +1 od 30.09.2026: odznaka „Wiadomości” w menu panelu (zadanie CZ-01,
     # ``apps.chat.services.coordinator_attention``) – przełącznik i cztery liczby jednym zapytaniem,

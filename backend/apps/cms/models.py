@@ -1061,6 +1061,24 @@ class ProblemsPage(CMSPage):
         return context
 
 
+def stage_rules_cards(competition) -> list[dict]:
+    """Zasady Organizacji Zawodów etapów bieżącej edycji (ZOZ-01) – karty w spisie ``/dokumenty/``.
+
+    Dokument mieszka przy etapie (``apps.competitions.stage_rules``), a nie w drzewie stron, więc
+    spis dokłada go z bazy zawodów: dwa zapytania niezależnie od liczby etapów.
+    """
+    from apps.competitions.models import StageKind
+    from apps.competitions.services import current_edition
+    from apps.competitions.stage_rules import current_rules_by_stage
+
+    edition = current_edition(competition) if competition is not None else None
+    if edition is None:
+        return []
+    stages = list(edition.stages.exclude(kind=StageKind.TRAINING).order_by("opens_at", "id"))
+    rules = current_rules_by_stage([stage.pk for stage in stages])
+    return [{"stage": stage, "rules": rules[stage.pk]} for stage in stages if stage.pk in rules]
+
+
 class DocumentIndexPage(CMSPage):
     """Sekcja ``/dokumenty/``: jedno miejsce na komplet dokumentów organizatora.
 
@@ -1098,6 +1116,7 @@ class DocumentIndexPage(CMSPage):
             .order_by("path")
             .prefetch_related("attachments__document")
         )
+        context["stage_rules"] = stage_rules_cards(competition_for_page(self, request))
         return context
 
 

@@ -1,0 +1,90 @@
+{% extends "web/coordinator/base.html" %}
+{% load web_extras %}
+{% comment %}
+  Zasady Organizacji Zawodów etapu (ZOZ-01): wersje dokumentu i formularz nowej wersji.
+  Bez JavaScriptu i bez stylów w atrybutach – panel chodzi pod ścisłą polityką CSP.
+{% endcomment %}
+{% block title %}Zasady (ZOZ) etapu {{ stage.display_name }} – panel koordynatora{% endblock %}
+{% block panel_title %}Zasady Organizacji Zawodów: {{ stage.display_name }}{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Regulamin (§ 1 ust. 4) przewiduje osobny dokument „Zasady Organizacji Zawodów”
+    dla każdego etapu. Nowa wersja powstaje jako projekt – uczestnicy widzą ją dopiero po
+    publikacji. Obowiązuje ostatnio opublikowana wersja; wcześniejsze zostają dostępne w historii.</p>
+{% endblock %}
+{% block panel_content %}
+
+<section class="section">
+  <div class="section__head">
+    <h2 class="mt-0">Wersje dokumentu</h2>
+    {% if current %}<p class="hint">Adres publiczny: <a href="{{ public_url }}">{{ public_url }}</a></p>{% endif %}
+  </div>
+  <div class="scroll">
+    <table class="table">
+      <caption class="visually-hidden">Wersje Zasad Organizacji Zawodów tego etapu</caption>
+      <thead>
+        <tr>
+          <th scope="col">Wersja</th>
+          <th scope="col">Data dokumentu</th>
+          <th scope="col">Status</th>
+          <th scope="col">Opublikowano</th>
+          <th scope="col">PDF</th>
+          <th scope="col"><span class="visually-hidden">Operacje</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for version in versions %}
+          <tr>
+            <th scope="row"><a href="{% url 'web:coordinator-stage-rules-edit' version.pk %}">{{ version.version }}</a>
+              {% if current and current.pk == version.pk %}<span class="badge badge--ok">obowiązuje</span>{% endif %}</th>
+            <td>{{ version.document_date|date:"d.m.Y" }}</td>
+            <td><span class="tag">{{ version.get_status_display }}</span></td>
+            <td>{% if version.published_at %}{{ version.published_at|local_datetime }}{% else %}—{% endif %}</td>
+            <td>{% if version.pdf %}<a href="{% url 'web:coordinator-stage-rules-pdf' version.pk %}">tak</a>{% else %}—{% endif %}</td>
+            <td>
+              <div class="actions">
+                <a class="btn btn--secondary btn--small" href="{% url 'web:coordinator-stage-rules-preview' version.pk %}">Podgląd</a>
+                <a class="btn btn--secondary btn--small" href="?from={{ version.pk }}#nowa-wersja">Nowa wersja na tej podstawie</a>
+                {% if version.status == "DRAFT" %}
+                  <form method="post" action="{% url 'web:coordinator-stage-rules-publish' version.pk %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn--primary btn--small">Opublikuj</button>
+                  </form>
+                  <form method="post" action="{% url 'web:coordinator-stage-rules-delete' version.pk %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn--danger btn--small">Usuń projekt</button>
+                  </form>
+                {% elif version.status == "PUBLISHED" %}
+                  <form method="post" action="{% url 'web:coordinator-stage-rules-withdraw' version.pk %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn--danger btn--small">Wycofaj</button>
+                  </form>
+                {% elif version.status == "WITHDRAWN" %}
+                  <form method="post" action="{% url 'web:coordinator-stage-rules-publish' version.pk %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn--secondary btn--small">Opublikuj ponownie</button>
+                  </form>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="6" class="empty">Ten etap nie ma jeszcze dokumentu ZOZ.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="section" id="nowa-wersja">
+  <div class="section__head"><h2 class="mt-0">Nowa wersja</h2></div>
+  <div class="card">
+    <form method="post" enctype="multipart/form-data" class="form form--wide" novalidate>
+      {% csrf_token %}
+      {{ form.as_p }}
+      <div class="actions">
+        <button type="submit" class="btn btn--primary">Zapisz projekt</button>
+      </div>
+    </form>
+  </div>
+</section>
+{% endblock %}

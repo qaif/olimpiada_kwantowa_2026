@@ -125,10 +125,15 @@ def _page_parent_segments() -> frozenset[str]:
     Slug bierzemy z ``apps.cms.workshops`` – tej samej stałej, po której aplikacja znajduje stronę
     warsztatów – żeby zmiana sluga w jednym miejscu nie rozjechała manifestu. Import lokalny, bo
     ``apps.cms`` jako pakiet ładuje Wagtaila.
+
+    Drugi rodzic (ZOZ-01): sekcja ``/dokumenty/`` – strona redakcyjna, pod którą aplikacja wiesza
+    Zasady Organizacji Zawodów etapów (``/dokumenty/zasady/<etap>/``). Zarezerwowane jest wyłącznie
+    ``dokumenty/zasady``; regulamin, RODO i pozostałe dokumenty zostają stronami CMS-u.
     """
+    from apps.cms.site_tree import INDEX_SLUG as DOCUMENTS_SLUG
     from apps.cms.workshops import WORKSHOPS_SLUG
 
-    return frozenset({WORKSHOPS_SLUG})
+    return frozenset({WORKSHOPS_SLUG, DOCUMENTS_SLUG})
 
 
 def _is_empty_prefix(pattern) -> bool:

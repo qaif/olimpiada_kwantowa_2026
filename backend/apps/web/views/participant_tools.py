@@ -17,6 +17,7 @@ from dataclasses import dataclass
 
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from django.views.generic import TemplateView, View
 
 from apps.ai_grading.services import participant_ai_feedback
@@ -126,9 +127,13 @@ class ArchiveEdition:
 
 
 def _archive_problems(stage: Stage) -> list[ArchiveProblem]:
+    # Zadanie z zaplanowaną, jeszcze nieosiągniętą publikacją (PUB-01) nie trafia do archiwum.
+    # Filtr w Pythonie, nie w zapytaniu: ``archived_editions`` czyta zadania z ``prefetch_related``.
+    now = timezone.now()
     return [
         ArchiveProblem(problem=problem, has_statement=bool(problem.statement_pdf))
-        for problem in stage.problems.order_by("number", "id")
+        for problem in sorted(stage.problems.all(), key=lambda item: (item.number, item.pk))
+        if problem.is_published(now)
     ]
 
 
@@ -193,7 +198,11 @@ class ParticipantArchiveView(ParticipantRequiredMixin, TemplateView):
             {
                 "editions": archived_editions(self.competition),
                 "training_stage": training,
-                "training_problems": _archive_problems(training) if training is not None else [],
+                # Ta sama bramka etapu, co wszędzie (``has_opened``) – trening otwiera się w chwili
+                # posiania, więc w praktyce nic się nie zmienia, ale reguła jawności ma być jedna.
+                "training_problems": (
+                    _archive_problems(training) if training is not None and training.has_opened() else []
+                ),
                 # Zgłoszenie do treningu jest warunkiem uploadu – archiwum mówi o tym wprost,
                 # zamiast prowadzić na kartę, na której uczestnik zobaczy sam przycisk zapisu.
                 "training_entry": (

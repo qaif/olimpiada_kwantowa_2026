@@ -2039,6 +2039,46 @@ class EditionEventForm(forms.ModelForm):
         }
 
 
+def clean_publication_moment(value, stage):
+    """Wspólna walidacja chwili publikacji zadania – pojedynczo i zbiorczo (PUB-01).
+
+    Chwila przed otwarciem etapu niczego by nie zmieniła (treść i tak jest niejawna do otwarcia),
+    a po terminie oddania – zamknęłaby zadanie na zawsze. Oba przypadki są pomyłką w dacie.
+    """
+    if value is None or stage is None:
+        return value
+    if value < stage.opens_at:
+        raise forms.ValidationError(
+            f"Publikacja nie może wypaść przed otwarciem etapu ({_local_label(stage.opens_at)}). "
+            "Zostaw pole puste, żeby opublikować zadanie razem z otwarciem."
+        )
+    if not stage.is_training and value >= stage.submission_deadline:
+        deadline = _local_label(stage.submission_deadline)
+        raise forms.ValidationError(f"Publikacja musi wypaść przed terminem oddania rozwiązań ({deadline}).")
+    return value
+
+
+def _local_label(value) -> str:
+    return timezone.localtime(value).strftime("%d.%m.%Y %H:%M")
+
+
+class StagePublicationForm(forms.Form):
+    """Zbiorcze planowanie publikacji wszystkich zadań etapu (PUB-01)."""
+
+    publish_at = LocalDateTimeField(
+        label="Publikacja wszystkich zadań (czas polski)",
+        required=False,
+        help_text="Puste = wszystkie zadania jawne razem z otwarciem etapu.",
+    )
+
+    def __init__(self, *args, stage=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.stage = stage
+
+    def clean_publish_at(self):
+        return clean_publication_moment(self.cleaned_data.get("publish_at"), self.stage)
+
+
 class ProblemForm(forms.ModelForm):
     """Zadanie etapu: numer, tytuł, treść w PDF, dopuszczone formaty rozwiązań i limit rozmiaru.
 
@@ -2071,6 +2111,16 @@ class ProblemForm(forms.ModelForm):
         required=False,
         widget=forms.ClearableFileInput(attrs={"accept": "application/pdf"}),
         help_text=f"Plik PDF, maksymalnie {MAX_STATEMENT_MB} MB. Nowy plik zastępuje poprzedni.",
+    )
+    # Zaplanowana publikacja treści (PUB-01). Czas polski w polu, UTC w bazie – ``LocalDateTimeField``.
+    publish_at = LocalDateTimeField(
+        label="Publikacja treści (czas polski)",
+        required=False,
+        help_text=(
+            "Puste = treść jawna razem z otwarciem etapu. Data późniejsza niż otwarcie przesuwa "
+            "publikację tego zadania: do tej chwili uczestnicy nie widzą ani tytułu, ani PDF-u, "
+            "a upload rozwiązania jest zamknięty."
+        ),
     )
     confirm_open_stage = forms.BooleanField(
         label="Rozumiem, że uczestnicy już widzą treść tego zadania",
@@ -2149,6 +2199,7 @@ class ProblemForm(forms.ModelForm):
             "title_en",
             "statement_pdf",
             "statement_pdf_en",
+            "publish_at",
             "allowed_formats",
             "max_file_mb",
             "reviewer_notes",
@@ -2183,7 +2234,16 @@ class ProblemForm(forms.ModelForm):
             del self.fields["confirm_open_stage"]
 
     def _needs_confirmation(self) -> bool:
-        return bool(self.instance.pk and self.stage is not None and self.stage.has_opened())
+        return bool(
+            self.instance.pk
+            and self.stage is not None
+            and self.stage.has_opened()
+            and self.instance.is_published()
+        )
+
+    def clean_publish_at(self):
+        """Publikacja w oknie etapu: nie przed otwarciem i nie po terminie oddania rozwiązań."""
+        return clean_publication_moment(self.cleaned_data.get("publish_at"), self.stage)
 
     def clean_number(self):
         """Numer unikalny w etapie – komunikat pod polem, a nie ogólny błąd o unikalności.

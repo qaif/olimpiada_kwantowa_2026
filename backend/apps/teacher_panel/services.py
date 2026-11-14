@@ -230,8 +230,12 @@ def class_progress(supervisor, competition, *, now=None, edition=None) -> ClassP
         )
         problem_counts = {}
         if participants:
+            # Liczba zadań bez tych z zaplanowaną, jeszcze nieosiągniętą publikacją (PUB-01) –
+            # „oddane 1 z 3” przed publikacją trzeciego zadania mówiłoby, że ono istnieje.
+            from apps.competitions.publication import published_q
+
             problem_counts = dict(
-                Problem.objects.filter(stage__in=stages)
+                Problem.objects.filter(published_q(now), stage__in=stages)
                 .order_by()
                 .values("stage_id")
                 .annotate(n=Count("id"))

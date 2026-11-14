@@ -284,6 +284,18 @@ def stage_items(stages: list, competition=None) -> tuple[Item, ...]:
                 ("coordinator-stage-results",),
             ),
         )
+        if not stage.is_training:
+            # Zasady Organizacji Zawodów etapu (ZOZ-01, Regulamin § 1 ust. 4: osobny dokument dla
+            # każdego etapu). Bez flagi – dokument jest wymagany przez Regulamin Konkursu #1, a nie
+            # jest zdolnością systemu wielokonkursowego. Trening dokumentu nie ma (poza zawodami).
+            children += (
+                Item(
+                    "Zasady (ZOZ)",
+                    ("web:coordinator-stage-rules",),
+                    (stage.pk,),
+                    ("coordinator-stage-rules", "coordinator-stage-rules-"),
+                ),
+            )
         if competition is not None and competition.has_feature("onsite_logistics"):
             # Logistyka etapu stacjonarnego (§ 1.5.2, T42). Dwa ekrany dotyczą **jednego** etapu –
             # deklaracje przyjazdu i lista obecności – więc stoją jako jego dzieci, a nie jako

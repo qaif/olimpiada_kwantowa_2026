@@ -90,3 +90,38 @@ msgstr "A message goes out within a minute of its scheduled time. Recipients are
 
 msgid "Zaplanował"
 msgstr "Scheduled by"
+
+# ZOZ-01 i PUB-01: Zasady Organizacji Zawodów etapu i planowana publikacja zadań.
+
+msgid "Zasady Organizacji Zawodów (ZOZ) tego etapu"
+msgstr "Competition Rules (ZOZ) for this stage"
+
+msgid "Kolejne zadania zostaną opublikowane:"
+msgstr "More problems will be published on:"
+
+msgid "Zasady Organizacji Zawodów (ZOZ)"
+msgstr "Competition Rules (ZOZ)"
+
+msgid "Zasady Organizacji Zawodów etapów"
+msgstr "Competition Rules for each stage"
+
+msgid "%(title)s – %(stage)s (wersja %(version)s) – dokument Olimpiady do przeczytania online."
+msgstr "%(title)s – %(stage)s (version %(version)s) – Olympiad document to read online."
+
+msgid "wersja obowiązująca"
+msgstr "current version"
+
+msgid "wersja archiwalna"
+msgstr "archived version"
+
+msgid "To jest wcześniejsza wersja dokumentu."
+msgstr "This is an earlier version of the document."
+
+msgid "Wersja obowiązująca: %(version)s"
+msgstr "Current version: %(version)s"
+
+msgid "Zasady pozostałych etapów i wcześniejsze wersje"
+msgstr "Rules of the other stages and earlier versions"
+
+msgid "obowiązująca"
+msgstr "current"

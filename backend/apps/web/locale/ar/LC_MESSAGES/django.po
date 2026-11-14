@@ -90,3 +90,38 @@ msgstr "تُرسل الرسالة خلال دقيقة من موعدها. يُح�
 
 msgid "Zaplanował"
 msgstr "جدولها"
+
+# ZOZ-01 i PUB-01: Zasady Organizacji Zawodów etapu i planowana publikacja zadań.
+
+msgid "Zasady Organizacji Zawodów (ZOZ) tego etapu"
+msgstr "قواعد تنظيم المسابقة (ZOZ) لهذه المرحلة"
+
+msgid "Kolejne zadania zostaną opublikowane:"
+msgstr "ستُنشر المسائل التالية في:"
+
+msgid "Zasady Organizacji Zawodów (ZOZ)"
+msgstr "قواعد تنظيم المسابقة (ZOZ)"
+
+msgid "Zasady Organizacji Zawodów etapów"
+msgstr "قواعد تنظيم المسابقة للمراحل"
+
+msgid "%(title)s – %(stage)s (wersja %(version)s) – dokument Olimpiady do przeczytania online."
+msgstr "%(title)s – %(stage)s (الإصدار %(version)s) – وثيقة الأولمبياد للقراءة عبر الإنترنت."
+
+msgid "wersja obowiązująca"
+msgstr "الإصدار الساري"
+
+msgid "wersja archiwalna"
+msgstr "إصدار مؤرشف"
+
+msgid "To jest wcześniejsza wersja dokumentu."
+msgstr "هذا إصدار سابق من الوثيقة."
+
+msgid "Wersja obowiązująca: %(version)s"
+msgstr "الإصدار الساري: %(version)s"
+
+msgid "Zasady pozostałych etapów i wcześniejsze wersje"
+msgstr "قواعد المراحل الأخرى والإصدارات السابقة"
+
+msgid "obowiązująca"
+msgstr "ساري"

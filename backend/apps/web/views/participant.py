@@ -57,6 +57,7 @@ from apps.competitions.interviews import (
 )
 from apps.competitions.logistics import onsite_logistics_enabled
 from apps.competitions.models import InterviewSlot, Problem, Stage, StageEntry
+from apps.competitions.publication import published_q
 from apps.competitions.services import (
     SELF_REGISTRATION_KINDS,
     current_edition,
@@ -64,6 +65,7 @@ from apps.competitions.services import (
     register_for_stage,
     training_stage,
 )
+from apps.competitions.stage_rules import current_rules
 from apps.competitions.video import PRECHECK_TEXT, interview_access
 from apps.core.api import DomainError
 from apps.quiz.services import quiz_for_stage
@@ -130,7 +132,9 @@ def _under_review(versions: list) -> bool:
     return bool(versions) and versions[0].status in UNDER_REVIEW_STATUSES
 
 
-def _problem_rows(user, entry: StageEntry | None, competition=None, now=None) -> list[dict]:
+def _problem_rows(
+    user, entry: StageEntry | None, competition=None, now=None, upcoming: list | None = None
+) -> list[dict]:
     """Zadania etapu wraz z własnymi wersjami rozwiązań (najnowsza pierwsza).
 
     Rozwiązania biorą się z ``Submission.objects.for_user`` – filtr roli siedzi w queryseckie,
@@ -145,7 +149,19 @@ def _problem_rows(user, entry: StageEntry | None, competition=None, now=None) ->
     """
     if entry is None or not entry.stage.has_opened(now):
         return []
-    problems = list(Problem.objects.filter(stage=entry.stage).order_by("number", "id"))
+    # PUB-01: zadanie z zaplanowaną publikacją nie ma karty przed jej chwilą – z tego samego
+    # powodu, z którego nie ma jej przed otwarciem etapu (tytuł zdradza temat). Podział w Pythonie,
+    # a nie w zapytaniu: ``upcoming`` dostaje przy okazji najbliższą chwilę publikacji (podpowiedź
+    # „kolejne zadania: …”) bez drugiego zapytania na każdym wejściu do panelu.
+    moment = now or timezone.now()
+    problems = []
+    for problem in Problem.objects.filter(stage=entry.stage).order_by("number", "id"):
+        if problem.is_published(moment):
+            problems.append(problem)
+        elif upcoming is not None:
+            upcoming.append(problem.publish_at)
+    if upcoming:
+        upcoming[:] = [min(upcoming)]
     versions: dict[int, list] = defaultdict(list)
     for submission in submissions_for_user(user, competition).filter(entry=entry):
         versions[submission.problem_id].append(submission)
@@ -315,9 +331,10 @@ def _missing_numbers(user, entry, rows=None, competition=None) -> tuple[int, ...
     sent = set(
         submissions_for_user(user, competition).filter(entry=entry).values_list("problem_id", flat=True)
     )
+    # Bez zadań przed publikacją (PUB-01): „wyślij zadanie 3” zdradzałoby, że zadanie 3 istnieje.
     return tuple(
         problem.number
-        for problem in Problem.objects.filter(stage=entry.stage).order_by("number", "id")
+        for problem in Problem.objects.filter(published_q(), stage=entry.stage).order_by("number", "id")
         if problem.pk not in sent
     )
 
@@ -486,9 +503,16 @@ class MeView(ParticipantRequiredMixin, TemplateView):
                 "guardian": guardian_status(self.participant),
                 "publish_name_kind": ConsentKind.PUBLISH_NAME,
             }
+        upcoming: list = []
         context = {
             "upload_form": SubmissionUploadForm(),
-            "problem_rows": _problem_rows(user, entry, self.competition, now),
+            "problem_rows": _problem_rows(user, entry, self.competition, now, upcoming),
+            # ZOZ etapu (ZOZ-01): odnośnik na karcie etapu – jedno zapytanie, tylko na tej zakładce.
+            "stage_rules": current_rules(stage),
+            # Najbliższa zaplanowana publikacja zadań (PUB-01) – sama chwila, bez liczby i tytułów.
+            # Liczona z tej samej listy zadań, co karty (``_problem_rows``), więc przed otwarciem
+            # etapu jest pusta – wtedy karta mówi, kiedy etap się otwiera.
+            "next_problem_publication": upcoming[0] if upcoming else None,
         }
         context.update(self._training_context(user, edition, now))
         return context
@@ -695,6 +719,10 @@ class ProblemUploadView(ParticipantRequiredMixin, ThrottledFormMixin, View):
         if time_windows_enabled(request.competition) and not statements_visible(
             stage, participant=self.participant, competition=request.competition
         ):
+            raise Http404("Zadania tego etapu nie są jeszcze dostępne.")
+        # Zaplanowana publikacja zadania (PUB-01): przed nią zadania „nie ma” – 404, a nie karta
+        # z tytułem i odmową serwisu. Serwis (``create_submission``) odmawia tak samo.
+        if not problem.is_published():
             raise Http404("Zadania tego etapu nie są jeszcze dostępne.")
         form = SubmissionUploadForm(request.POST, request.FILES)
         error = None

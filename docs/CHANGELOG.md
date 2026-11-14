@@ -12,6 +12,27 @@ podsekcją `### <tytuł>` wydania `## v<x.y.z> – <data tagu> – <opis tagu>`.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – Zasady Organizacji Zawodów etapu (ZOZ-01) i planowana publikacja zadań (PUB-01)
+
+- **ZOZ dla każdego etapu** (Regulamin § 1 ust. 4, `docs/tasks/ZOZ-01.md`): model wersji
+  `competitions.StageRules` (migracja `0036`; projekt / opublikowany / wycofany, treść HTML oczyszczana
+  przy zapisie i wyświetleniu, opcjonalny PDF w prywatnym storage), strona `/dokumenty/zasady/<etap>/`
+  z wersją obowiązującą, historią (`…/wersja/<w>/`) i PDF-em, spisem rozdziałów z `<h2 id>` i ZOZ
+  pozostałych etapów. Etap cudzego konkursu, projekt i wersja wycofana – 404.
+- Panel koordynatora: pozycja **„Zasady (ZOZ)”** pod etapem (`/coordinator/stages/<id>/rules/`) – nowa
+  wersja z pola albo pliku `.html`, podgląd, publikacja, wycofanie, usunięcie projektu; opublikowanej
+  wersji nie edytuje się. Audyt `stage_rules.*`.
+- Odnośniki do ZOZ: przy etapie w harmonogramie (Wagtail i djcms – pole `rules_url` w API `stages`),
+  na karcie etapu w panelu uczestnika, w spisie `/dokumenty/`. `dokumenty/zasady` w `nested_paths`
+  kontraktu tras djcms; cache stron unieważniany przy zapisie wersji.
+- Komenda `import_stage_rules` (idempotentna, OPERACJE § 56) – treść ZOZ trafia do bazy, nie do repozytorium.
+- **Planowana publikacja zadań** (`docs/tasks/PUB-01.md`): `Problem.publish_at` (migracja `0037`; puste =
+  z otwarciem etapu), pole w formularzu zadania i zbiorczo dla etapu, kolumna „Publikacja” (opublikowane /
+  zaplanowane). Przed publikacją zadania nie ma dla uczestnika ani świata: PDF (404), API bieżącej edycji,
+  strona „Zadania” i djcms, karty i podpowiedzi panelu, archiwum, notatniki, edytor LaTeX, tłumaczenia,
+  licznik opiekuna szkolnego; upload – 404 `PROBLEM_NOT_FOUND` w serwisie. Zegar serwera przy żądaniu,
+  bez zadania okresowego. Panel uczestnika podaje tylko chwilę kolejnej publikacji.
+
 ## [Unreleased] – pyasn1 0.6.5, pypdf 6.21.4, oauthlib 4.0.1 i podbicia zależności (wydanie zbiorcze v0.54.0)
 
 - Bezpieczeństwo, `backend/uv.lock` (8.11.2026: Trivy obrazu `web` i pip-audit czerwone na `main`):

@@ -90,3 +90,38 @@ msgstr "A mensagem sai no minuto seguinte à hora agendada. Os destinatários s�
 
 msgid "Zaplanował"
 msgstr "Agendada por"
+
+# ZOZ-01 i PUB-01: Zasady Organizacji Zawodów etapu i planowana publikacja zadań.
+
+msgid "Zasady Organizacji Zawodów (ZOZ) tego etapu"
+msgstr "Regras de organização da competição (ZOZ) desta etapa"
+
+msgid "Kolejne zadania zostaną opublikowane:"
+msgstr "Os próximos problemas serão publicados em:"
+
+msgid "Zasady Organizacji Zawodów (ZOZ)"
+msgstr "Regras de organização da competição (ZOZ)"
+
+msgid "Zasady Organizacji Zawodów etapów"
+msgstr "Regras de organização da competição por etapa"
+
+msgid "%(title)s – %(stage)s (wersja %(version)s) – dokument Olimpiady do przeczytania online."
+msgstr "%(title)s – %(stage)s (versão %(version)s) – documento da Olimpíada para ler online."
+
+msgid "wersja obowiązująca"
+msgstr "versão em vigor"
+
+msgid "wersja archiwalna"
+msgstr "versão arquivada"
+
+msgid "To jest wcześniejsza wersja dokumentu."
+msgstr "Esta é uma versão anterior do documento."
+
+msgid "Wersja obowiązująca: %(version)s"
+msgstr "Versão em vigor: %(version)s"
+
+msgid "Zasady pozostałych etapów i wcześniejsze wersje"
+msgstr "Regras das outras etapas e versões anteriores"
+
+msgid "obowiązująca"
+msgstr "em vigor"

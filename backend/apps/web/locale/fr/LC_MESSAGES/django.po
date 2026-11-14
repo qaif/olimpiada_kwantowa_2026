@@ -90,3 +90,38 @@ msgstr "Le message part dans la minute qui suit l’heure prévue. Les destinata
 
 msgid "Zaplanował"
 msgstr "Programmé par"
+
+# ZOZ-01 i PUB-01: Zasady Organizacji Zawodów etapu i planowana publikacja zadań.
+
+msgid "Zasady Organizacji Zawodów (ZOZ) tego etapu"
+msgstr "Règles d’organisation du concours (ZOZ) de cette étape"
+
+msgid "Kolejne zadania zostaną opublikowane:"
+msgstr "Les prochains problèmes seront publiés le :"
+
+msgid "Zasady Organizacji Zawodów (ZOZ)"
+msgstr "Règles d’organisation du concours (ZOZ)"
+
+msgid "Zasady Organizacji Zawodów etapów"
+msgstr "Règles d’organisation du concours par étape"
+
+msgid "%(title)s – %(stage)s (wersja %(version)s) – dokument Olimpiady do przeczytania online."
+msgstr "%(title)s – %(stage)s (version %(version)s) – document de l’Olympiade à lire en ligne."
+
+msgid "wersja obowiązująca"
+msgstr "version en vigueur"
+
+msgid "wersja archiwalna"
+msgstr "version archivée"
+
+msgid "To jest wcześniejsza wersja dokumentu."
+msgstr "Ceci est une version antérieure du document."
+
+msgid "Wersja obowiązująca: %(version)s"
+msgstr "Version en vigueur : %(version)s"
+
+msgid "Zasady pozostałych etapów i wcześniejsze wersje"
+msgstr "Règles des autres étapes et versions antérieures"
+
+msgid "obowiązująca"
+msgstr "en vigueur"

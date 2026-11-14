@@ -115,8 +115,11 @@ class ProblemStatementView(GenericAPIView):
         # ``statements_visible`` to ``has_opened`` z oknami czasowymi (TZ-01): w etapie z oknami
         # uczeń dostaje PDF od startu **swojego** okna, a reszta świata – po końcu ostatniego.
         # Bez flagi konkursu odpowiedź jest dokładnie ``has_opened()``, bez zapytania.
-        visible = statements_visible(
-            problem.stage, user=request.user, competition=competition_of(request)
+        # Druga połowa reguły (PUB-01): zaplanowana publikacja tego zadania. Przed nią 404 jak
+        # przed otwarciem etapu – odpowiedź nie mówi, czy zadanie i jego treść już istnieją.
+        visible = (
+            problem.is_published()
+            and statements_visible(problem.stage, user=request.user, competition=competition_of(request))
         ) or IsCoordinator().has_permission(request, self)
         if not visible or not problem.statement_pdf:
             raise Http404

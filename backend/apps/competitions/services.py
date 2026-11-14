@@ -107,6 +107,8 @@ PROBLEM_EDITABLE_FIELDS = (
     # Uwagi dla recenzentów są zwykłym polem tekstowym (wzorcówka, jako plik, idzie osobno –
     # parametrem ``model_solution`` – dokładnie tak, jak treść zadania).
     "reviewer_notes",
+    # Zaplanowana publikacja treści (PUB-01) – ``None`` znaczy „razem z otwarciem etapu”.
+    "publish_at",
 )
 
 #: Okno rejestracji uczestników – jedyne pola ``Edition``, które panel koordynatora zmienia.
@@ -1283,6 +1285,7 @@ def create_problem(
             "max_file_mb": problem.max_file_mb,
             "has_statement": bool(problem.statement_pdf),
             "has_model_solution": bool(problem.model_solution_pdf),
+            "publish_at": _audit_value(problem.publish_at),
         },
         request=request,
     )
@@ -1315,7 +1318,14 @@ def update_problem(
         raise ValueError(f"Pola spoza zakresu zadania: {', '.join(unknown)}.")
 
     locked = Problem.objects.select_for_update().select_related("stage").get(pk=problem.pk)
-    if statement is not None and locked.stage.has_opened(now) and not confirm_open_stage:
+    # „Uczestnicy już widzą treść” = etap otwarty **i** zadanie opublikowane (PUB-01). Przed
+    # zaplanowaną publikacją podmiana pliku nikogo nie dzieli na dwie grupy.
+    if (
+        statement is not None
+        and locked.stage.has_opened(now)
+        and locked.is_published(now)
+        and not confirm_open_stage
+    ):
         raise DomainError(
             "Etap jest już otwarty, a uczestnicy widzą treść tego zadania. Podmiana pliku wymaga "
             "potwierdzenia w formularzu.",
@@ -1381,6 +1391,36 @@ def update_problem(
 
 
 @transaction.atomic
+@transaction.atomic
+def schedule_stage_publication(stage: Stage, actor, publish_at, *, request=None) -> int:
+    """Zbiorcze planowanie publikacji wszystkich zadań etapu (PUB-01). Zwraca liczbę zmienionych.
+
+    ``publish_at=None`` przywraca regułę domyślną – „razem z otwarciem etapu”. Wpis audytowy jest
+    jeden na czynność (z listą numerów zadań), a nie jeden na zadanie: koordynator wykonał jedną
+    decyzję i tak ma ją zobaczyć w dzienniku.
+    """
+    problems = list(Problem.objects.select_for_update().filter(stage=stage).order_by("number"))
+    changed = [problem for problem in problems if problem.publish_at != publish_at]
+    if not changed:
+        return 0
+    Problem.objects.filter(pk__in=[problem.pk for problem in changed]).update(publish_at=publish_at)
+
+    from apps.core.models import audit
+
+    audit(
+        actor,
+        "stage.problems_publication_scheduled",
+        stage,
+        {
+            "publish_at": _audit_value(publish_at),
+            "problems": [problem.number for problem in changed],
+            "previous": {str(problem.number): _audit_value(problem.publish_at) for problem in changed},
+        },
+        request=request,
+    )
+    return len(changed)
+
+
 def delete_problem(problem: Problem, actor, *, request=None) -> None:
     """Usunięcie zadania. Możliwe wyłącznie, dopóki nikt nie oddał do niego rozwiązania.
 
