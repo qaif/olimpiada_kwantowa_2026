@@ -478,6 +478,7 @@ def test_stage_children_of_the_logistics_flag_hang_under_the_stage(competition, 
         "Przydziały i oceny",
         "Postęp",
         "Wyniki",
+        "Zasady (ZOZ)",
         "Przyjazdy i potrzeby",
         "Obecność",
     }
@@ -500,7 +501,11 @@ def test_pipeline_flag_puts_the_editor_above_the_stages_and_components_at_the_en
 
 
 def test_stage_children_do_not_grow_without_the_flag(competition, elim_stage):
-    """Konkurs #1 (domyślne flagi) ma pod etapem **te same cztery** pozycje, co przed etapem 2."""
+    """Konkurs #1 (domyślne flagi) ma pod etapem **te same cztery** pozycje, co przed etapem 2.
+
+    Piąta – „Zasady (ZOZ)” – doszła bez flagi na polecenie organizatora z 12.11.2026 (ZOZ-01):
+    Regulamin § 1 ust. 4 przewiduje osobny dokument ZOZ dla każdego etapu, a zarządza nim koordynator.
+    """
     stage_group = next(group for group in groups([elim_stage], competition) if group.label == "Etapy")
     stage_item = stage_group.items[0]
 
@@ -509,6 +514,7 @@ def test_stage_children_do_not_grow_without_the_flag(competition, elim_stage):
         "Przydziały i oceny",
         "Postęp",
         "Wyniki",
+        "Zasady (ZOZ)",
     ]
 
 

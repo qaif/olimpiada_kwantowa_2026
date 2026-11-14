@@ -32,7 +32,9 @@ from .chrome import safe_href, stale_label
 
 #: Klucze odpowiedzi ``stages``/``problems``/``results``/``editions/<id>/results``/``workshops``,
 #: których wartości trafiają do ``href``.
-URL_KEYS = frozenset({"url", "results_url", "statement_url", "page_path", "login_url", "materials_url"})
+URL_KEYS = frozenset(
+    {"url", "results_url", "rules_url", "statement_url", "page_path", "login_url", "materials_url"}
+)
 
 #: Komunikat przed otwarciem etapu, gdy redaktor nie wpisał własnego – ten sam napis, co
 #: w ``ProblemsPage.get_context`` aplikacji głównej.

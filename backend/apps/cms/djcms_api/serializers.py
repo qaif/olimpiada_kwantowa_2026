@@ -321,6 +321,8 @@ def stage_row_dto(row: dict, published: set[int] | frozenset[int]) -> dict:
         "badge_class": row["badge_class"],
         "is_onsite_event": row["is_onsite_event"],
         "date_range": row["date_range"],
+        # Zasady Organizacji Zawodów etapu (ZOZ-01) – adres aplikacji albo ``None``.
+        "rules_url": api_href(str(row.get("rules_url") or "")) or None,
     }
 
 

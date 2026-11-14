@@ -714,7 +714,7 @@ from wagtail.signals import page_published, page_unpublished, post_page_move  # 
 
 from apps.cms.models import Announcement, SiteSettings  # noqa: E402
 from apps.cms.tenancy import competition_for_page, competition_for_site  # noqa: E402
-from apps.competitions.models import Edition, EditionEvent, Stage  # noqa: E402
+from apps.competitions.models import Edition, EditionEvent, Stage, StageRules  # noqa: E402
 from apps.medals.models import MedalScheme  # noqa: E402
 from apps.promo.models import PromoMaterial  # noqa: E402
 from apps.results.models import ResultsPublication  # noqa: E402
@@ -778,6 +778,15 @@ def _on_edition_saved(sender, instance, **kwargs) -> None:
 @receiver(post_save, sender=Stage, dispatch_uid="web.page_cache.invalidate_on_stage_save")
 def _on_stage_saved(sender, instance, **kwargs) -> None:
     invalidate_competition_on_commit(instance.edition.competition_id)
+
+
+@receiver(post_save, sender=StageRules, dispatch_uid="web.page_cache.invalidate_on_stage_rules_save")
+@receiver(post_delete, sender=StageRules, dispatch_uid="web.page_cache.invalidate_on_stage_rules_delete")
+def _on_stage_rules_changed(sender, instance, **kwargs) -> None:
+    """ZOZ etapu (ZOZ-01): strona ``/dokumenty/zasady/<etap>/`` leży pod prefiksem ``/dokumenty/``,
+    a odnośnik do niej – w harmonogramie (``/harmonogram/``). Publikacja, wycofanie i nowa wersja
+    mają być widoczne od razu, a nie po czasie życia wpisu."""
+    invalidate_competition_on_commit(instance.stage.edition.competition_id)
 
 
 @receiver(post_save, sender=EditionEvent, dispatch_uid="web.page_cache.invalidate_on_edition_event_save")

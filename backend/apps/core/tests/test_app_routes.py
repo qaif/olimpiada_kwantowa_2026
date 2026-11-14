@@ -168,7 +168,8 @@ def test_manifest_sees_every_first_segment_of_the_urlconf(manifest):
 
     assert PREVIOUSLY_MISSING <= segments
     assert {"admin", "api", "cms", "coordinator", "documents", "login", "me", "internal"} <= segments
-    assert manifest.nested_paths == ("warsztaty/materialy",)
+    # ``dokumenty/zasady`` – Zasady Organizacji Zawodów etapów (ZOZ-01) pod stroną „Dokumenty”.
+    assert manifest.nested_paths == ("dokumenty/zasady", "warsztaty/materialy")
     # ``kalendarz.ics`` – publiczny kalendarz konkursu (CAL-01).
     assert manifest.root_regexes == (r"[^/]+\.html", r"kalendarz\.ics", r"status\.json")
     assert list(manifest.first_segments) == sorted(manifest.first_segments)

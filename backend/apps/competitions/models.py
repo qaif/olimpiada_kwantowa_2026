@@ -2439,6 +2439,10 @@ from .logistics import (  # noqa: E402,F401  (import dla rejestracji modeli)
     Venue,
 )
 
+# Zasady Organizacji Zawodów etapu (ZOZ-01) – wersje dokumentu razem z czynnościami
+# w ``apps.competitions.stage_rules``, z tego samego powodu, co logistyka wyżej.
+from .stage_rules import StageRules  # noqa: E402,F401  (import dla rejestracji modelu)
+
 # Pokoje wideo poza terminami rozmów (v0.39.0) – model razem ze swoimi czynnościami
 # w ``apps.competitions.video_rooms``, z tego samego powodu, co logistyka wyżej.
 from .video_rooms import VideoRoom  # noqa: E402,F401  (import dla rejestracji modelu)

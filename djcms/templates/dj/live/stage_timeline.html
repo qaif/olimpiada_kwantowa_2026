@@ -40,6 +40,9 @@
           {% endif %}
           <div><dt>Wyniki do</dt><dd>{{ row.stage.review_deadline_at_local_datetime }}</dd></div>
         </dl>
+        {% if row.rules_url %}
+          <p class="timeline__rules"><a href="{{ row.rules_url }}">Zasady Organizacji Zawodów (ZOZ)</a></p>
+        {% endif %}
       </li>
     {% endfor %}
   </ol>

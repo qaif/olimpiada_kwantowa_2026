@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% load i18n static %}
+{% block title %}{{ rules.title }} – {{ stage.display_name }} – {{ settings.cms.SiteSettings.site_name }}{% endblock %}
+{% block description %}{% blocktranslate with title=rules.title stage=stage.display_name version=rules.version %}{{ title }} – {{ stage }} (wersja {{ version }}) – dokument Olimpiady do przeczytania online.{% endblocktranslate %}{% endblock %}
+{% block content %}
+{% comment %}
+  Strona ZOZ etapu (ZOZ-01). Układ jest układem dokumentu z sekcji „Dokumenty”
+  (``cms/document_page.html``): metryka pod tytułem, „Pobierz PDF” i „Drukuj” nad treścią, spis
+  rozdziałów z kotwic ``<h2 id>``. Treść (``body``) jest oczyszczonym HTML-em organizatora
+  (``apps.competitions.stage_rules.sanitize_html``), oznaczonym jako bezpieczny w widoku – i tylko on.
+{% endcomment %}
+<div class="doc-layout">
+
+  <div class="doc-head">
+    <div class="page-head">
+      <span class="eyebrow">{% translate "Dokument" %} · {{ stage.display_name }}</span>
+      <h1>{{ rules.title }}</h1>
+      <p class="article__meta doc-meta">
+        <span class="doc-meta__item">{% blocktranslate with version=rules.version %}Wersja {{ version }}{% endblocktranslate %}</span>
+        <time class="doc-meta__item" datetime="{{ rules.document_date|date:'Y-m-d' }}">{{ rules.document_date }}</time>
+        {% if preview %}
+          <span class="tag">{{ rules.get_status_display }}</span>
+        {% elif is_current %}
+          <span class="tag">{% translate "wersja obowiązująca" %}</span>
+        {% else %}
+          <span class="tag">{% translate "wersja archiwalna" %}</span>
+        {% endif %}
+      </p>
+    </div>
+
+    {% if preview %}
+      <p class="msg msg-warning">Podgląd koordynatora – {{ rules.get_status_display }}.
+        {% if rules.status != "PUBLISHED" %}Uczestnicy nie widzą tej wersji.{% endif %}
+        <a href="{% url 'web:coordinator-stage-rules-edit' rules.pk %}">Wróć do edycji</a></p>
+    {% elif not is_current and current %}
+      <p class="msg msg-warning">{% translate "To jest wcześniejsza wersja dokumentu." %}
+        <a href="{% url 'web:stage-rules' stage.pk %}">{% blocktranslate with version=current.version %}Wersja obowiązująca: {{ version }}{% endblocktranslate %}</a></p>
+    {% endif %}
+
+    <p class="doc-print">
+      {% if rules.pdf %}
+        {% if preview %}
+          <a class="btn btn--small btn--primary" href="{% url 'web:coordinator-stage-rules-pdf' rules.pk %}">{% translate "Pobierz PDF" %}</a>
+        {% else %}
+          <a class="btn btn--small btn--primary" href="{% url 'web:stage-rules-pdf' stage.pk rules.version %}" download>{% translate "Pobierz PDF" %}</a>
+        {% endif %}
+      {% endif %}
+      <button type="button" class="btn btn--small btn--secondary" data-print hidden>{% translate "Drukuj" %}</button>
+    </p>
+  </div>
+
+  {% if chapters %}
+    <nav class="doc-toc" aria-labelledby="spis-rozdzialow">
+      <h2 class="doc-toc__title" id="spis-rozdzialow">{% translate "Spis rozdziałów" %}</h2>
+      <ol class="doc-toc__list">
+        {% for chapter in chapters %}
+          <li><a href="#{{ chapter.anchor }}">{{ chapter.text }}</a></li>
+        {% endfor %}
+      </ol>
+    </nav>
+  {% endif %}
+
+  <div class="doc-body prose">
+    {{ body }}
+
+    {% if other_rules or versions|length > 1 %}
+      <section class="doc-related" aria-labelledby="zoz-inne">
+        <h2 id="zoz-inne">{% translate "Zasady pozostałych etapów i wcześniejsze wersje" %}</h2>
+        <ul>
+          {% for item in other_rules %}
+            <li><a href="{% url 'web:stage-rules' item.stage.pk %}">{{ item.rules.title }} – {{ item.stage.display_name }}</a>
+              ({% blocktranslate with version=item.rules.version %}wersja {{ version }}{% endblocktranslate %})</li>
+          {% endfor %}
+          {% for version in versions %}
+            {% if version.pk != rules.pk %}
+              <li><a href="{% url 'web:stage-rules-version' stage.pk version.version %}">{% blocktranslate with version=version.version %}Wersja {{ version }}{% endblocktranslate %}</a>
+                ({{ version.document_date }}){% if forloop.first %} – {% translate "obowiązująca" %}{% endif %}</li>
+            {% endif %}
+          {% endfor %}
+        </ul>
+      </section>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}
+{% block scripts %}
+  <script defer nonce="{{ request.csp_nonce }}" src="{% static 'js/print.js' %}"></script>
+{% endblock %}

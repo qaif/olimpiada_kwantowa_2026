@@ -1,0 +1,39 @@
+{% extends "web/coordinator/base.html" %}
+{% load web_extras %}
+{% block title %}ZOZ {{ stage.display_name }}, wersja {{ rules.version }} – panel koordynatora{% endblock %}
+{% block panel_title %}Zasady Organizacji Zawodów: {{ stage.display_name }}, wersja {{ rules.version }}{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Status: <strong>{{ rules.get_status_display }}</strong>{% if rules.published_at %},
+    opublikowano {{ rules.published_at|local_datetime }}{% endif %}.
+    <a href="{% url 'web:coordinator-stage-rules' stage.pk %}">Wszystkie wersje</a> ·
+    <a href="{% url 'web:coordinator-stage-rules-preview' rules.pk %}">Podgląd strony</a>
+    {% if public_url %} · <a href="{{ public_url }}">Strona publiczna</a>{% endif %}</p>
+{% endblock %}
+{% block panel_content %}
+
+{% if form %}
+  <section class="section">
+    <div class="card">
+      <form method="post" enctype="multipart/form-data" class="form form--wide" novalidate>
+        {% csrf_token %}
+        {{ form.as_p }}
+        <div class="actions">
+          <button type="submit" class="btn btn--primary">Zapisz projekt</button>
+        </div>
+      </form>
+    </div>
+  </section>
+  <section class="section">
+    <div class="actions">
+      <form method="post" action="{% url 'web:coordinator-stage-rules-publish' rules.pk %}">
+        {% csrf_token %}
+        <button type="submit" class="btn btn--accent">Opublikuj tę wersję</button>
+      </form>
+    </div>
+  </section>
+{% else %}
+  <p class="notice">Tej wersji (status: {{ rules.get_status_display }}) nie zmienia się – dokument prawny zmienia się
+    nową wersją. <a href="{% url 'web:coordinator-stage-rules' stage.pk %}?from={{ rules.pk }}#nowa-wersja">Utwórz nową
+    wersję na podstawie tej</a>.</p>
+{% endif %}
+{% endblock %}

@@ -54,4 +54,25 @@
   {% endfor %}
 </ul>
 
+{% if stage_rules %}
+  {# ZOZ-01: Zasady Organizacji Zawodów – osobny dokument dla każdego etapu (Regulamin § 1 ust. 4). #}
+  <h2>{% translate "Zasady Organizacji Zawodów etapów" %}</h2>
+  <ul class="cards cards--wide doc-index">
+    {% for item in stage_rules %}
+      <li>
+        <article class="card doc-card">
+          <h3 class="doc-card__title"><a href="{% url 'web:stage-rules' item.stage.pk %}">{{ item.rules.title }} – {{ item.stage.display_name }}</a></h3>
+          <p class="article__meta doc-card__meta">
+            <span class="doc-meta__item">{% blocktranslate with version=item.rules.version %}Wersja {{ version }}{% endblocktranslate %}</span>
+            <time class="doc-meta__item" datetime="{{ item.rules.document_date|date:'Y-m-d' }}">{{ item.rules.document_date }}</time>
+          </p>
+          <div class="card__foot doc-card__actions">
+            <a class="btn btn--small btn--primary" href="{% url 'web:stage-rules' item.stage.pk %}">{% translate "Czytaj" %}</a>
+          </div>
+        </article>
+      </li>
+    {% endfor %}
+  </ul>
+{% endif %}
+
 {% endblock %}

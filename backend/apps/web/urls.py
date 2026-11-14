@@ -49,6 +49,7 @@ from .urls_pipeline import urlpatterns as pipeline_urlpatterns
 from .urls_proctoring import urlpatterns as proctoring_urlpatterns
 from .urls_regions import urlpatterns as region_urlpatterns
 from .urls_scoring import urlpatterns as scoring_urlpatterns
+from .urls_stage_rules import urlpatterns as stage_rules_urlpatterns  # ZOZ-01
 from .urls_student_status import urlpatterns as student_status_urlpatterns
 from .urls_training import urlpatterns as training_urlpatterns  # REG-UX-01
 from .urls_video import urlpatterns as video_urlpatterns
@@ -1328,4 +1329,6 @@ urlpatterns = [
     # --- panel uczestnika: powiadomienia, notatniki i edytor LaTeX z menu (UX-PANEL-01) ----------
     *notification_urlpatterns,
     *participant_panel_urlpatterns,
+    # --- Zasady Organizacji Zawodów etapu: /dokumenty/zasady/<etap>/ i panel koordynatora (ZOZ-01) ---
+    *stage_rules_urlpatterns,
 ]
