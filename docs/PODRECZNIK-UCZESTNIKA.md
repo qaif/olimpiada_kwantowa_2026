@@ -125,6 +125,17 @@ Kliknięcie otwiera miejsce, którego powiadomienie dotyczy, i oznacza je jako p
 powiadomienie o niej. Powiadomienie nie zawiera treści wiadomości ani wpisu – tylko informację, że coś
 jest i gdzie. Starsze niż 90 dni usuwamy automatycznie. Listy e-mail działają dalej jak dotąd.
 
+**Zasady Organizacji Zawodów (ZOZ).** Każdy etap ma własny dokument z harmonogramem, formą zadań,
+dozwolonymi narzędziami i programem. Odnośnik **„Zasady Organizacji Zawodów (ZOZ) tego etapu”** stoi na
+karcie etapu w zakładce „Zadania” – a poza panelem przy etapie w **Harmonogramie** i w sekcji
+**Dokumenty** (`/dokumenty/zasady/<etap>/`). Strona pokazuje wersję obowiązującą, spis paragrafów
+i przycisk „Pobierz PDF”; wcześniejsze wersje są dostępne pod treścią.
+
+**Kiedy pojawiają się zadania.** Treści zadań są niedostępne przed otwarciem etapu. Organizator może
+też opublikować część zadań później – wtedy pod listą zadań zobaczysz **„Kolejne zadania zostaną
+opublikowane: <data i godzina>”**. Zadanie pojawi się samo o tej godzinie (czas serwera, czas polski);
+do tej chwili nie da się do niego wysłać rozwiązania.
+
 **Notatniki Qiskit** — `/me/notebooks/` i **Edytor LaTeX** — `/me/latex/`: lista zadań z etapów, do
 których jesteś zapisany i które już się zaczęły, z przyciskiem otwarcia (rozdziały 3a i 3b). To te same
 narzędzia, co przy karcie zadania.

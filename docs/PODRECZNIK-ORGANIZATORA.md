@@ -53,7 +53,7 @@ też działa). Fraza krótsza niż dwa znaki nie szuka niczego.
 | Sekcja menu | Pozycje |
 |---|---|
 | **Pulpit** | Co wymaga uwagi |
-| **Etapy** | jeden wpis na etap, a pod nim: *Zadania* (albo *Rozmowy*), *Przydziały i oceny*, *Postęp*, *Wyniki* |
+| **Etapy** | jeden wpis na etap, a pod nim: *Zadania* (albo *Rozmowy*), *Przydziały i oceny*, *Postęp*, *Wyniki*, *Zasady (ZOZ)* (poza treningiem, § 7.3b) |
 | **Ocenianie** | Moderacja, Zgłoszone problemy, Kalibracja recenzentów, Podobieństwo rozwiązań; *Ocena AI* (tylko przy włączonej fladze `ai_grading`, § 4.12) |
 | **Uczestnicy i konta** | Uczestnicy, Wszystkie konta, Opiekunowie szkolni, Aktywacje, *Status ucznia* (tylko z włączonymi zaświadczeniami, § 10a) |
 | **Komitet** | Członkowie, Zatwierdzenia, Zaproszenia, Województwa |
@@ -277,6 +277,30 @@ kryteria i szablony, reguły przydziału, wzorcówkę, wszystkie prace z ocenami
 **„Pobierz ZIP zadania”** i **statystyki** (rozkład ocen końcowych tego zadania).
 
 **Etap w formie rozmowy nie ma zadań** i nie przyjmuje plików — w menu zamiast „Zadania” stoi „Rozmowy”.
+
+### 2.4a Planowana publikacja zadań (PUB-01)
+
+Domyślnie treść każdego zadania staje się jawna **w chwili otwarcia etapu**. Zadaniu można nadać
+późniejszą chwilę publikacji:
+
+- **pojedynczo** – pole **„Publikacja treści (czas polski)”** w formularzu zadania; puste = z otwarciem
+  etapu,
+- **zbiorczo** – sekcja **„Publikacja wszystkich zadań”** pod listą zadań etapu: jedna chwila dla każdego
+  zadania; puste pole przywraca „z otwarciem etapu” wszystkim.
+
+Godzinę wpisujesz w czasie polskim; o publikacji rozstrzyga **zegar serwera** w chwili, w której
+uczestnik otwiera stronę – nic nie trzeba „uruchamiać”. Chwila wcześniejsza niż otwarcie etapu albo
+późniejsza niż termin oddania rozwiązań jest odrzucana z komunikatem przy polu.
+
+Kolumna **„Publikacja”** na liście zadań pokazuje stan każdego zadania: **opublikowane** albo
+**zaplanowane** z chwilą (dopisek „z otwarciem etapu”, gdy zadanie nie ma własnej chwili). Do chwili
+publikacji uczestnicy **nie widzą** ani tytułu, ani PDF-u, ani liczby zadań (panel, strona „Zadania”,
+API, archiwum, notatniki, edytor LaTeX), a upload rozwiązania do tego zadania jest zamknięty. Panel
+uczestnika podaje wyłącznie chwilę najbliższej publikacji. Ty widzisz treść zawsze (podgląd PDF).
+Zmiana zbiorcza trafia do dziennika zdarzeń jako `stage.problems_publication_scheduled`.
+
+Powiadomienie uczestników w chwili publikacji: zaplanuj na tę samą godzinę komunikat (§ 6.1,
+wysyłka z datą przyszłą) albo ogłoszenie (§ 6.2).
 
 ### 2.5 Reguły przydziału recenzentów
 
@@ -1883,6 +1907,31 @@ stron nie da się tam poprawiać; przy ponownym przejściu na django CMS wraca t
 Zmieniając adres (slug) strony w django CMS, pamiętaj, że aplikacja linkuje do regulaminu
 i dokumentów zgód (`/dokumenty/…`) oraz do `/warsztaty/` – takie strony zostaw pod dotychczasowym
 adresem; stary adres innej strony przekierowuje się na nowy sam.
+
+### 7.3b Zasady Organizacji Zawodów etapu — `/coordinator/stages/<id>/rules/` (ZOZ-01)
+
+Regulamin (§ 1 ust. 4) przewiduje osobny dokument **„Zasady Organizacji Zawodów” (ZOZ) dla każdego
+etapu**. Ekran otwiera pozycja **„Zasady (ZOZ)”** pod etapem w menu panelu.
+
+- **Nowa wersja**: numer (np. `1.0` – jest w adresie i nie zmienia się), data dokumentu, tytuł, treść
+  HTML (wklejona albo wgrana plikiem `.html`) i opcjonalnie PDF do pobrania. Zapis tworzy **projekt** –
+  uczestnicy go nie widzą. „Nowa wersja na tej podstawie” wypełnia formularz treścią istniejącej wersji.
+- **Treść**: nagłówki paragrafów jako `<h2 id="par-1">§ 1. …</h2>` (z nich powstaje spis rozdziałów
+  i adresy `#par-1`), ustępy jako lista `<ol>`. Skrypty, style, obrazy i atrybuty zdarzeń są usuwane
+  przy zapisie.
+- **Podgląd** pokazuje stronę w układzie publicznym; **Opublikuj** czyni wersję obowiązującą –
+  obowiązuje zawsze **ostatnio opublikowana**, wcześniejsze zostają dostępne w historii z ramką
+  „wersja archiwalna”.
+- **Opublikowanej wersji nie edytuje się** – zmiana dokumentu to nowa wersja. **Wycofaj** zdejmuje
+  wersję z serwisu w całości (np. publikacja pomyłkowa); obowiązuje wtedy poprzednia opublikowana.
+  Projekt można usunąć.
+- Każda czynność trafia do dziennika zdarzeń (`stage_rules.created`, `.updated`, `.published`,
+  `.withdrawn`, `.deleted`).
+
+Adres publiczny: `/dokumenty/zasady/<id etapu>/` (wersje: `…/wersja/<numer>/`, PDF: `…/wersja/<numer>/pdf/`).
+Odnośnik pojawia się sam przy etapie w **Harmonogramie**, na karcie etapu w panelu uczestnika i w spisie
+**Dokumenty**. Odnośniki w treści innych dokumentów (Regulamin, RODO) dodaje redakcja. Wersję z pliku
+może wgrać też operator komendą `import_stage_rules` (OPERACJE § 56).
 
 ### 7.4 Zgoda opiekuna — jak serwis ustala pełnoletność
 

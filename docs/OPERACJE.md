@@ -7753,3 +7753,49 @@ Wnioski i zalecenia:
 - Wąskim gardłem przy terminie jest moc obliczeniowa, nie pamięć: 6 vCPU to ok. 12 kompilacji/s.
   Przy zawodach z kilkuset uczestnikami piszącymi w LaTeX-u na raz warto na ten dzień większy serwer
   (i proporcjonalnie `WEBTEX_COMPILE_CONCURRENCY`).
+
+## 56. Zasady Organizacji Zawodów etapu i planowana publikacja zadań (ZOZ-01, PUB-01)
+
+Dokument „Zasady Organizacji Zawodów” (ZOZ) jest osobny dla każdego etapu (`docs/tasks/ZOZ-01.md`)
+i mieszka w bazie (`competitions.StageRules`), nie w repozytorium. Wersje dodaje koordynator
+w panelu (etap → „Zasady (ZOZ)”) albo operator komendą `import_stage_rules`. Strona publiczna:
+`/dokumenty/zasady/<id etapu>/`. Migracje: `competitions.0036_stage_rules`, `competitions.0037_problem_publish_at`
+(nowa tabela i kolumna z NULL-em – natychmiastowe, bez okna serwisowego).
+
+### 56.1. Import wersji z pliku
+
+Pliki (HTML w UTF-8 i opcjonalny PDF) muszą być widoczne w kontenerze `web`. Komenda jest
+idempotentna: drugie uruchomienie z tymi samymi plikami kończy się komunikatem „bez zmian”.
+
+```bash
+# z komputera operatora
+scp -i ~/.ssh/olimpiada_deploy zoz-etap-1-v1.0.html ZOZ_Etap_I_Olimpiada_Kwantowa_v1.0_final.pdf \
+    root@<serwer>:/opt/olimpiada-import/
+# na serwerze, w /opt/olimpiada
+docker compose cp /opt/olimpiada-import/zoz-etap-1-v1.0.html web:/tmp/zoz-etap-1-v1.0.html
+docker compose cp /opt/olimpiada-import/ZOZ_Etap_I_Olimpiada_Kwantowa_v1.0_final.pdf \
+    web:/tmp/ZOZ_Etap_I_Olimpiada_Kwantowa_v1.0.pdf
+docker compose exec -T web python manage.py import_stage_rules --competition kwantowa \
+    --stage "Etap I" --version 1.0 --date 2026-11-12 \
+    --html /tmp/zoz-etap-1-v1.0.html --pdf /tmp/ZOZ_Etap_I_Olimpiada_Kwantowa_v1.0.pdf --publish
+```
+
+- `--stage` przyjmuje identyfikator etapu, nazwę („Etap I”) albo rodzaj (`ELIM`) w bieżącej edycji
+  konkursu (inna edycja: `--edition "<year_label>"`). Niejednoznaczne wskazanie – błąd z listą etapów.
+- Nazwa pliku PDF w kontenerze jest nazwą pliku, który pobierze czytelnik – stąd zmiana nazwy przy
+  `docker compose cp`.
+- Bez `--publish` wersja zostaje projektem: podgląd w panelu (`/coordinator/stage-rules/<pk>/preview/`),
+  publikacja przyciskiem.
+- Inna treść dla **opublikowanej** wersji to błąd – nowa wersja dostaje nowy numer (`--version 1.1`).
+  Poprawka transkrypcji bez zmiany numeru: `--replace-published` (ślad w audycie `stage_rules.updated`).
+- Kontrola: `curl -sI https://<domena>/dokumenty/zasady/<id etapu>/` → 200; harmonogram i spis
+  `/dokumenty/` pokazują odnośnik (cache stron jest unieważniany przy zapisie wersji).
+
+### 56.2. Planowana publikacja zadań
+
+`Problem.publish_at` (PUB-01) – puste znaczy „z otwarciem etapu”. Ustawia je koordynator (formularz
+zadania albo „Publikacja wszystkich zadań” na liście zadań etapu). Bramka liczy się zegarem serwera
+przy każdym żądaniu – nie ma zadania Celery ani beatu do pilnowania. Po zmianie czasu serwera albo
+strefy (`TIME_ZONE=Europe/Warsaw`) publikacja przesuwa się razem z nią – zegar serwera ma chodzić
+z NTP (`timedatectl`). Powiadomienie uczestników w chwili publikacji: komunikat z datą przyszłą
+(§ 53).
