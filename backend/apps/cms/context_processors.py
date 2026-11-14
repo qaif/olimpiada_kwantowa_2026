@@ -19,7 +19,9 @@ Jedna pozycja menu ma listę rozwijaną: sekcja dokumentów (``DocumentIndexPage
 **wyłącznie** ten typ, a nie „każdą stronę menu, która ma dzieci”: newsroom też ma dzieci i pod
 regułą ogólną wysypałby do nagłówka wszystkie aktualności, a archiwum – wszystkie edycje.
 Dzieci czytamy jednym zapytaniem dla całego menu, więc dołożenie kolejnego dokumentu nie dokłada
-zapytania do każdej strony serwisu.
+zapytania do każdej strony serwisu. Do tej listy dochodzą – zaraz za Regulaminem – „Zasady
+Organizacji Zawodów” etapów z opublikowaną wersją (ZOZ-02, ``stage_rules_entries``): to dokumenty
+etapów, a nie strony drzewa.
 
 Jedna pozycja nie pochodzi z drzewa Wagtaila: „Dla szkół/nauczycieli” (prośba organizatora z 22.09.2026,
 patrz ``_supervisor_menu_item``) stoi zawsze **ostatnia**, za drzewem albo za listą zapasową, i tylko
@@ -246,8 +248,68 @@ def _expandable_children(pages: list, request) -> tuple[dict[int, list[dict]], l
         if child.slug in PROMOTED_DOCUMENT_SLUGS:
             promoted.append(_menu_item(child.slug, child.title, url, request, key=f"p{child.pk}"))
         else:
-            found[parent.pk].append({"title": child.title, "url": url, "active": request.path == url})
+            found[parent.pk].append(
+                {"title": child.title, "url": url, "active": request.path == url, "slug": child.slug}
+            )
+    rules = _stage_rules_children(request)
+    if rules:
+        for kids in found.values():
+            _insert_after_rules_anchor(kids, rules)
     return found, promoted
+
+
+#: Dokument, za którym stają Zasady Organizacji Zawodów etapów: Regulamin (§ 1 ust. 4) odsyła do ZOZ.
+STAGE_RULES_ANCHOR_SLUG = "regulamin"
+
+
+def stage_rules_entries(competition) -> list[dict]:
+    """Pozycje „Zasady Organizacji Zawodów – <etap>” (ZOZ-02): ``{"title", "url"}`` w kolejności etapów.
+
+    ZOZ nie jest stroną Wagtaila, tylko dokumentem etapu (``apps.competitions.stage_rules``), więc
+    drzewo stron go nie zna. Pozycję dostaje każdy etap bieżącej edycji **tego** konkursu
+    z opublikowaną wersją; projekt i wersja wycofana – brak pozycji. Etapy przychodzą z pamięci
+    podręcznej per konkurs (na zimno jedno zapytanie, na ciepło żadnego), kasowanej przy każdym
+    zapisie wersji, etapu i edycji – w tej samej chwili, w której ``apps.web.page_cache`` unieważnia
+    zapisane strony tego konkursu. Wspólne dla menu Wagtaila i ramy djcms (``djcms_api`` – ``chrome``).
+    """
+    from django.urls import reverse
+
+    from apps.competitions.models import StageKind
+    from apps.competitions.stage_rules import menu_stages
+
+    entries = []
+    for stage in menu_stages(competition):
+        name = stage["name"] or str(StageKind(stage["kind"]).label)
+        entries.append(
+            {
+                "title": gettext("Zasady Organizacji Zawodów – %(stage)s") % {"stage": name},
+                "url": reverse("web:stage-rules", args=[stage["pk"]]),
+            }
+        )
+    return entries
+
+
+def _stage_rules_children(request) -> list[dict]:
+    """ZOZ etapów konkursu żądania jako pozycje listy „Dokumenty”.
+
+    Pozycja jest aktywna na każdej stronie dokumentu etapu – także na wersji archiwalnej
+    (``/dokumenty/zasady/<etap>/wersja/<w>/``), bo to wciąż ten sam dokument.
+    """
+    try:
+        entries = stage_rules_entries(getattr(request, "competition", None))
+    except Exception:  # noqa: BLE001 - awaria pamięci podręcznej/bazy nie może położyć nagłówka
+        logger.warning("Nie udało się odczytać ZOZ etapów – menu bez nich.", exc_info=True)
+        return []
+    return [{**entry, "active": request.path.startswith(entry["url"]), "slug": ""} for entry in entries]
+
+
+def _insert_after_rules_anchor(kids: list[dict], rules: list[dict]) -> None:
+    """Wstawia ``rules`` zaraz za Regulaminem; sekcja bez Regulaminu – na koniec listy."""
+    position = next(
+        (index + 1 for index, kid in enumerate(kids) if kid.get("slug") == STAGE_RULES_ANCHOR_SLUG),
+        len(kids),
+    )
+    kids[position:position] = rules
 
 
 def cms_menu(request) -> dict:

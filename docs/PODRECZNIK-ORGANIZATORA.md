@@ -1929,8 +1929,11 @@ etapu**. Ekran otwiera pozycja **„Zasady (ZOZ)”** pod etapem w menu panelu.
   `.withdrawn`, `.deleted`).
 
 Adres publiczny: `/dokumenty/zasady/<id etapu>/` (wersje: `…/wersja/<numer>/`, PDF: `…/wersja/<numer>/pdf/`).
-Odnośnik pojawia się sam przy etapie w **Harmonogramie**, na karcie etapu w panelu uczestnika i w spisie
-**Dokumenty**. Odnośniki w treści innych dokumentów (Regulamin, RODO) dodaje redakcja. Wersję z pliku
+Odnośnik pojawia się sam przy etapie w **Harmonogramie**, na karcie etapu w panelu uczestnika, w spisie
+**Dokumenty** i w rozwijanym menu **„Dokumenty”** nagłówka serwisu – jako „Zasady Organizacji Zawodów –
+<nazwa etapu>”, zaraz za Regulaminem, w kolejności etapów (także w serwisie na django CMS). Pozycja
+menu jest tylko dla etapu z **opublikowaną** wersją: projekt jej nie daje, wycofanie ostatniej wersji
+ją zdejmuje, a zmiana nazwy etapu zmienia jej napis od razu (ZOZ-02). Odnośniki w treści innych dokumentów (Regulamin, RODO) dodaje redakcja. Wersję z pliku
 może wgrać też operator komendą `import_stage_rules` (OPERACJE § 56).
 
 ### 7.4 Zgoda opiekuna — jak serwis ustala pełnoletność

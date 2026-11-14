@@ -193,6 +193,20 @@ class LiveChrome:
         return items
 
     @property
+    def stage_rules(self) -> list[dict]:
+        """„Zasady Organizacji Zawodów – <etap>” do listy „Dokumenty” (ZOZ-02) – pozycje z adresem.
+
+        Adres przeszedł już ``safe_href`` (``_clean``); pozycja z adresem odrzuconym znika, a nie
+        zostaje odnośnikiem donikąd. Brak klucza (starsza aplikacja, martwe API) = pusta lista.
+        """
+        items = self.data.get("stage_rules") or []
+        return [
+            {"title": item["title"], "url": item["url"]}
+            for item in items
+            if isinstance(item, dict) and item.get("url") and item.get("title")
+        ]
+
+    @property
     def main_home_url(self) -> str:
         return self.links.get("main_home") or main_url("/", self.request)
 

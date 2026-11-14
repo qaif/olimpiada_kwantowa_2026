@@ -125,3 +125,9 @@ msgstr "قواعد المراحل الأخرى والإصدارات السابق
 
 msgid "obowiązująca"
 msgstr "ساري"
+
+# ZOZ-02: pozycja menu „Dokumenty” (apps.cms.context_processors.stage_rules_entries).
+
+#, python-format
+msgid "Zasady Organizacji Zawodów – %(stage)s"
+msgstr "قواعد تنظيم المسابقة – %(stage)s"

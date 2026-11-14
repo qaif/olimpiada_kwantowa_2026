@@ -125,3 +125,9 @@ msgstr "Normas de las demás etapas y versiones anteriores"
 
 msgid "obowiązująca"
 msgstr "vigente"
+
+# ZOZ-02: pozycja menu „Dokumenty” (apps.cms.context_processors.stage_rules_entries).
+
+#, python-format
+msgid "Zasady Organizacji Zawodów – %(stage)s"
+msgstr "Normas de organización de la competición – %(stage)s"

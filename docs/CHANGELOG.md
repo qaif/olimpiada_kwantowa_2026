@@ -12,6 +12,19 @@ podsekcją `### <tytuł>` wydania `## v<x.y.z> – <data tagu> – <opis tagu>`.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – Zasady Organizacji Zawodów w menu „Dokumenty” (ZOZ-02)
+
+- Rozwijane menu **„Dokumenty”** w nagłówku dostaje pozycję „Zasady Organizacji Zawodów – <etap>” dla
+  każdego etapu bieżącej edycji z opublikowanym ZOZ – zaraz za Regulaminem, w kolejności etapów
+  (`apps.cms.context_processors.stage_rules_entries`). Projekt i wersja wycofana – brak pozycji; na
+  stronach `/dokumenty/zasady/…` lista „Dokumenty” i pozycja etapu są wyróżnione (`aria-current`).
+- Koszt: jedno zapytanie na zimno, potem pamięć podręczna per konkurs (`stage_rules:menu:<id>`)
+  kasowana przy zapisie/usunięciu wersji, etapu i edycji; zapisane strony (`page_cache`) unieważnia
+  już sygnał ZOZ-01. Izolacja konkursów – zapytanie po konkursie żądania.
+- djcms: pole `stage_rules` w API `chrome` (dopisane, wersja kontraktu bez zmian), pozycje wstawiane
+  w `dj/menu/nav.html` za Regulaminem (`DjMenuModifier` oznacza miejsce). Napis w 10 językach
+  (`apps/web/locale`).
+
 ## [Unreleased] – Zasady Organizacji Zawodów etapu (ZOZ-01) i planowana publikacja zadań (PUB-01)
 
 - **ZOZ dla każdego etapu** (Regulamin § 1 ust. 4, `docs/tasks/ZOZ-01.md`): model wersji

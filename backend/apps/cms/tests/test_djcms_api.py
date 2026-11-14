@@ -29,6 +29,7 @@ from apps.cms.checks import check_djcms_token
 from apps.cms.djcms_api.serializers import PublicBase, api_href, public_base_context, row_dto
 from apps.cms.models import ArchiveEditionPage, ContentPage, ContentPageAttachment
 from apps.cms.tests.factories import AnnouncementFactory
+from apps.competitions.models import StageKind
 from apps.competitions.tests.factories import (
     CurrentEditionFactory,
     EditionFactory,
@@ -414,6 +415,27 @@ def test_chrome_links_point_at_the_main_domain(competition):
     assert payload["registration"]["message"].startswith("Rejestracja rusza")
     assert payload["supervisor_registration"] == {"enabled": False, "url": None}
     assert payload["site"]["site_name"]
+
+
+def test_chrome_lists_published_stage_rules_of_its_own_competition(competition, other_competition):
+    """ZOZ-02: pozycje „Zasady Organizacji Zawodów – <etap>” listy „Dokumenty” w djcms."""
+    from apps.competitions.stage_rules import create_rules, publish_rules
+
+    def published(stage, version="1.0"):
+        rules = create_rules(
+            stage, None, version=version, document_date=date(2026, 11, 12), body_html="<p>x</p>"
+        )
+        return publish_rules(rules, None)
+
+    stage = StageFactory(edition=CurrentEditionFactory(competition=competition), name="Etap I")
+    draft_stage = StageFactory(edition=stage.edition, kind=StageKind.FINAL, name="Finał")
+    create_rules(draft_stage, None, version="0.1", document_date=date(2026, 11, 12), body_html="<p>x</p>")
+    published(StageFactory(edition=CurrentEditionFactory(competition=other_competition), name="Obcy etap"))
+    published(stage)
+
+    assert get_json("chrome")["stage_rules"] == [
+        {"title": "Zasady Organizacji Zawodów – Etap I", "url": f"{MAIN}/dokumenty/zasady/{stage.pk}/"}
+    ]
 
 
 def test_timeline_strip_urls_go_through_api_href(competition):

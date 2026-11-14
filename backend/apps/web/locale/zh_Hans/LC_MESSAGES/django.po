@@ -125,3 +125,9 @@ msgstr "其他阶段的规则及较早版本"
 
 msgid "obowiązująca"
 msgstr "现行"
+
+# ZOZ-02: pozycja menu „Dokumenty” (apps.cms.context_processors.stage_rules_entries).
+
+#, python-format
+msgid "Zasady Organizacji Zawodów – %(stage)s"
+msgstr "竞赛组织规则 – %(stage)s"
