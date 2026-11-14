@@ -12,6 +12,19 @@ podsekcją `### <tytuł>` wydania `## v<x.y.z> – <data tagu> – <opis tagu>`.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – Załączniki (pliki danych) do zadań (PUB-02)
+
+- Model `competitions.ProblemAttachment` (migracja `0038_problem_attachment`): plik w prywatnym
+  storage treści zadań, oczyszczona nazwa, opis, kolejność, rozmiar, SHA-256. Biała lista rozszerzeń
+  (dane, notatniki, kod, archiwa, PDF, PNG/JPG – bez HTML/SVG/plików wykonywalnych), limit 50 MB.
+- Pobieranie `/api/competitions/problems/<pk>/attachments/<id>/` – ta sama bramka, co PDF treści
+  (`problem_content_visible`, bramka nadzoru), zawsze `application/octet-stream` + `attachment` +
+  `nosniff`. Lista załączników przy treści: panel uczestnika, strona „Zadania” (Wagtail i djcms –
+  pole `attachments` w `ProblemDTO`), archiwum. Napis w 10 językach.
+- Panel koordynatora: sekcja „Załączniki” w edycji zadania (dodaj, opis/kolejność, usuń; audyt).
+  Komenda `add_problem_attachment` (idempotentna po nazwie i SHA-256, `--replace`). Budżet zapytań
+  `/me/` +1 (jeden `prefetch_related` na listę zadań).
+
 ## [Unreleased] – Zasady Organizacji Zawodów w menu „Dokumenty” (ZOZ-02)
 
 - Rozwijane menu **„Dokumenty”** w nagłówku dostaje pozycję „Zasady Organizacji Zawodów – <etap>” dla

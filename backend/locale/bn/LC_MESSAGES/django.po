@@ -9591,3 +9591,7 @@ msgstr "এই অ্যাকাউন্টটি আমন্ত্রণ থ
 msgid ""
 "Ta praca nie jest już Ci przydzielona – plik rozwiązania nie jest dostępny."
 msgstr "এই সমাধানটি আর আপনাকে বরাদ্দ করা নেই – সমাধানের ফাইলটি পাওয়া যাচ্ছে না।"
+
+#: templates/web/_problem_attachments.html:7
+msgid "Załączniki do zadania:"
+msgstr "সমস্যার সংযুক্তি:"

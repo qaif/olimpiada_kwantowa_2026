@@ -54,6 +54,7 @@
                 {% else %}
                   <span class="hint">{% translate "brak pliku" %}</span>
                 {% endif %}
+                {% with attachments=problem.attachments.all %}{% if attachments %}{% include "web/_problem_attachments.html" with problem=problem attachments=attachments %}{% endif %}{% endwith %}
               </td>
               <td>{{ problem.allowed_formats|join:", " }}</td>
             </tr>
@@ -101,6 +102,7 @@
                 {% else %}
                   <span class="hint">{% translate "brak pliku" %}</span>
                 {% endif %}
+                {% with attachments=problem.attachments.all %}{% if attachments %}{% include "web/_problem_attachments.html" with problem=problem attachments=attachments %}{% endif %}{% endwith %}
               </td>
               <td>{{ problem.allowed_formats|join:", " }}</td>
             </tr>

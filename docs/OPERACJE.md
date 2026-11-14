@@ -7799,3 +7799,24 @@ przy każdym żądaniu – nie ma zadania Celery ani beatu do pilnowania. Po zmi
 strefy (`TIME_ZONE=Europe/Warsaw`) publikacja przesuwa się razem z nią – zegar serwera ma chodzić
 z NTP (`timedatectl`). Powiadomienie uczestników w chwili publikacji: komunikat z datą przyszłą
 (§ 53).
+
+## 57. Załączniki zadań (PUB-02, `docs/tasks/PUB-02.md`)
+
+Pliki danych przy treści zadania (`competitions.ProblemAttachment`, migracja
+`competitions.0038_problem_attachment` – nowa tabela, bez okna serwisowego). Leżą w prywatnym
+buckecie `submissions` (storage `private_media`, obejmuje go kopia nocna) i wychodzą wyłącznie przez
+`/api/competitions/problems/<pk>/attachments/<id>/` z bramką treści zadania. Wgrywa koordynator
+w panelu (edycja zadania → „Załączniki”) albo operator komendą:
+
+```bash
+# na serwerze, w /opt/olimpiada (pliki najpierw do kontenera web)
+docker compose cp /opt/olimpiada-import/jony2.npy web:/tmp/jony2.npy   # tak samo jony3, jony4
+docker compose exec -T web python manage.py add_problem_attachment --competition kwantowa     --stage <id etapu> --number <nr zadania> /tmp/jony2.npy /tmp/jony3.npy /tmp/jony4.npy
+```
+
+- Nazwa pliku w kontenerze jest nazwą, którą pobierze uczestnik (po oczyszczeniu).
+- Idempotencja po (zadanie, nazwa, SHA-256): drugie uruchomienie – „bez zmian”. Ta sama nazwa
+  z inną treścią – błąd; podmiana: `--replace` (audyt `problem.attachment_replaced`).
+- `--stage` przyjmuje identyfikator etapu albo nazwę/rodzaj w bieżącej edycji; `--description`
+  ustawia opis. Identyfikator etapu: `/coordinator/stages/<id>/problems/` w panelu.
+- Kontrola przed publikacją: jako koordynator `curl` adresu załącznika daje 200, anonimowo 404.

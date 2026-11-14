@@ -28,6 +28,7 @@ HTML = {"HTTP_ACCEPT": "text/html"}
 
 ROUTE_ARGS = {
     "competitions:problem-statement": [1],
+    "competitions:problem-attachment": [1, 1],
     "web:problem-upload": [1, 1],
     "submissions:submission-create": [1, 1],
     "web:quiz-start": [1],

@@ -9760,3 +9760,7 @@ msgstr "Этот аккаунт создан по приглашению. Пре
 msgid ""
 "Ta praca nie jest już Ci przydzielona – plik rozwiązania nie jest dostępny."
 msgstr "Эта работа больше не назначена вам – файл решения недоступен."
+
+#: templates/web/_problem_attachments.html:7
+msgid "Załączniki do zadania:"
+msgstr "Приложения к задаче:"

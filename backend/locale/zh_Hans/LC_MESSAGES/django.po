@@ -9274,3 +9274,7 @@ msgstr "该账户由邀请创建。在以任何方式登录之前，请打开邀
 msgid ""
 "Ta praca nie jest już Ci przydzielona – plik rozwiązania nie jest dostępny."
 msgstr "此解答已不再分配给您，解答文件不可用。"
+
+#: templates/web/_problem_attachments.html:7
+msgid "Załączniki do zadania:"
+msgstr "题目附件："

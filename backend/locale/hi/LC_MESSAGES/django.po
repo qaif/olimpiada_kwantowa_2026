@@ -9557,3 +9557,7 @@ msgstr "यह खाता आमंत्रण से बनाया गय�
 msgid ""
 "Ta praca nie jest już Ci przydzielona – plik rozwiązania nie jest dostępny."
 msgstr "यह हल अब आपको असाइन नहीं है – हल की फ़ाइल उपलब्ध नहीं है।"
+
+#: templates/web/_problem_attachments.html:7
+msgid "Załączniki do zadania:"
+msgstr "प्रश्न के संलग्नक:"
