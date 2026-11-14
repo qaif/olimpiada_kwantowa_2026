@@ -9524,3 +9524,7 @@ msgstr "أُنشئ هذا الحساب من دعوة. قبل تسجيل الدخ
 msgid ""
 "Ta praca nie jest już Ci przydzielona – plik rozwiązania nie jest dostępny."
 msgstr "لم يعد هذا الحل مسندًا إليك – ملف الحل غير متاح."
+
+#: templates/web/_problem_attachments.html:7
+msgid "Załączniki do zadania:"
+msgstr "مرفقات المسألة:"

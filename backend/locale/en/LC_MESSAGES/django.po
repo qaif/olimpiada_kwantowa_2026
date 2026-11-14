@@ -9802,3 +9802,7 @@ msgstr "Ready for the problems?"
 
 msgid "Załóż konto uczestnika. Zadania, terminy i wyniki znajdziesz w jednym miejscu, a udział jest bezpłatny."
 msgstr "Create a participant account. Problems, deadlines and results in one place, and taking part is free."
+
+#: templates/web/_problem_attachments.html:7
+msgid "Załączniki do zadania:"
+msgstr "Problem attachments:"

@@ -9851,3 +9851,7 @@ msgstr "Esta conta foi criada a partir de um convite. Antes de entrar de qualque
 msgid ""
 "Ta praca nie jest już Ci przydzielona – plik rozwiązania nie jest dostępny."
 msgstr "Este trabalho não está mais atribuído a você – o arquivo da solução não está disponível."
+
+#: templates/web/_problem_attachments.html:7
+msgid "Załączniki do zadania:"
+msgstr "Anexos do problema:"

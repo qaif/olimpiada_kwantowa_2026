@@ -116,13 +116,13 @@ def problems_state(competition, now=None) -> ProblemsState:
         stage=stage,
         stage_has_opened=has_opened,
         problems=(
-            list(stage.problems.filter(published).order_by("number"))
+            list(stage.problems.filter(published).prefetch_related("attachments").order_by("number"))
             if stage is not None and has_opened
             else []
         ),
         training_stage=training,
         training_problems=(
-            list(training.problems.filter(published).order_by("number"))
+            list(training.problems.filter(published).prefetch_related("attachments").order_by("number"))
             if training is not None and training_has_opened
             else []
         ),

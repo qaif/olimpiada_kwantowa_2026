@@ -63,6 +63,7 @@ from .views import (
     coordinator,
     coordinator_accounts,
     coordinator_announcements,
+    coordinator_attachments,
     coordinator_certificates,
     coordinator_competition,
     coordinator_duplicates,
@@ -1336,5 +1337,21 @@ urlpatterns = [
         "coordinator/stages/<int:stage_id>/problems/publication/",
         coordinator_stages.StagePublicationView.as_view(),
         name="coordinator-stage-problems-publication",
+    ),
+    # --- załączniki zadań: pliki danych przy treści (PUB-02) -------------------------------------
+    path(
+        "coordinator/problems/<int:pk>/attachments/",
+        coordinator_attachments.ProblemAttachmentAddView.as_view(),
+        name="coordinator-problem-attachment-add",
+    ),
+    path(
+        "coordinator/problem-attachments/<int:pk>/",
+        coordinator_attachments.ProblemAttachmentUpdateView.as_view(),
+        name="coordinator-problem-attachment-update",
+    ),
+    path(
+        "coordinator/problem-attachments/<int:pk>/delete/",
+        coordinator_attachments.ProblemAttachmentDeleteView.as_view(),
+        name="coordinator-problem-attachment-delete",
     ),
 ]

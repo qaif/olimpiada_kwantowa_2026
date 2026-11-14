@@ -252,6 +252,7 @@ Co ustawia się przy zadaniu:
 | **Rubryka oceniania** | po jednym kryterium w wierszu: `punkty;tytuł;opis` (opis nieobowiązkowy) |
 | **Szablony komentarzy dla recenzentów** | po jednym w wierszu: `tytuł;treść` (średnik rozdziela **raz**, więc treść może mieć średniki) |
 | Skala i maksimum tego zadania | puste = dziedziczy po etapie (§ 2.3) |
+| **Załączniki** (sekcja pod formularzem) | pliki danych do pobrania przy treści (np. `jony2.npy`): dodaj, opis i kolejność, usuń. Jawne dokładnie wtedy, co treść PDF; uczestnik pobiera je przy zadaniu w panelu i na stronie „Zadania”. Typy: dane (`.npy`, `.npz`, `.csv`, `.txt`, `.json`, `.dat`, `.h5`), `.ipynb`, `.py`, `.zip`, `.pdf`, `.png`, `.jpg`; do 50 MB (z panelu także limit `MAX_UPLOAD_MB` – większe wgrywa operator komendą `add_problem_attachment`) |
 
 **Rubryka zmienia ekran recenzenta**: zamiast listy ocen ze skali dostaje po jednym polu punktów
 i komentarzu na kryterium, a sumę liczy serwer. **Suma musi należeć do skali** — system nie zaokrągla,

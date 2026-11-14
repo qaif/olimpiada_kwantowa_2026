@@ -52,6 +52,13 @@
                 {% else %}
                   <span class="hint">brak pliku</span>
                 {% endif %}
+                {% if problem.attachments %}
+                  <ul class="plain-list">
+                    {% for attachment in problem.attachments %}
+                      {% if attachment.url %}<li><a href="{{ attachment.url }}">{{ attachment.filename }}</a>{% if attachment.description %} <span class="hint">– {{ attachment.description }}</span>{% endif %}</li>{% endif %}
+                    {% endfor %}
+                  </ul>
+                {% endif %}
               </td>
               <td>{{ problem.allowed_formats|join:", " }}</td>
             </tr>
@@ -90,6 +97,13 @@
                   <a class="btn btn--secondary btn--small" href="{{ problem.statement_url }}">PDF</a>
                 {% else %}
                   <span class="hint">brak pliku</span>
+                {% endif %}
+                {% if problem.attachments %}
+                  <ul class="plain-list">
+                    {% for attachment in problem.attachments %}
+                      {% if attachment.url %}<li><a href="{{ attachment.url }}">{{ attachment.filename }}</a>{% if attachment.description %} <span class="hint">– {{ attachment.description }}</span>{% endif %}</li>{% endif %}
+                    {% endfor %}
+                  </ul>
                 {% endif %}
               </td>
               <td>{{ problem.allowed_formats|join:", " }}</td>

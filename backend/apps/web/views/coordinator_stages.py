@@ -25,6 +25,8 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.generic import View
 
+from apps.competitions.attachments import ALLOWED_EXTENSIONS as ATTACHMENT_EXTENSIONS
+from apps.competitions.attachments import MAX_ATTACHMENT_MB, attachments_for
 from apps.competitions.interviews import create_slots, delete_slot, slots_for_coordinator
 from apps.competitions.models import (
     DEFAULT_MAX_VALUE,
@@ -580,6 +582,11 @@ class ProblemEditView(CoordinatorRequiredMixin, View):
             "form": form,
             "now": timezone.now(),
             "stage_has_opened": problem.stage.has_opened(),
+            # Załączniki zadania (PUB-02) – sekcja pod formularzem, osobne akcje POST.
+            "attachments": attachments_for(problem),
+            "attachment_extensions": ", ".join(sorted(ATTACHMENT_EXTENSIONS)),
+            "attachment_accept": ",".join(sorted(ATTACHMENT_EXTENSIONS)),
+            "attachment_max_mb": MAX_ATTACHMENT_MB,
         }
         return TemplateResponse(request, self.template_name, context, status=status)
 

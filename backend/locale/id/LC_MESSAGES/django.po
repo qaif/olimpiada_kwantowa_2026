@@ -9846,3 +9846,7 @@ msgstr "Akun ini dibuat dari undangan. Sebelum masuk dengan cara apa pun, buka t
 msgid ""
 "Ta praca nie jest już Ci przydzielona – plik rozwiązania nie jest dostępny."
 msgstr "Jawaban ini tidak lagi ditugaskan kepada Anda – file jawaban tidak tersedia."
+
+#: templates/web/_problem_attachments.html:7
+msgid "Załączniki do zadania:"
+msgstr "Lampiran soal:"

@@ -340,6 +340,16 @@ def problem_dto(problem) -> dict:
             if problem.statement_pdf
             else None
         ),
+        # Załączniki zadania (PUB-02) – adres zawsze do widoku aplikacji z bramką treści.
+        "attachments": [
+            {
+                "filename": attachment.filename,
+                "size": attachment.size,
+                "description": attachment.description,
+                "url": api_href(reverse("competitions:problem-attachment", args=[problem.pk, attachment.pk])),
+            }
+            for attachment in problem.attachments.all()
+        ],
     }
 
 

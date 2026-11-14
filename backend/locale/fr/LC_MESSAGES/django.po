@@ -9991,3 +9991,7 @@ msgstr "Ce compte a été créé à partir d’une invitation. Avant de vous con
 msgid ""
 "Ta praca nie jest już Ci przydzielona – plik rozwiązania nie jest dostępny."
 msgstr "Cette copie ne vous est plus affectée – le fichier de la solution n’est pas disponible."
+
+#: templates/web/_problem_attachments.html:7
+msgid "Załączniki do zadania:"
+msgstr "Pièces jointes du problème :"

@@ -44,4 +44,72 @@
     </div>
   </form>
 </div>
+
+{% comment %}
+  Załączniki zadania (PUB-02): pliki danych do pobrania przy treści (np. ``jony2.npy``). Ta sama
+  bramka, co PDF treści – uczestnik widzi je dopiero razem z treścią. Każda czynność to osobny
+  POST (``apps.web.views.coordinator_attachments``), bez JavaScriptu.
+{% endcomment %}
+<section class="card" id="zalaczniki">
+  <h2 class="mt-0">Załączniki</h2>
+  <p class="hint">Pliki danych do zadania – uczestnik pobiera je przy treści zadania, od chwili jej
+    publikacji. Dozwolone typy: {{ attachment_extensions }}; do {{ attachment_max_mb }} MB na plik
+    (z panelu obowiązuje też limit wgrywania serwera – większe pliki wgrywa operator komendą
+    <code>add_problem_attachment</code>). Plik zawsze pobiera się jako dane, nigdy nie otwiera się
+    w przeglądarce.</p>
+  {% if attachments %}
+    <div class="scroll">
+      <table class="table">
+        <thead>
+          <tr>
+            <th scope="col">Plik</th>
+            <th scope="col">Rozmiar</th>
+            <th scope="col">SHA-256</th>
+            <th scope="col">Opis i kolejność</th>
+            <th scope="col"><span class="visually-hidden">Operacje</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for attachment in attachments %}
+            <tr>
+              <th scope="row"><a href="{% url 'competitions:problem-attachment' problem.pk attachment.pk %}">{{ attachment.filename }}</a></th>
+              <td class="num">{{ attachment.size|filesizeformat }}</td>
+              <td><code title="{{ attachment.sha256 }}">{{ attachment.sha256|slice:":12" }}…</code></td>
+              <td>
+                <form method="post" action="{% url 'web:coordinator-problem-attachment-update' attachment.pk %}" class="form">
+                  {% csrf_token %}
+                  <label for="att-desc-{{ attachment.pk }}">Opis</label>
+                  <input type="text" name="description" id="att-desc-{{ attachment.pk }}" maxlength="300" value="{{ attachment.description }}">
+                  <label for="att-pos-{{ attachment.pk }}">Kolejność</label>
+                  <input type="number" name="position" id="att-pos-{{ attachment.pk }}" min="0" max="32767" value="{{ attachment.position }}">
+                  <button type="submit" class="btn btn--secondary btn--small">Zapisz</button>
+                </form>
+              </td>
+              <td>
+                <form method="post" action="{% url 'web:coordinator-problem-attachment-delete' attachment.pk %}">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn--danger btn--small">Usuń</button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="empty">To zadanie nie ma załączników.</p>
+  {% endif %}
+  <h3>Dodaj załącznik</h3>
+  <form method="post" enctype="multipart/form-data" class="form"
+        action="{% url 'web:coordinator-problem-attachment-add' problem.pk %}">
+    {% csrf_token %}
+    <p><label for="att-file">Plik</label>
+      <input type="file" name="file" id="att-file" required accept="{{ attachment_accept }}"></p>
+    <p><label for="att-description">Opis (opcjonalnie)</label>
+      <input type="text" name="description" id="att-description" maxlength="300"></p>
+    <div class="actions">
+      <button type="submit" class="btn btn--primary">Dodaj załącznik</button>
+    </div>
+  </form>
+</section>
 {% endblock %}

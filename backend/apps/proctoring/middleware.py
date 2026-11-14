@@ -29,6 +29,8 @@ from django.utils.translation import gettext as _
 #: nazwa bez adresu w mapie nigdy nie trafi, a po scaleniu TR-01 bramka obejmie ją sama.
 GATED_VIEWS = {
     "competitions:problem-statement": "problem",
+    # Załączniki zadania (PUB-02, pliki danych) – część treści zadania, ta sama bramka.
+    "competitions:problem-attachment": "problem",
     "web:problem-upload": "stage",
     "submissions:submission-create": "stage",
     "web:quiz-start": "stage",

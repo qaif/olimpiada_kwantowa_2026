@@ -18,7 +18,7 @@ from apps.accounts.permissions import IsCoordinator, IsParticipant
 from apps.core.api import DomainError
 from apps.time_windows.access import statements_visible
 
-from .models import Problem, Stage
+from .models import Problem, ProblemAttachment, Stage
 from .scoping import competition_of, scope_to_competition
 from .serializers import CurrentEditionSerializer, StageEntrySerializer
 from .services import current_edition, current_stage, entries_for_user, register_for_stage
@@ -90,6 +90,20 @@ class MyEntriesView(GenericAPIView):
 STATEMENT_BLOCK_SIZE = 64 * 1024
 
 
+def problem_content_visible(request, problem: Problem, view) -> bool:
+    """Bramka **treści zadania** – jedna dla PDF-u treści i dla załączników (PUB-02).
+
+    Jawne, gdy zadanie jest opublikowane (PUB-01) **i** etap otwarty dla tej osoby (okna czasowe
+    TZ-01); poza tym wyłącznie dla koordynatora tego konkursu. Wołający odpowiada 404 (nie 403),
+    żeby nie zdradzać, czy treść już istnieje. Wspólna funkcja zamiast dwóch kopii warunku: plik
+    danych zadania nie może stać się jawny ani chwilę wcześniej niż jego treść.
+    """
+    return (
+        problem.is_published()
+        and statements_visible(problem.stage, user=request.user, competition=competition_of(request))
+    ) or IsCoordinator().has_permission(request, view)
+
+
 class ProblemStatementView(GenericAPIView):
     """Treść zadania (PDF) – serwowana przez aplikację, nie przez publiczny URL storage.
 
@@ -117,11 +131,7 @@ class ProblemStatementView(GenericAPIView):
         # Bez flagi konkursu odpowiedź jest dokładnie ``has_opened()``, bez zapytania.
         # Druga połowa reguły (PUB-01): zaplanowana publikacja tego zadania. Przed nią 404 jak
         # przed otwarciem etapu – odpowiedź nie mówi, czy zadanie i jego treść już istnieją.
-        visible = (
-            problem.is_published()
-            and statements_visible(problem.stage, user=request.user, competition=competition_of(request))
-        ) or IsCoordinator().has_permission(request, self)
-        if not visible or not problem.statement_pdf:
+        if not problem_content_visible(request, problem, self) or not problem.statement_pdf:
             raise Http404
         # Wersja językowa wybiera się sama: ``statement_file`` oddaje plik angielski, gdy jest
         # i gdy język interfejsu jest angielski, a w każdym innym przypadku polski. Bramka
@@ -138,4 +148,44 @@ class ProblemStatementView(GenericAPIView):
         # pobiera naraz wszystkie treści, a plik z S3 nie ma deskryptora dla ``sendfile`` – gunicorn
         # pisze go do gniazda kawałek po kawałku. 600 KB to 150 zapisów zamiast dziesięciu.
         response.block_size = STATEMENT_BLOCK_SIZE
+        return response
+
+
+class ProblemAttachmentView(GenericAPIView):
+    """Załącznik zadania (PUB-02) – plik danych do pobrania, np. ``jony2.npy``.
+
+    Bramka identyczna jak dla PDF-u treści (:func:`problem_content_visible`): przed publikacją
+    zadania i otwarciem etapu 404 dla wszystkich poza koordynatorem; zadanie albo załącznik
+    cudzego konkursu – 404; załącznik innego zadania pod tym adresem – 404. Adres stoi
+    w ``proctoring.middleware.GATED_VIEWS`` (``pk`` to zadanie), jak adres treści.
+
+    Odpowiedź zawsze do **pobrania**: ``application/octet-stream``, ``Content-Disposition:
+    attachment`` z oczyszczoną nazwą i ``X-Content-Type-Options: nosniff`` – przeglądarka nie
+    wyświetli pliku i nie zgadnie jego typu, więc załącznik nie jest drogą do treści aktywnej
+    w domenie serwisu. ``Cache-Control: private, no-store`` – jawność zależy od chwili i osoby.
+    """
+
+    permission_classes = [AllowAny]
+    throttle_classes = [AnonRateThrottle]
+
+    @extend_schema(responses={(200, "application/octet-stream"): bytes})
+    def get(self, request, pk: int, attachment_id: int):
+        competition = competition_of(request)
+        problem = get_object_or_404(
+            scope_to_competition(Problem.objects.select_related("stage"), competition), pk=pk
+        )
+        if not problem_content_visible(request, problem, self):
+            raise Http404
+        attachment = get_object_or_404(ProblemAttachment.objects.filter(problem=problem), pk=attachment_id)
+        if not attachment.file:
+            raise Http404
+        response = FileResponse(
+            attachment.file.open("rb"),
+            content_type="application/octet-stream",
+            as_attachment=True,
+            filename=attachment.filename,
+        )
+        response.block_size = STATEMENT_BLOCK_SIZE
+        response["X-Content-Type-Options"] = "nosniff"
+        response["Cache-Control"] = "private, no-store"
         return response

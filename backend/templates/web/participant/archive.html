@@ -46,6 +46,7 @@
                   {% else %}
                     <span class="hint">{% translate "brak pliku" %}</span>
                   {% endif %}
+                  {% with attachments=row.problem.attachments.all %}{% if attachments %}{% include "web/_problem_attachments.html" with problem=row.problem attachments=attachments %}{% endif %}{% endwith %}
                 </td>
                 <td>
                   {% if training_entry %}
@@ -89,6 +90,7 @@
               {% else %}
                 <span class="hint">{% translate "treść niedostępna" %}</span>
               {% endif %}
+              {% with attachments=problem_row.problem.attachments.all %}{% if attachments %}{% include "web/_problem_attachments.html" with problem=problem_row.problem attachments=attachments %}{% endif %}{% endwith %}
             </li>
           {% endfor %}
         </ul>

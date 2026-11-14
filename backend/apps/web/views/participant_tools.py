@@ -149,7 +149,7 @@ def archived_editions(competition=None) -> list[ArchiveEdition]:
     """
     editions = (
         scope_to_competition(Edition.objects.filter(is_current=False), competition)
-        .prefetch_related("stages__problems")
+        .prefetch_related("stages__problems__attachments")
         .order_by("-created_at", "-id")
     )
     rows: list[ArchiveEdition] = []

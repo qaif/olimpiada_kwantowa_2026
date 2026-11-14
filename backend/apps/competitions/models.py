@@ -1226,6 +1226,66 @@ class Problem(models.Model):
         return ScoringScale.objects.filter(stage_id=self.stage_id, free_values=True).exists()
 
 
+def attachment_upload_to(instance, filename: str) -> str:
+    """Nazwa obiektu w storage: losowa, z rozszerzeniem – nigdy nazwa od koordynatora.
+
+    Nazwę, którą widzi uczestnik, niesie ``ProblemAttachment.filename``; w buckecie nazwa z ręki
+    człowieka (spacje, polskie znaki, ``../``) byłaby tylko źródłem kłopotów.
+    """
+    import uuid
+    from pathlib import PurePosixPath
+
+    suffix = PurePosixPath(filename).suffix.lower()
+    return f"problems/attachments/{uuid.uuid4().hex}{suffix}"
+
+
+class ProblemAttachment(models.Model):
+    """Plik danych do zadania (PUB-02, ``docs/tasks/PUB-02.md``) – np. ``jony2.npy`` przy zadaniu D2.
+
+    Załącznik jest **częścią treści zadania**: ten sam prywatny storage, co PDF treści, i ta sama
+    bramka jawności (``competitions.api.problem_content_visible``). Wydaje go wyłącznie widok
+    ``competitions:problem-attachment`` – zawsze jako ``application/octet-stream`` do pobrania,
+    nigdy do wyświetlenia w przeglądarce. Biała lista rozszerzeń i limit rozmiaru stoją
+    w ``apps.competitions.attachments``.
+    """
+
+    problem = models.ForeignKey(Problem, on_delete=models.CASCADE, related_name="attachments")
+    file = models.FileField("plik", upload_to=attachment_upload_to, storage=private_media_storage)
+    # Nazwa, pod którą uczestnik pobiera plik – oczyszczona (``attachments.clean_filename``).
+    filename = models.CharField("nazwa pliku", max_length=150)
+    description = models.CharField("opis", max_length=300, blank=True)
+    position = models.PositiveSmallIntegerField("kolejność", default=0)
+    size = models.PositiveBigIntegerField("rozmiar (B)", default=0)
+    sha256 = models.CharField("SHA-256", max_length=64)
+    created_at = models.DateTimeField("utworzono", auto_now_add=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="dodał",
+    )
+
+    #: Zakres jak przy zadaniu – plik jest pobierany adresem z identyfikatorem w ścieżce.
+    objects = competition_scoped_manager("problem__stage__edition__competition")
+
+    class Meta:
+        verbose_name = "załącznik zadania"
+        verbose_name_plural = "załączniki zadań"
+        ordering = ("problem", "position", "id")
+        constraints = [
+            # Dwa pliki o tej samej nazwie przy jednym zadaniu – uczestnik nie odróżniłby ich po
+            # pobraniu. Ta sama nazwa z inną treścią to podmiana, a nie drugi załącznik.
+            models.UniqueConstraint(
+                fields=["problem", "filename"], name="competitions_problemattachment_unique_name"
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.filename} (zadanie {self.problem_id})"
+
+
 # =================================================================================================
 # Kategorie uczestników (``docs/UNIWERSALNY-ETAP-2.md`` § 1.2.4)
 # =================================================================================================

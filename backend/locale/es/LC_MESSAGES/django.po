@@ -9934,3 +9934,7 @@ msgstr "Esta cuenta se creó a partir de una invitación. Antes de iniciar sesi�
 msgid ""
 "Ta praca nie jest już Ci przydzielona – plik rozwiązania nie jest dostępny."
 msgstr "Este trabajo ya no está asignado a ti: el archivo de la solución no está disponible."
+
+#: templates/web/_problem_attachments.html:7
+msgid "Załączniki do zadania:"
+msgstr "Archivos adjuntos del problema:"

@@ -155,7 +155,10 @@ def _problem_rows(
     # „kolejne zadania: …”) bez drugiego zapytania na każdym wejściu do panelu.
     moment = now or timezone.now()
     problems = []
-    for problem in Problem.objects.filter(stage=entry.stage).order_by("number", "id"):
+    # Załączniki (PUB-02) jednym zapytaniem na całą listę – nie jednym na kartę.
+    for problem in (
+        Problem.objects.filter(stage=entry.stage).prefetch_related("attachments").order_by("number", "id")
+    ):
         if problem.is_published(moment):
             problems.append(problem)
         elif upcoming is not None:
