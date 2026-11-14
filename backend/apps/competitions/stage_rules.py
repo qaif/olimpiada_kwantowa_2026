@@ -345,6 +345,124 @@ def public_url(stage_id: int) -> str:
     return reverse("web:stage-rules", args=[stage_id])
 
 
+# --- menu „Dokumenty” (ZOZ-02) ---------------------------------------------------------------
+
+#: Wpis pamięci podręcznej „etapy z opublikowanym ZOZ” – per konkurs, unieważniany sygnałami niżej.
+MENU_CACHE_PREFIX = "stage_rules:menu"
+#: Godzina, jak przy plakatach (``apps.promo.availability``): unieważnianie jest jawne, TTL zostaje
+#: wyłącznie zabezpieczeniem dla zapisów z pominięciem sygnałów (``QuerySet.update``).
+MENU_CACHE_TTL_SECONDS = 60 * 60
+
+
+def menu_cache_key(competition_id) -> str:
+    return f"{MENU_CACHE_PREFIX}:{competition_id or 'none'}"
+
+
+def _menu_stages_from_db(competition_id: int) -> list[dict]:
+    """Jedno zapytanie: etapy bieżącej edycji **tego** konkursu, które mają opublikowany ZOZ.
+
+    Projekt i wersja wycofana nie liczą się (``Exists`` po statusie opublikowanym), trening nie ma
+    ZOZ (jak w spisie ``/dokumenty/`` i w panelu koordynatora). Kolejność = kolejność etapów
+    (``opens_at``, potem ``id``) – ta sama, co w spisie dokumentów i na osi czasu.
+    """
+    from django.db.models import Exists, OuterRef
+
+    from .models import Stage, StageKind
+
+    has_published = StageRules.objects.filter(stage_id=OuterRef("pk"), status=StageRulesStatus.PUBLISHED)
+    return list(
+        Stage.objects.filter(edition__competition_id=competition_id, edition__is_current=True)
+        .exclude(kind=StageKind.TRAINING)
+        .filter(Exists(has_published))
+        .order_by("opens_at", "id")
+        .values("pk", "name", "kind")
+    )
+
+
+def menu_stages(competition) -> list[dict]:
+    """Etapy do pozycji „Zasady Organizacji Zawodów – <etap>” w menu „Dokumenty” (ZOZ-02).
+
+    Menu stoi na **każdej** stronie serwisu, więc wynik leży w pamięci podręcznej per konkurs
+    (wzorzec ``apps.promo.availability``): na ciepło zero zapytań, na zimno jedno. W pamięci są
+    wyłącznie surowe pola (``pk``, ``name``, ``kind``) – napis pozycji składa menu w języku żądania.
+    Konkurs ``None`` (host bez konkursu) nie ma ZOZ.
+    """
+    from django.core.cache import cache
+
+    if competition is None or getattr(competition, "pk", None) is None:
+        return []
+    key = menu_cache_key(competition.pk)
+    cached = cache.get(key)
+    if cached is not None:
+        return cached
+    value = _menu_stages_from_db(competition.pk)
+    cache.set(key, value, MENU_CACHE_TTL_SECONDS)
+    return value
+
+
+def forget_menu(competition_id) -> None:
+    """Kasuje wpis menu konkursu **teraz i po zatwierdzeniu transakcji**.
+
+    Drugie skasowanie z tego samego powodu, co w ``apps.web.page_cache.invalidate_on_commit``: gość,
+    który trafi między sygnał a ``COMMIT``, przeczytałby jeszcze stary stan i odłożył go w pamięci
+    na godzinę.
+    """
+    from django.core.cache import cache
+
+    key = menu_cache_key(competition_id)
+    cache.delete(key)
+    transaction.on_commit(lambda: cache.delete(key))
+
+
+def _reset_menu_on_rules_change(sender, instance, **kwargs) -> None:
+    from django.core.exceptions import ObjectDoesNotExist
+
+    try:
+        forget_menu(instance.stage.edition.competition_id)
+    except ObjectDoesNotExist:  # pragma: no cover - kaskada skasowała już etap; jego sygnał zrobi to samo
+        pass
+
+
+def _reset_menu_on_stage_change(sender, instance, **kwargs) -> None:
+    from django.core.exceptions import ObjectDoesNotExist
+
+    # Nazwa, rodzaj i kolejność etapu stoją w pozycji menu; skasowanie etapu zabiera jego ZOZ.
+    try:
+        forget_menu(instance.edition.competition_id)
+    except ObjectDoesNotExist:  # pragma: no cover - kaskada skasowała już edycję; jej sygnał zrobi to samo
+        pass
+
+
+def _reset_menu_on_edition_change(sender, instance, **kwargs) -> None:
+    # Zmiana edycji bieżącej (``is_current``) zmienia zestaw etapów w menu.
+    forget_menu(instance.competition_id)
+
+
+def _connect_menu_signals() -> None:
+    """Sygnały kasujące wpis menu. ``sender`` jako napis – model ``Stage``/``Edition`` jest w module,
+    który importuje ten moduł, więc odniesienie wprost byłoby importem cyklicznym."""
+    from django.db.models.signals import post_delete, post_save
+
+    post_save.connect(_reset_menu_on_rules_change, sender=StageRules, dispatch_uid="stage_rules.menu.save")
+    post_delete.connect(
+        _reset_menu_on_rules_change, sender=StageRules, dispatch_uid="stage_rules.menu.delete"
+    )
+    for signal, uid in ((post_save, "save"), (post_delete, "delete")):
+        signal.connect(
+            _reset_menu_on_stage_change,
+            sender="competitions.Stage",
+            dispatch_uid=f"stage_rules.menu.stage_{uid}",
+        )
+        signal.connect(
+            _reset_menu_on_edition_change,
+            sender="competitions.Edition",
+            dispatch_uid=f"stage_rules.menu.edition_{uid}",
+        )
+
+
+_connect_menu_signals()
+
+
 # --- czynności koordynatora -------------------------------------------------------------------
 
 

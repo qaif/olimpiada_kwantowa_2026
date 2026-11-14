@@ -249,6 +249,7 @@ def _chrome(request, competition):
     """
     from apps.accounts.supervisors import registration_enabled_for_competition
     from apps.cms.announcements import cached_announcements
+    from apps.cms.context_processors import stage_rules_entries
     from apps.cms.models import SiteSettings
     from apps.cms.sponsor_slider import cached_payload
     from apps.competitions.services import current_edition
@@ -276,6 +277,12 @@ def _chrome(request, competition):
             "posters": s.api_href(reverse("web:posters")) if has_public_materials(competition) else None,
             "main_home": s.main_url("/"),
         },
+        # Zasady Organizacji Zawodów etapów (ZOZ-02) – pozycje listy „Dokumenty” zaraz za Regulaminem
+        # (``dj/menu/nav.html``). Strony ZOZ są stronami aplikacji, więc adresy są bezwzględne.
+        "stage_rules": [
+            {"title": entry["title"], "url": s.api_href(entry["url"])}
+            for entry in stage_rules_entries(competition)
+        ],
         "announcements": [s.announcement_dto(item) for item in cached_announcements(competition)],
         "sponsor_slider": {
             "seconds": slider.get("seconds", 0),

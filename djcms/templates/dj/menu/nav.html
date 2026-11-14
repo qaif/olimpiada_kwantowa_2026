@@ -6,6 +6,8 @@
   już ułożone przez ``apps.pages.cms_menus.DjMenuModifier`` (domek, wyniesione, reszta drzewa)
   i z flagami ``attr.dj_*`` z ``MenuExtension``. Dzieci rysujemy wyłącznie przy „liście rozwijanej”
   (``dj_expand``) – w Wagtailu tylko spis dokumentów, a nie np. aktualności z dziesiątkami podstron.
+  Za pozycją ``dj_rules_anchor`` (Regulamin) stają „Zasady Organizacji Zawodów” etapów z ``chrome``
+  (ZOZ-02) – strony aplikacji głównej, więc nigdy nie są tu stroną bieżącą.
 {% endcomment %}
 {% for child in children %}
   {% if child.attr.dj_expand and child.children %}
@@ -15,6 +17,9 @@
         {% for kid in child.children %}
           <li><a class="nav-menu__link" href="{{ kid.attr.redirect_url|default:kid.get_absolute_url }}"
                  {% if kid.selected %}aria-current="page"{% endif %}>{{ kid.get_menu_title }}</a></li>
+          {% if kid.attr.dj_rules_anchor %}{% for rules in dj_chrome.stage_rules %}
+            <li><a class="nav-menu__link" href="{{ rules.url }}">{{ rules.title }}</a></li>
+          {% endfor %}{% endif %}
         {% endfor %}
       </ul>
     </details>

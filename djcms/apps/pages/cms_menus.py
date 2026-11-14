@@ -65,6 +65,30 @@ def _annotate(request, nodes) -> None:
             node.attr[f"dj_{flag}"] = bool(node_flags.get(flag, False))
 
 
+#: Dokument listy rozwijanej, za którym stają „Zasady Organizacji Zawodów” etapów (ZOZ-02):
+#: Regulamin (§ 1 ust. 4) odsyła do ZOZ – ten sam slug, co ``STAGE_RULES_ANCHOR_SLUG`` w backendzie.
+RULES_ANCHOR_SLUG = "regulamin"
+
+
+def _node_slug(node) -> str:
+    return (node.get_absolute_url() or "").rstrip("/").rsplit("/", 1)[-1]
+
+
+def _mark_rules_anchor(kids: list) -> None:
+    """``attr["dj_rules_anchor"]`` na Regulaminie (a bez niego – na ostatniej pozycji listy).
+
+    Pozycje ZOZ przychodzą z ``chrome.stage_rules`` (to dokumenty etapów w aplikacji głównej, nie
+    strony drzewa django CMS), więc modyfikator ich nie zna – zaznacza tylko miejsce, a szablon
+    ``dj/menu/nav.html`` wstawia je zaraz za zaznaczoną pozycją.
+    """
+    for kid in kids:
+        kid.attr["dj_rules_anchor"] = False
+    if not kids:
+        return
+    anchor = next((kid for kid in kids if _node_slug(kid) == RULES_ANCHOR_SLUG), kids[-1])
+    anchor.attr["dj_rules_anchor"] = True
+
+
 def _arrange(roots: list) -> list:
     home, promoted, rest = [], [], []
     for node in roots:
@@ -80,6 +104,7 @@ def _arrange(roots: list) -> list:
                 else:
                     kept.append(child)
             node.children = kept
+            _mark_rules_anchor(kept)
         rest.append(node)
     arranged = home + promoted + rest
     for node in arranged:

@@ -125,3 +125,9 @@ msgstr "Aturan tahap lain dan versi sebelumnya"
 
 msgid "obowiązująca"
 msgstr "berlaku"
+
+# ZOZ-02: pozycja menu „Dokumenty” (apps.cms.context_processors.stage_rules_entries).
+
+#, python-format
+msgid "Zasady Organizacji Zawodów – %(stage)s"
+msgstr "Aturan Penyelenggaraan Kompetisi – %(stage)s"

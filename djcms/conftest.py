@@ -362,6 +362,8 @@ def _chrome_payload(**overrides) -> dict:
             "posters": "https://olimpiada.example/plakaty/",
             "main_home": "https://olimpiada.example/",
         },
+        # Zasady Organizacji Zawodów etapów (ZOZ-02) – pozycje listy „Dokumenty” za Regulaminem.
+        "stage_rules": [],
         "announcements": [
             {
                 "id": 4,

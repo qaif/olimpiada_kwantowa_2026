@@ -167,6 +167,60 @@ def test_supervisor_menu_absent_when_nothing_to_offer(client, tree, main_api, ch
     assert "Dla szkół/nauczycieli" not in client.get("/wyniki/").content.decode()
 
 
+# --- „Zasady Organizacji Zawodów” etapów z chrome (ZOZ-02) ---------------------------------------------
+
+STAGE_RULES = [
+    {"title": "Zasady Organizacji Zawodów – Etap I", "url": "https://olimpiada.example/dokumenty/zasady/1/"},
+    {"title": "Zasady Organizacji Zawodów – Etap II", "url": "https://olimpiada.example/dokumenty/zasady/2/"},
+]
+
+
+def _documents_links(nav: str) -> list[tuple[str, str]]:
+    details = re.search(r'<details class="nav-menu">.*?</details>', nav, re.S).group(0)
+    return re.findall(r'<a class="nav-menu__link" href="([^"]+)"\s*>([^<]+)</a>', details)
+
+
+@pytest.mark.django_db
+def test_stage_rules_stand_right_after_the_regulations(client, tree, make_page, main_api, chrome_payload):
+    make_page("Polityka RODO", "rodo", parent=tree["dokumenty"])
+    main_api.set("chrome", chrome_payload(stage_rules=STAGE_RULES))
+
+    links = _documents_links(_nav(client.get("/wyniki/").content.decode()))
+
+    assert links == [
+        ("/dokumenty/regulamin/", "Regulamin"),
+        ("https://olimpiada.example/dokumenty/zasady/1/", "Zasady Organizacji Zawodów – Etap I"),
+        ("https://olimpiada.example/dokumenty/zasady/2/", "Zasady Organizacji Zawodów – Etap II"),
+        ("/dokumenty/rodo/", "Polityka RODO"),
+    ]
+
+
+@pytest.mark.django_db
+def test_stage_rules_absent_without_published_rules(client, tree, main_api, chrome_payload):
+    main_api.set("chrome", chrome_payload())
+    assert "Zasady Organizacji Zawodów" not in _nav(client.get("/wyniki/").content.decode())
+
+
+@pytest.mark.django_db
+def test_stage_rules_with_an_unsafe_url_are_dropped(client, tree, main_api, chrome_payload):
+    unsafe = [{"title": "Zasady Organizacji Zawodów – X", "url": "javascript:alert(1)"}]
+    main_api.set("chrome", chrome_payload(stage_rules=unsafe))
+    assert "Zasady Organizacji Zawodów" not in _nav(client.get("/wyniki/").content.decode())
+
+
+@pytest.mark.django_db
+def test_stage_rules_go_last_when_the_section_has_no_regulations(client, make_page, main_api, chrome_payload):
+    make_page("Strona główna", "strona-glowna", home=True)
+    dokumenty = make_page("Dokumenty", "dokumenty")
+    make_page("Polityka RODO", "rodo", parent=dokumenty)
+    MenuExtension.objects.create(extended_object=dokumenty, expand=True)
+    main_api.set("chrome", chrome_payload(stage_rules=STAGE_RULES[:1]))
+
+    links = _documents_links(_nav(client.get("/").content.decode()))
+
+    assert [title for _url, title in links] == ["Polityka RODO", "Zasady Organizacji Zawodów – Etap I"]
+
+
 # --- modyfikator bez żądania HTTP --------------------------------------------------------------------
 
 
