@@ -259,7 +259,8 @@ def participant_task(problem, participant, now=None) -> NotebookTask:
         raise not_found
     if not StageEntry.objects.filter(participant=participant, stage=problem.stage).exists():
         raise not_found
-    if not problem.stage.has_opened(now):
+    # Bramka etapu i zaplanowana publikacja zadania (PUB-01) – przed nią notatnika „nie ma”.
+    if not problem.stage.has_opened(now) or not problem.is_published(now):
         raise not_found
     return task
 

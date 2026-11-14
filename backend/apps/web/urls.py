@@ -1331,4 +1331,10 @@ urlpatterns = [
     *participant_panel_urlpatterns,
     # --- Zasady Organizacji Zawodów etapu: /dokumenty/zasady/<etap>/ i panel koordynatora (ZOZ-01) ---
     *stage_rules_urlpatterns,
+    # --- zbiorcze planowanie publikacji zadań etapu (PUB-01) -------------------------------------
+    path(
+        "coordinator/stages/<int:stage_id>/problems/publication/",
+        coordinator_stages.StagePublicationView.as_view(),
+        name="coordinator-stage-problems-publication",
+    ),
 ]

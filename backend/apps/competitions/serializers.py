@@ -72,7 +72,7 @@ class PublicProblemSerializer(serializers.ModelSerializer):
 
     def get_statement_pdf(self, obj: Problem) -> str | None:
         stage = self.context.get("stage") or obj.stage
-        if not _statements_visible(stage, self.context):
+        if not obj.is_published(self.context.get("now")) or not _statements_visible(stage, self.context):
             return None
         if not obj.statement_pdf:
             return None
@@ -142,7 +142,11 @@ class CurrentEditionSerializer(serializers.ModelSerializer):
         stage = self.context.get("stage")
         if stage is None or not _statements_visible(stage, self.context):
             return []
-        problems = stage.problems.all().order_by("number")
+        # PUB-01: zadanie z zaplanowaną, jeszcze nieosiągniętą publikacją nie istnieje dla klienta
+        # – ani tytułem, ani liczbą pozycji na liście.
+        from .publication import published_q
+
+        problems = stage.problems.filter(published_q(self.context.get("now"))).order_by("number")
         return PublicProblemSerializer(problems, many=True, context=self.context).data
 
 

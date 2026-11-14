@@ -17,6 +17,7 @@ from django.utils import timezone
 from django.views.generic import TemplateView
 
 from apps.competitions.models import Problem, StageEntry, StageEntryStatus
+from apps.competitions.publication import published_q
 from apps.competitions.services import current_edition
 from apps.web.mixins import ParticipantRequiredMixin
 
@@ -66,7 +67,9 @@ class _ToolHubView(ParticipantRequiredMixin, TemplateView):
 
     def problems(self, stages) -> list[Problem]:
         return list(
-            Problem.objects.filter(stage__in=stages).select_related("stage").order_by("stage_id", "number")
+            Problem.objects.filter(published_q(), stage__in=stages)
+            .select_related("stage")
+            .order_by("stage_id", "number")
         )
 
     def open_url(self, problem) -> str:  # pragma: no cover - nadpisywane
@@ -98,7 +101,7 @@ class NotebooksHubView(_ToolHubView):
 
     def problems(self, stages) -> list[Problem]:
         return list(
-            Problem.objects.filter(stage__in=stages, notebook_task__isnull=False)
+            Problem.objects.filter(published_q(), stage__in=stages, notebook_task__isnull=False)
             .select_related("stage")
             .order_by("stage_id", "number")
         )

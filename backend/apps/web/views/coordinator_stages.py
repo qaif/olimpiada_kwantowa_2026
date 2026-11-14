@@ -40,6 +40,7 @@ from apps.competitions.services import (
     current_edition,
     delete_problem,
     missing_stage_kinds,
+    schedule_stage_publication,
     set_scoring_scale,
     stage_has_interview_bookings,
     stage_has_submissions,
@@ -61,6 +62,7 @@ from apps.web.forms import (
     ScoringScaleForm,
     StageCreateForm,
     StageForm,
+    StagePublicationForm,
     format_scale_lines,
 )
 from apps.web.mixins import CoordinatorRequiredMixin
@@ -75,6 +77,7 @@ PROBLEM_FIELDS = (
     "scoring_values",
     "max_points",
     "reviewer_notes",
+    "publish_at",
 )
 
 #: Pola serii terminów rozmów, które widok przekazuje do serwisu.
@@ -194,14 +197,35 @@ def _problem_counts(stage: Stage) -> dict[int, int]:
     return {row["problem_id"]: row["total"] for row in rows}
 
 
-def render_problem_list(request, stage: Stage, form: ProblemForm, *, status: int = 200):
+def publication_state(problem: Problem, now) -> dict:
+    """Stan publikacji zadania dla koordynatora (PUB-01): kiedy i czy już jawne.
+
+    ``effective`` to chwila, od której treść widzą uczestnicy – późniejsza z otwarcia etapu
+    i ``publish_at``. ``scheduled`` – koordynator ustawił własną chwilę (inaczej: z otwarciem).
+    """
+    effective = problem.effective_publish_at
+    return {
+        "effective": effective,
+        "scheduled": problem.publish_at is not None and problem.publish_at > problem.stage.opens_at,
+        "published": effective <= now,
+    }
+
+
+def render_problem_list(
+    request, stage: Stage, form: ProblemForm, *, status: int = 200, publication_form=None
+):
     """Strona listy zadań etapu. Wspólna dla dodawania i dla nieudanego usunięcia."""
     counts = _problem_counts(stage)
     problems = list(stage.problems.order_by("number", "id"))
+    now = timezone.now()
+    for problem in problems:
+        # Etap jest już w pamięci – ``effective_publish_at`` nie ma sięgać po niego do bazy.
+        problem.stage = stage
     context = {
         "stage": stage,
         "form": form,
-        "now": timezone.now(),
+        "publication_form": publication_form or StagePublicationForm(stage=stage),
+        "now": now,
         # Maksimum każdego zadania z reguły oceny – zadania mogą mieć różną liczbę punktów
         # (wydanie 0.35.0), więc lista zadań mówi ją wprost, a suma maksimów stoi pod tabelą.
         "rows": [
@@ -209,6 +233,7 @@ def render_problem_list(request, stage: Stage, form: ProblemForm, *, status: int
                 "problem": problem,
                 "submissions": counts.get(problem.pk, 0),
                 "maximum": problem_maximum(stage, problem),
+                "publication": publication_state(problem, now),
             }
             for problem in problems
         ],
@@ -469,6 +494,34 @@ class StageProblemsView(CoordinatorRequiredMixin, View):
             problem, form.cleaned_data["comment_snippets"], actor=request.user, request=request
         )
         messages.success(request, f"Dodano zadanie {problem.number}: {problem.title}.")
+        return redirect(reverse("web:coordinator-stage-problems", args=[stage.pk]))
+
+
+class StagePublicationView(CoordinatorRequiredMixin, View):
+    """``POST /coordinator/stages/<id>/problems/publication/`` – publikacja wszystkich zadań naraz.
+
+    Ta sama chwila dla każdego zadania etapu (PUB-01); pojedyncze zadanie zmienia się w jego
+    formularzu. Puste pole przywraca regułę domyślną: „razem z otwarciem etapu”.
+    """
+
+    def post(self, request, stage_id: int):
+        stage = _stage_for_edit(request.competition, stage_id)
+        form = StagePublicationForm(request.POST, stage=stage)
+        if not form.is_valid():
+            return render_problem_list(
+                request, stage, ProblemForm(stage=stage), status=400, publication_form=form
+            )
+        publish_at = form.cleaned_data["publish_at"]
+        changed = schedule_stage_publication(stage, request.user, publish_at, request=request)
+        if publish_at is None:
+            messages.success(
+                request, f"Zadania etapu będą jawne razem z jego otwarciem (zmienione zadania: {changed})."
+            )
+        else:
+            label = timezone.localtime(publish_at).strftime("%d.%m.%Y %H:%M")
+            messages.success(
+                request, f"Publikacja zadań zaplanowana na {label} (zmienione zadania: {changed})."
+            )
         return redirect(reverse("web:coordinator-stage-problems", args=[stage.pk]))
 
 

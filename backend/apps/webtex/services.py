@@ -155,7 +155,8 @@ def check_access(user, participant, stage, problem, competition, *, now=None):
         visible = statements_visible(stage, participant=participant, competition=competition, now=now)
     else:
         visible = stage.has_opened(now)
-    if not visible:
+    # Zaplanowana publikacja zadania (PUB-01): przed nią edytor tego zadania nie istnieje.
+    if not visible or not problem.is_published(now):
         raise _not_found()
     return entry
 

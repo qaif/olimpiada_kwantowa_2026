@@ -90,3 +90,38 @@ msgstr "Сообщение уходит в течение минуты посл�
 
 msgid "Zaplanował"
 msgstr "Запланировал"
+
+# ZOZ-01 i PUB-01: Zasady Organizacji Zawodów etapu i planowana publikacja zadań.
+
+msgid "Zasady Organizacji Zawodów (ZOZ) tego etapu"
+msgstr "Правила организации соревнований (ZOZ) этого этапа"
+
+msgid "Kolejne zadania zostaną opublikowane:"
+msgstr "Следующие задачи будут опубликованы:"
+
+msgid "Zasady Organizacji Zawodów (ZOZ)"
+msgstr "Правила организации соревнований (ZOZ)"
+
+msgid "Zasady Organizacji Zawodów etapów"
+msgstr "Правила организации соревнований по этапам"
+
+msgid "%(title)s – %(stage)s (wersja %(version)s) – dokument Olimpiady do przeczytania online."
+msgstr "%(title)s – %(stage)s (версия %(version)s) – документ олимпиады для чтения онлайн."
+
+msgid "wersja obowiązująca"
+msgstr "действующая версия"
+
+msgid "wersja archiwalna"
+msgstr "архивная версия"
+
+msgid "To jest wcześniejsza wersja dokumentu."
+msgstr "Это более ранняя версия документа."
+
+msgid "Wersja obowiązująca: %(version)s"
+msgstr "Действующая версия: %(version)s"
+
+msgid "Zasady pozostałych etapów i wcześniejsze wersje"
+msgstr "Правила других этапов и более ранние версии"
+
+msgid "obowiązująca"
+msgstr "действующая"

@@ -1038,6 +1038,14 @@ class Problem(models.Model):
     # błędem 500 na ekranie, który koordynator otwiera w dniu ogłoszenia.
     weight_numerator = models.PositiveSmallIntegerField("waga – licznik", default=1)
     weight_denominator = models.PositiveSmallIntegerField("waga – mianownik", default=1)
+    # Zaplanowana publikacja treści tego zadania (PUB-01, ZOZ Etapu I § 3 ust. 1). Puste znaczy
+    # „razem z otwarciem etapu” – tak działał serwis przed tą zmianą i tak działa każde zadanie,
+    # którego koordynator nie zaplanował. Moment wcześniejszy niż otwarcie etapu niczego nie
+    # przyspiesza: o jawności rozstrzyga **późniejsza** z dwóch chwil (``effective_publish_at``),
+    # bo treść jest niedostępna przed otwarciem etapu niezależnie od planu pojedynczego zadania.
+    # Źródłem prawdy jest zegar serwera w chwili żądania (``is_published``) – bez zadania
+    # okresowego, które mogłoby się spóźnić albo nie wstać.
+    publish_at = models.DateTimeField("publikacja treści", null=True, blank=True)
 
     #: Treść zadania bywa pobierana adresem, którego nikt nie musi znać (``/api/competitions/
     #: problems/<pk>/statement/``), więc zakres jest tu regułą bezpieczeństwa, a nie porządkiem.
@@ -1069,6 +1077,25 @@ class Problem(models.Model):
 
     def __str__(self) -> str:
         return f"Zadanie {self.number}: {self.title}"
+
+    def is_published(self, now=None) -> bool:
+        """Czy minęła chwila publikacji **tego zadania** (PUB-01) – bez bramki etapu.
+
+        To połowa reguły jawności: drugą jest bramka etapu (``Stage.has_opened`` albo
+        ``time_windows.access.statements_visible``). Wołający łączą obie przez
+        :func:`apps.competitions.publication.problem_visible`; sama ta metoda nie wystarcza.
+        """
+        if self.publish_at is None:
+            return True
+        return self.publish_at <= (now or timezone.now())
+
+    @property
+    def effective_publish_at(self):
+        """Chwila, od której treść jest jawna: późniejsza z ``publish_at`` i otwarcia etapu."""
+        opens_at = self.stage.opens_at
+        if self.publish_at is None or self.publish_at < opens_at:
+            return opens_at
+        return self.publish_at
 
     @property
     def accept_attribute(self) -> str:

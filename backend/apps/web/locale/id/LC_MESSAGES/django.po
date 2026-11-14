@@ -90,3 +90,38 @@ msgstr "Pesan terkirim dalam satu menit setelah waktu yang dijadwalkan. Penerima
 
 msgid "Zaplanował"
 msgstr "Dijadwalkan oleh"
+
+# ZOZ-01 i PUB-01: Zasady Organizacji Zawodów etapu i planowana publikacja zadań.
+
+msgid "Zasady Organizacji Zawodów (ZOZ) tego etapu"
+msgstr "Aturan Penyelenggaraan Kompetisi (ZOZ) tahap ini"
+
+msgid "Kolejne zadania zostaną opublikowane:"
+msgstr "Soal berikutnya akan diterbitkan pada:"
+
+msgid "Zasady Organizacji Zawodów (ZOZ)"
+msgstr "Aturan Penyelenggaraan Kompetisi (ZOZ)"
+
+msgid "Zasady Organizacji Zawodów etapów"
+msgstr "Aturan Penyelenggaraan Kompetisi per tahap"
+
+msgid "%(title)s – %(stage)s (wersja %(version)s) – dokument Olimpiady do przeczytania online."
+msgstr "%(title)s – %(stage)s (versi %(version)s) – dokumen Olimpiade untuk dibaca daring."
+
+msgid "wersja obowiązująca"
+msgstr "versi yang berlaku"
+
+msgid "wersja archiwalna"
+msgstr "versi arsip"
+
+msgid "To jest wcześniejsza wersja dokumentu."
+msgstr "Ini adalah versi sebelumnya dari dokumen."
+
+msgid "Wersja obowiązująca: %(version)s"
+msgstr "Versi yang berlaku: %(version)s"
+
+msgid "Zasady pozostałych etapów i wcześniejsze wersje"
+msgstr "Aturan tahap lain dan versi sebelumnya"
+
+msgid "obowiązująca"
+msgstr "berlaku"

@@ -90,3 +90,38 @@ msgstr "বার্তাটি নির্ধারিত সময়ের 
 
 msgid "Zaplanował"
 msgstr "নির্ধারণকারী"
+
+# ZOZ-01 i PUB-01: Zasady Organizacji Zawodów etapu i planowana publikacja zadań.
+
+msgid "Zasady Organizacji Zawodów (ZOZ) tego etapu"
+msgstr "এই পর্বের প্রতিযোগিতা আয়োজনের নিয়মাবলি (ZOZ)"
+
+msgid "Kolejne zadania zostaną opublikowane:"
+msgstr "পরবর্তী সমস্যাগুলি প্রকাশিত হবে:"
+
+msgid "Zasady Organizacji Zawodów (ZOZ)"
+msgstr "প্রতিযোগিতা আয়োজনের নিয়মাবলি (ZOZ)"
+
+msgid "Zasady Organizacji Zawodów etapów"
+msgstr "পর্বভিত্তিক প্রতিযোগিতা আয়োজনের নিয়মাবলি"
+
+msgid "%(title)s – %(stage)s (wersja %(version)s) – dokument Olimpiady do przeczytania online."
+msgstr "%(title)s – %(stage)s (সংস্করণ %(version)s) – অনলাইনে পড়ার জন্য অলিম্পিয়াডের নথি।"
+
+msgid "wersja obowiązująca"
+msgstr "বর্তমান সংস্করণ"
+
+msgid "wersja archiwalna"
+msgstr "সংরক্ষিত সংস্করণ"
+
+msgid "To jest wcześniejsza wersja dokumentu."
+msgstr "এটি নথির একটি পূর্ববর্তী সংস্করণ।"
+
+msgid "Wersja obowiązująca: %(version)s"
+msgstr "বর্তমান সংস্করণ: %(version)s"
+
+msgid "Zasady pozostałych etapów i wcześniejsze wersje"
+msgstr "অন্যান্য পর্বের নিয়মাবলি ও পূর্ববর্তী সংস্করণ"
+
+msgid "obowiązująca"
+msgstr "বর্তমান"

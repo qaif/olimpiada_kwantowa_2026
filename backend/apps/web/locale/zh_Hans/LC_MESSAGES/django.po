@@ -90,3 +90,38 @@ msgstr "消息会在预定时间后一分钟内发出。收件人在发送时统
 
 msgid "Zaplanował"
 msgstr "设定人"
+
+# ZOZ-01 i PUB-01: Zasady Organizacji Zawodów etapu i planowana publikacja zadań.
+
+msgid "Zasady Organizacji Zawodów (ZOZ) tego etapu"
+msgstr "本阶段竞赛组织规则（ZOZ）"
+
+msgid "Kolejne zadania zostaną opublikowane:"
+msgstr "后续题目将于以下时间发布："
+
+msgid "Zasady Organizacji Zawodów (ZOZ)"
+msgstr "竞赛组织规则（ZOZ）"
+
+msgid "Zasady Organizacji Zawodów etapów"
+msgstr "各阶段竞赛组织规则"
+
+msgid "%(title)s – %(stage)s (wersja %(version)s) – dokument Olimpiady do przeczytania online."
+msgstr "%(title)s – %(stage)s（版本 %(version)s）– 可在线阅读的奥林匹克文件。"
+
+msgid "wersja obowiązująca"
+msgstr "现行版本"
+
+msgid "wersja archiwalna"
+msgstr "存档版本"
+
+msgid "To jest wcześniejsza wersja dokumentu."
+msgstr "这是该文件的较早版本。"
+
+msgid "Wersja obowiązująca: %(version)s"
+msgstr "现行版本：%(version)s"
+
+msgid "Zasady pozostałych etapów i wcześniejsze wersje"
+msgstr "其他阶段的规则及较早版本"
+
+msgid "obowiązująca"
+msgstr "现行"

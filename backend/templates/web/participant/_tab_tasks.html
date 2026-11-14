@@ -16,6 +16,11 @@
         {% endif %}
       </div>
       {% if time_window %}{% include "time_windows/_participant_window.html" with window=time_window %}{% endif %}
+      {% if stage_rules %}
+        {# ZOZ-01: dokument „Zasady Organizacji Zawodów” tego etapu – obowiązująca wersja. #}
+        <p class="card__meta"><a href="{% url 'web:stage-rules' stage.pk %}">{% translate "Zasady Organizacji Zawodów (ZOZ) tego etapu" %}</a>
+          · {% blocktranslate with version=stage_rules.version %}wersja {{ version }}{% endblocktranslate %}</p>
+      {% endif %}
 
       {% comment %}
         Etap stacjonarny ma dwa terminy i uczestnik potrzebuje obu: dni, na które przyjeżdża,
@@ -98,11 +103,16 @@
           {% if not stage.has_opened %}
             <p class="empty"><span class="empty__title">{% translate "Zadania pojawią się po otwarciu etapu" %}</span>
               {{ stage.opens_at|date:"j E Y, H:i" }}</p>
-          {% else %}
+          {% elif not next_problem_publication %}
             <p class="empty"><span class="empty__title">{% translate "Brak zadań" %}</span>
               {% translate "Ten etap nie ma jeszcze opublikowanych zadań." %}</p>
           {% endif %}
         {% endfor %}
+        {% if next_problem_publication %}
+          {# PUB-01: sama chwila kolejnej publikacji – bez liczby zadań i bez tytułów. #}
+          <p class="notice">{% translate "Kolejne zadania zostaną opublikowane:" %}
+            <time datetime="{{ next_problem_publication|date:'c' }}">{{ next_problem_publication|local_datetime }}</time></p>
+        {% endif %}
       </section>
     {% endif %}
   {% endif %}

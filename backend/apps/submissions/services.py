@@ -45,12 +45,28 @@ def _sha256_of(upload) -> str:
     return digest.hexdigest()
 
 
+def _problem_not_found() -> DomainError:
+    return DomainError(
+        _("Nie ma takiego zadania w tym etapie."), "PROBLEM_NOT_FOUND", status.HTTP_404_NOT_FOUND
+    )
+
+
 def get_problem(stage: Stage, problem_number: int) -> Problem:
     problem = Problem.objects.filter(stage=stage, number=problem_number).first()
     if problem is None:
-        raise DomainError(
-            _("Nie ma takiego zadania w tym etapie."), "PROBLEM_NOT_FOUND", status.HTTP_404_NOT_FOUND
-        )
+        raise _problem_not_found()
+    return problem
+
+
+def get_published_problem(stage: Stage, problem_number: int, now=None) -> Problem:
+    """Zadanie, do którego wolno już oddać rozwiązanie – po zaplanowanej publikacji (PUB-01).
+
+    Przed publikacją odpowiedź jest **ta sama**, co dla zadania, którego nie ma (404
+    ``PROBLEM_NOT_FOUND``): inna odmowa mówiłaby, że zadanie o tym numerze już istnieje.
+    """
+    problem = get_problem(stage, problem_number)
+    if not problem.is_published(now):
+        raise _problem_not_found()
     return problem
 
 
@@ -119,9 +135,9 @@ def create_submission(
     pracy, która była już w ocenie) miały adres IP – logika nie czyta z niego niczego.
     """
     _assert_accepts_files(stage)
-    problem = get_problem(stage, problem_number)
-    entry = _locked_entry(user, stage)
     now = now or timezone.now()
+    problem = get_published_problem(stage, problem_number, now)
+    entry = _locked_entry(user, stage)
     # Okno czasowe ucznia (TZ-01): w etapie z oknami terminy są **jego** – start okna i koniec
     # z dodatkowym czasem. Bez flagi konkursu ``personal_stage`` oddaje ten sam obiekt bez
     # zapytania, więc ścieżka uploadu Olimpiady Kwantowej się nie zmienia.

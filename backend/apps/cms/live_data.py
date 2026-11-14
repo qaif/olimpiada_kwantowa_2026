@@ -102,19 +102,29 @@ def problems_state(competition, now=None) -> ProblemsState:
     # Etap z oknami czasowymi (TZ-01) jest tu jawny dopiero po końcu ostatniego okna: strona
     # publiczna nie wie, kto ją czyta, a uczeń z późniejszego okna nie może zobaczyć zadań
     # wcześniej. Bez flagi konkursu to dokładnie ``has_opened(now)``, bez zapytania.
+    from apps.competitions.publication import published_q
     from apps.time_windows.access import statements_visible
 
     has_opened = bool(stage and statements_visible(stage, competition=competition, now=now))
     training = training_stage(edition)
     training_has_opened = bool(training and training.has_opened(now))
+    # PUB-01: zadanie z zaplanowaną publikacją pojawia się na liście dopiero w jej chwili – także
+    # w treningu, bo reguła jawności ma być jedna.
+    published = published_q(now)
     return ProblemsState(
         edition=edition,
         stage=stage,
         stage_has_opened=has_opened,
-        problems=list(stage.problems.order_by("number")) if stage is not None and has_opened else [],
+        problems=(
+            list(stage.problems.filter(published).order_by("number"))
+            if stage is not None and has_opened
+            else []
+        ),
         training_stage=training,
         training_problems=(
-            list(training.problems.order_by("number")) if training is not None and training_has_opened else []
+            list(training.problems.filter(published).order_by("number"))
+            if training is not None and training_has_opened
+            else []
         ),
     )
 
