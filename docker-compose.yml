@@ -767,7 +767,7 @@ services:
     #
     # v5.1.0 to ostatnie wydanie z OpenDKIM (v6 przechodzi na rspamd i inne ścieżki kluczy) –
     # wersja jest przypięta świadomie, bo migracja zmienia lokalizację wolumenu z kluczami.
-    image: boky/postfix:v5.1.0-alpine
+    image: boky/postfix:v5.2.0-alpine
     restart: unless-stopped
     logging: *default-logging
     # HELO/EHLO i myhostname. Musi zgadzać się z rekordem PTR adresu wyjściowego, inaczej
@@ -1220,7 +1220,7 @@ services:
 
   mailpit:
     profiles: [dev]
-    image: axllent/mailpit:v1.31
+    image: axllent/mailpit:v1.32
     logging: *default-logging
     # Wyłącznie na pętli zwrotnej hosta: podgląd poczty deweloperskiej (z linkami aktywacji i resetu
     # hasła) nie ma być widoczny z sieci, w której stoi laptop – tak jak porty z docker-compose.dev.yml.
