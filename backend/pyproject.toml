@@ -124,7 +124,7 @@ dependencies = [
     # dev, bo liczbę stron pokazuje panel uczestnika, czyli produkcja.
     # Od 6.x: linia 5.x nie dostaje poprawek zapętleń i wyczerpania pamięci na spreparowanych
     # plikach, a ten odczyt dostaje dokumenty od uczestników.
-    "pypdf>=6,<7",
+    "pypdf>=6,<8",
     # Pieczęć elektroniczna dokumentów w formacie PAdES (``apps.results.signing``). W zwykłych
     # zależnościach, bo podpisuje **produkcja** – dokument powstaje przy każdym pobraniu i to
     # wtedy trafia na niego pieczęć. Sama funkcja jest jednak wyłączona, dopóki nie ma klucza
