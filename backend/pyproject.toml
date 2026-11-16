@@ -157,7 +157,7 @@ dependencies = [
     # ``thinking_level``); README ``google-genai`` każe zostać poniżej 3.0 – zmiana zachowania
     # automatycznego wołania funkcji.
     "openai>=3.19,<4",
-    "google-genai>=2.25,<3",
+    "google-genai>=2.25,<4",
     # Śledzenie błędów (OPS-02, docs/OPERACJE.md § 44) – klient protokołu Sentry, wysyłający zdarzenia
     # do **własnego** GlitchTipa (profil compose ``monitoring``); zależność zatwierdzona przez
     # użytkownika 4.10.2026. W zwykłych zależnościach, bo zdarzenia wysyła produkcja; import leniwy
