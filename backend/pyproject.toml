@@ -72,7 +72,7 @@ dependencies = [
     # CMS in-process (PROJEKT.md 1.1). 8.0 to pierwsza linia zgodna z Django 6.1 (metadane:
     # ``Django>=5.2``, klasyfikatory 5.2/6.0/6.1); poprzednia 6.3 była linią LTS zgodną
     # z Django 5.1 i z Django 6 się nie instaluje.
-    "wagtail>=8.0,<8.1",
+    "wagtail>=8.0,<8.2",
     # Logowanie przez Google/Facebook. Używamy **wyłącznie** części socialaccount – lokalne
     # widoki allauth (hasłowe logowanie i rejestracja) nie są montowane, patrz apps/web/social_urls.py.
     # Ekstra ``socialaccount`` dociąga ``requests``/``requests-oauthlib`` (OAuth2 + PKCE).
