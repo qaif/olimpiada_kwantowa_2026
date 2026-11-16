@@ -41,7 +41,7 @@ dependencies = [
     "redis>=6.4,<6.5",
     # 7.0: pierwsza linia z ``Django>=5.2`` w metadanych; 5.4 nie instaluje się obok Django 6.1.
     "django-redis>=7.0,<7.1",
-    "celery>=5.6,<5.7",
+    "celery>=5.6,<5.8",
     # UWAGA – override w ``[tool.uv]`` na końcu pliku. ``django-celery-beat`` 2.9.0 (najnowsze
     # wydanie, sprawdzone na PyPI 18.09.2026) deklaruje ``Django<6.1`` i bez obejścia blokuje
     # rozwiązanie zależności. Deklaracja jest zbyt ostrożna, a nie prawdziwa: pakiet działa
