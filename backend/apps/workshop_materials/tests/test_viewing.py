@@ -13,7 +13,11 @@ Przedmiotem jest reguła organizatora („tylko na stronie po zalogowaniu”) i 
 
 from __future__ import annotations
 
+import hashlib
+import re
+
 import pytest
+from django.contrib.auth import get_user_model
 
 from apps.accounts.models import CompetitionRole
 from apps.accounts.tests.factories import ParticipantFactory, UserFactory
@@ -199,7 +203,18 @@ def test_views_are_counted_with_a_pseudonym_only(participant_client, ready):
     viewers = list(WorkshopMaterialViewer.objects.all())
     assert len(viewers) == 1
     assert viewers[0].viewer_hash == viewer_hash(material.pk, participant_client.user.pk)
-    assert str(participant_client.user.pk) not in viewers[0].viewer_hash
+    # Pseudonim, a nie identyfikator: 64 znaki szesnastkowe HMAC z sekretem, bez relacji do konta.
+    # Wcześniejsze „numer konta nie występuje w napisie” było losowe – krótkie id (np. 987) trafia
+    # się w 64-znakowym hashu szesnastkowym mniej więcej raz na kilkadziesiąt przebiegów (CI, 21.11.2026).
+    pseudonym = viewers[0].viewer_hash
+    assert re.fullmatch(r"[0-9a-f]{64}", pseudonym)
+    unkeyed = hashlib.sha256(f"{material.pk}:{participant_client.user.pk}".encode()).hexdigest()
+    assert pseudonym != unkeyed
+    user_model = get_user_model()
+    assert not any(
+        field.is_relation and field.related_model is user_model
+        for field in WorkshopMaterialViewer._meta.get_fields()
+    )
 
 
 def test_the_same_person_has_unrelated_pseudonyms_per_material():

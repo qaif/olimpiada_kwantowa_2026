@@ -35,9 +35,19 @@
 # Uruchomienie: scripts/deploy_jitsi.sh user@host (tworzy .env z sekretami, przekazuje sekret
 # tokenów portalowi, otwiera port, startuje).
 
+# Limit logów jak w głównym docker-compose.yml (x-logging): bez niego json-file rośnie bez końca –
+# 21.11.2026 jvb w pętli „Failed to login” zapisał 74 GB i zapełnił dysk serwera (wdrożenie
+# v0.56.1 padło na „no space left on device”, /healthz/ zwracał 503).
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "50m"
+    max-file: "5"
+
 services:
   jitsi-web:
     image: jitsi/web:${JITSI_IMAGE_VERSION:-stable-11031}
+    logging: *default-logging
     restart: unless-stopped
     volumes:
       - jitsi-web-config:/config
@@ -82,6 +92,7 @@ services:
 
   prosody:
     image: jitsi/prosody:${JITSI_IMAGE_VERSION:-stable-11031}
+    logging: *default-logging
     restart: unless-stopped
     expose: ["5222", "5347", "5280"]
     volumes:
@@ -125,6 +136,7 @@ services:
 
   jicofo:
     image: jitsi/jicofo:${JITSI_IMAGE_VERSION:-stable-11031}
+    logging: *default-logging
     restart: unless-stopped
     volumes:
       - jitsi-jicofo-config:/config
@@ -155,6 +167,7 @@ services:
 
   jvb:
     image: jitsi/jvb:${JITSI_IMAGE_VERSION:-stable-11031}
+    logging: *default-logging
     restart: unless-stopped
     ports:
       - "${JVB_PORT:-10000}:${JVB_PORT:-10000}/udp"
