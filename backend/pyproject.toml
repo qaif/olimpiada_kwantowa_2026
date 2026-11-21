@@ -186,7 +186,7 @@ dependencies = [
     # przeskok wersji ma być świadomy i z przebiegiem ``apps/monitoring/tests``. Linia 3.x (dziś
     # alfa) zmienia API zakresów – osobne zadanie. 2.74 (21.11.2026): bez zmian w integracjach
     # z listy zamkniętej (Django, Celery, Redis, logging) ani w opcjach filtra; ``apps/monitoring`` zielone.
-    "sentry-sdk>=2.71,<2.75",
+    "sentry-sdk>=2.71,<2.76",
 ]
 
 [project.optional-dependencies]
