@@ -1,0 +1,100 @@
+# French – katalog aplikacji ``apps.participant_map`` (zadanie MAP-01).
+# Zrodlem (msgid) jest polski. UWAGA: tlumaczenie MASZYNOWE (model jezykowy) – patrz
+# docs/OPERACJE.md (przeglad przez native speakera przed szeroka komunikacja).
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada Kwantowa\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-11-21 18:00+0100\n"
+"PO-Revision-Date: 2026-11-21 18:00+0100\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: French\n"
+"Language: fr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+msgid "Mapa uczestników"
+msgstr "Carte des participants"
+
+msgid "Z jakich miejscowości pochodzą uczestnicy bieżącej edycji olimpiady – mapa Polski i pełna lista miejscowości, wyłącznie dane zbiorcze."
+msgstr "D’où viennent les participants de l’édition en cours – carte de la Pologne et liste complète des localités, données agrégées uniquement."
+
+#, python-format
+msgid "stan na %(when)s"
+msgstr "état au %(when)s"
+
+msgid "Każde kółko to miejscowość, w której leżą szkoły uczestników; pole kółka odpowiada liczbie uczniów. Kliknij miejscowość na liście, żeby zobaczyć ją na mapie."
+msgstr "Chaque cercle représente une localité où se trouvent les établissements des participants ; l’aire du cercle correspond au nombre d’élèves. Cliquez sur une localité de la liste pour la voir sur la carte."
+
+msgid "Uczestnicy"
+msgstr "Participants"
+
+msgid "Miejscowości"
+msgstr "Localités"
+
+msgid "Szkoły z wykazu SIO"
+msgstr "Établissements du registre SIO"
+
+msgid "Udział 5 największych miejscowości"
+msgstr "Part des 5 plus grandes localités"
+
+msgid "W bieżącej edycji nie ma jeszcze uczestników do pokazania."
+msgstr "Il n’y a pas encore de participants à afficher pour l’édition en cours."
+
+msgid "Mapa"
+msgstr "Carte"
+
+msgid "Mapa Polski z granicami województw i kółkami miejscowości; pole kółka odpowiada liczbie uczestników. Te same liczby są na liście obok."
+msgstr "Carte de la Pologne avec les limites des voïvodies et des cercles de localités ; l’aire d’un cercle correspond au nombre de participants. Les mêmes chiffres figurent dans la liste à côté."
+
+msgid "Liczba uczniów:"
+msgstr "Nombre d’élèves :"
+
+msgid "Wszystkie miejscowości"
+msgstr "Toutes les localités"
+
+msgid "np. Kraków albo małopolskie"
+msgstr "p. ex. Kraków ou małopolskie"
+
+msgid "Pokazano {shown} z {all}"
+msgstr "{shown} sur {all} affichées"
+
+msgid "(bez punktu na mapie)"
+msgstr "(sans point sur la carte)"
+
+msgid "pozostałe miejscowości"
+msgstr "autres localités"
+
+msgid "Brak miejscowości pasujących do wyszukiwania."
+msgstr "Aucune localité ne correspond à la recherche."
+
+#, python-format
+msgid "Dane zbiorcze z platformy: %(total)s uczestników bieżącej edycji, bez kont usuniętych i zanonimizowanych. Miejscowość pochodzi z adresu szkoły w wykazie SIO (dzielnice dużych miast są połączone w jedno miasto)."
+msgstr "Données agrégées de la plateforme : %(total)s participants de l’édition en cours, hors comptes supprimés et anonymisés. La localité provient de l’adresse de l’établissement dans le registre SIO (les arrondissements des grandes villes sont regroupés en une seule ville)."
+
+#, python-format
+msgid "Ochrona danych: miejscowość, w której jest mniej niż %(threshold)s uczestników, nie jest pokazywana z nazwą ani na mapie – jej uczniowie są wliczeni do pozycji „pozostałe miejscowości” swojego województwa. Strona nie zawiera nazw szkół ani żadnych danych pojedynczych osób."
+msgstr "Protection des données : une localité comptant moins de %(threshold)s participants n’est affichée ni par son nom ni sur la carte – ses élèves sont comptés dans la ligne « autres localités » de leur voïvodie. La page ne contient ni noms d’établissements ni données sur des personnes."
+
+#, python-format
+msgid "Szkołę spoza wykazu SIO podało %(count)s uczestników – są wliczeni do liczby uczestników, ale nie ma ich na mapie ani na liście miejscowości."
+msgstr "%(count)s participants ont indiqué un établissement hors du registre SIO – ils sont comptés dans le nombre de participants, mais ne figurent ni sur la carte ni dans la liste des localités."
+
+#, python-format
+msgid "Bez punktu na mapie (są na liście): %(count)s."
+msgstr "Sans point sur la carte (présentes dans la liste) : %(count)s."
+
+msgid "Położenie miejscowości: © autorzy OpenStreetMap (licencja ODbL). Granice województw: Państwowy Rejestr Granic, Główny Urząd Geodezji i Kartografii."
+msgstr "Position des localités : © contributeurs OpenStreetMap (licence ODbL). Limites des voïvodies : Registre national des limites (PRG), Office principal de géodésie et de cartographie (GUGiK)."
+
+msgid "Statystyki uczestników"
+msgstr "Statistiques des participants"
+
+msgid "Z jakich miejscowości pochodzą uczestnicy bieżącej edycji – mapa i pełna lista, wyłącznie dane zbiorcze."
+msgstr "D’où viennent les participants de l’édition en cours – carte et liste complète, données agrégées uniquement."
+
+msgid "Zobacz mapę"
+msgstr "Voir la carte"

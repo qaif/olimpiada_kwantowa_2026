@@ -12,6 +12,31 @@ podsekcją `### <tytuł>` wydania `## v<x.y.z> – <data tagu> – <opis tagu>`.
 Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług techniczny:
 [`BACKLOG.md`](BACKLOG.md).
 
+## [Unreleased] – Mapa uczestników w sekcji „Dokumenty” (MAP-01)
+
+- Publiczna strona **`/dokumenty/mapa-uczestnikow/`** (`apps.participant_map`, flaga konkursu
+  `participant_map`, domyślnie wyłączona): kafle (uczestnicy, miejscowości, szkoły z wykazu SIO,
+  udział 5 największych), mapa Polski w SVG z serwera (granice województw – PRG/GUGiK, kółka
+  miejscowości o polu ∝ liczbie uczniów, podpisy 10 największych, legenda) i pełna lista miejscowości.
+  Działa bez JS; skrypt statyczny dokłada wyszukiwarkę bez polskich znaków i podświetlenie kółka.
+  Tokeny `app.css` – tryb ciemny i wysoki kontrast jak reszta serwisu. Napisy w 10 językach.
+- Agregat: uczestnicy bieżącej edycji bez kont zanonimizowanych, po gminie i województwie szkoły
+  z wykazu SIO; szkoła spoza wykazu – tylko w liczbie łącznej. **Próg ochrony** (domyślnie 3, nie
+  niżej): miejscowość poniżej progu zbiorczo jako „pozostałe miejscowości” województwa, bez nazwy
+  i kółka. Pięć zapytań na zimno niezależnie od danych, pamięć podręczna 1 h (budżet strony 24).
+- Panel koordynatora **Raporty → Mapa uczestników**: włączenie strony, próg (3–50), przycisk
+  „Odśwież mapę uczestników” (rola w serwisie, limit 30/h, audyt, czyści `page_cache`). Komenda
+  `participant_map <slug> [--enable|--disable] [--refresh]`.
+- Pozycja „Mapa uczestników” na końcu menu „Dokumenty” i karta w spisie `/dokumenty/` (Wagtail
+  i djcms – `chrome.links.participant_map`); kontrakt tras djcms: `dokumenty/mapa-uczestnikow`.
+- Punkty miejscowości: tabela `schools.TownLocation` (migracja `schools.0007_town_location`), fixture
+  `miejscowosci-wspolrzedne.json` dla wszystkich 1230 par (gmina, województwo) z wykazu – OSM Nominatim
+  (© OpenStreetMap contributors, ODbL), każdy punkt sprawdzony w granicach województwa; komenda
+  `seed_town_locations` przy każdym wdrożeniu (OPERACJE § 58). Ustawienia mapy:
+  `participant_map.MapSettings` (migracja `participant_map.0001_initial`).
+- RODO: rejestr czynności **1.29** – wiersz warunkowy „mapa uczestników” (publikacja zbiorczej
+  statystyki z progiem ochrony).
+
 ## [Unreleased] – Załączniki (pliki danych) do zadań (PUB-02)
 
 - Model `competitions.ProblemAttachment` (migracja `0038_problem_attachment`): plik w prywatnym

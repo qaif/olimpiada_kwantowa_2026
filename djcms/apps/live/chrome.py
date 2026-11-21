@@ -207,6 +207,15 @@ class LiveChrome:
         ]
 
     @property
+    def participant_map_url(self) -> str:
+        """Adres „Mapy uczestników” (MAP-01) albo pusty napis – konkurs bez flagi, starsza aplikacja.
+
+        Klucz siedzi w ``links``, więc przeszedł już ``safe_href`` (``_clean``): adres odrzucony to
+        pusty napis, czyli brak pozycji w menu i karty w spisie dokumentów.
+        """
+        return self.links.get("participant_map") or ""
+
+    @property
     def main_home_url(self) -> str:
         return self.links.get("main_home") or main_url("/", self.request)
 

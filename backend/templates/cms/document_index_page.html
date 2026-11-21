@@ -75,4 +75,20 @@
   </ul>
 {% endif %}
 
+{% if participant_map %}
+  {# MAP-01: mapa uczestników – strona aplikacji za flagą konkursu ``participant_map``, na końcu spisu. #}
+  <h2>{% translate "Statystyki uczestników" %}</h2>
+  <ul class="cards cards--wide doc-index">
+    <li>
+      <article class="card doc-card">
+        <h3 class="doc-card__title"><a href="{{ participant_map.url }}">{{ participant_map.title }}</a></h3>
+        <p class="doc-card__lead">{% translate "Z jakich miejscowości pochodzą uczestnicy bieżącej edycji – mapa i pełna lista, wyłącznie dane zbiorcze." %}</p>
+        <div class="card__foot doc-card__actions">
+          <a class="btn btn--small btn--primary" href="{{ participant_map.url }}">{% translate "Zobacz mapę" %}</a>
+        </div>
+      </article>
+    </li>
+  </ul>
+{% endif %}
+
 {% endblock %}

@@ -50,4 +50,20 @@
   {% endfor %}
 </ul>
 
+{% if dj_chrome.participant_map_url %}
+  {# MAP-01: mapa uczestników – strona aplikacji głównej za flagą konkursu, na końcu spisu (port Wagtaila). #}
+  <h2>Statystyki uczestników</h2>
+  <ul class="cards cards--wide doc-index">
+    <li>
+      <article class="card doc-card">
+        <h3 class="doc-card__title"><a href="{{ dj_chrome.participant_map_url }}">Mapa uczestników</a></h3>
+        <p class="doc-card__lead">Z jakich miejscowości pochodzą uczestnicy bieżącej edycji – mapa i pełna lista, wyłącznie dane zbiorcze.</p>
+        <div class="card__foot doc-card__actions">
+          <a class="btn btn--small btn--primary" href="{{ dj_chrome.participant_map_url }}">Zobacz mapę</a>
+        </div>
+      </article>
+    </li>
+  </ul>
+{% endif %}
+
 {% endblock %}

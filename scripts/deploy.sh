@@ -1008,6 +1008,9 @@ dc python manage.py seed_edition_kwantowa $EDITION_ARGS
 # .first-deploy: nikt go nie edytuje w panelu, a przebieg jest idempotentny (upsert po RSPO,
 # szkoły spoza wykazu tylko wygasza). Bez tego wyszukiwarka w rejestracji nie ma czego pokazać.
 dc python manage.py seed_schools
+# Punkty miejscowości mapy uczestników (MAP-01, OSM/ODbL) – te same zasady, co słownik szkół wyżej:
+# dane referencyjne z fixture'u, idempotentnie, przy każdym wdrożeniu (docs/OPERACJE.md § 58).
+dc python manage.py seed_town_locations
 if [ -n "$COORDINATOR_EMAIL" ] && [ -n "$COORDINATOR_PASSWORD" ]; then
   docker compose exec -T -e COORDINATOR_EMAIL -e COORDINATOR_PASSWORD web \
     python manage.py bootstrap_coordinator </dev/null

@@ -50,6 +50,7 @@
     "zgoda"
   ],
   "nested_paths": [
+    "dokumenty/mapa-uczestnikow",
     "dokumenty/zasady",
     "warsztaty/materialy"
   ],
@@ -74,6 +75,6 @@
     "webinars",
     "translations"
   ],
-  "app_re": "^/(?:_theme|_util|account|accounts|activate|admin|alumni|api|appeals|captcha|cms|committee|coordinator|delegation|documents|dokumenty/zasady|dyplomy|forum|healthz|i18n|integrations|internal|konto|login|logout|me|notebook-starter|opiekun|password-reset|payments|plakaty|proctoring|register|rejestracja|reset|results|review|setup|status|statystyki|supervisor|support|translations|visa|warsztaty/materialy|webinars|zaproszenie|zgoda)(?:/.*)?$|^/[^/]+\\.html$|^/kalendarz\\.ics$|^/status\\.json$",
-  "app_re_prefixed": "^/[^/]+/(?:_theme|_util|account|accounts|activate|admin|alumni|api|appeals|captcha|cms|committee|coordinator|delegation|documents|dokumenty/zasady|dyplomy|forum|healthz|i18n|integrations|internal|konto|login|logout|me|notebook-starter|opiekun|password-reset|payments|plakaty|proctoring|register|rejestracja|reset|results|review|setup|status|statystyki|supervisor|support|translations|visa|warsztaty/materialy|webinars|zaproszenie|zgoda)(?:/.*)?$|^/[^/]+/[^/]+\\.html$|^/[^/]+/kalendarz\\.ics$|^/[^/]+/status\\.json$"
+  "app_re": "^/(?:_theme|_util|account|accounts|activate|admin|alumni|api|appeals|captcha|cms|committee|coordinator|delegation|documents|dokumenty/mapa-uczestnikow|dokumenty/zasady|dyplomy|forum|healthz|i18n|integrations|internal|konto|login|logout|me|notebook-starter|opiekun|password-reset|payments|plakaty|proctoring|register|rejestracja|reset|results|review|setup|status|statystyki|supervisor|support|translations|visa|warsztaty/materialy|webinars|zaproszenie|zgoda)(?:/.*)?$|^/[^/]+\\.html$|^/kalendarz\\.ics$|^/status\\.json$",
+  "app_re_prefixed": "^/[^/]+/(?:_theme|_util|account|accounts|activate|admin|alumni|api|appeals|captcha|cms|committee|coordinator|delegation|documents|dokumenty/mapa-uczestnikow|dokumenty/zasady|dyplomy|forum|healthz|i18n|integrations|internal|konto|login|logout|me|notebook-starter|opiekun|password-reset|payments|plakaty|proctoring|register|rejestracja|reset|results|review|setup|status|statystyki|supervisor|support|translations|visa|warsztaty/materialy|webinars|zaproszenie|zgoda)(?:/.*)?$|^/[^/]+/[^/]+\\.html$|^/[^/]+/kalendarz\\.ics$|^/[^/]+/status\\.json$"
 }

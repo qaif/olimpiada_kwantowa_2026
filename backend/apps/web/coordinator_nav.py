@@ -779,6 +779,13 @@ def groups(stages: list, competition=None) -> list[Group]:
             ("web:coordinator-stats-funnel",),
             match=("coordinator-stats-funnel", "coordinator-stats-funnel-"),
         ),
+        # Mapa uczestników (MAP-01, prośba organizatora z 21.11.2026) – bez flagi: na tym ekranie
+        # koordynator dopiero włącza publiczną stronę (flaga ``participant_map``) i ustawia próg ochrony.
+        Item(
+            "Mapa uczestników",
+            ("web:coordinator-participant-map",),
+            match=("coordinator-participant-map", "coordinator-participant-map-"),
+        ),
         Item(
             "Zaświadczenia opiekunów",
             ("web:coordinator-supervisors",),

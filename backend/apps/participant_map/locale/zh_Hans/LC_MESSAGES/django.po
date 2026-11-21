@@ -1,0 +1,100 @@
+# Chinese (Simplified) – katalog aplikacji ``apps.participant_map`` (zadanie MAP-01).
+# Zrodlem (msgid) jest polski. UWAGA: tlumaczenie MASZYNOWE (model jezykowy) – patrz
+# docs/OPERACJE.md (przeglad przez native speakera przed szeroka komunikacja).
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada Kwantowa\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-11-21 18:00+0100\n"
+"PO-Revision-Date: 2026-11-21 18:00+0100\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: Chinese (Simplified)\n"
+"Language: zh_Hans\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "Mapa uczestników"
+msgstr "参赛者地图"
+
+msgid "Z jakich miejscowości pochodzą uczestnicy bieżącej edycji olimpiady – mapa Polski i pełna lista miejscowości, wyłącznie dane zbiorcze."
+msgstr "本届参赛者来自哪些城镇——波兰地图和完整城镇列表，仅含汇总数据。"
+
+#, python-format
+msgid "stan na %(when)s"
+msgstr "截至 %(when)s"
+
+msgid "Każde kółko to miejscowość, w której leżą szkoły uczestników; pole kółka odpowiada liczbie uczniów. Kliknij miejscowość na liście, żeby zobaczyć ją na mapie."
+msgstr "每个圆圈代表参赛者学校所在的城镇；圆圈面积与学生人数成正比。点击列表中的城镇即可在地图上查看。"
+
+msgid "Uczestnicy"
+msgstr "参赛者"
+
+msgid "Miejscowości"
+msgstr "城镇"
+
+msgid "Szkoły z wykazu SIO"
+msgstr "SIO 名录中的学校"
+
+msgid "Udział 5 największych miejscowości"
+msgstr "前 5 大城镇占比"
+
+msgid "W bieżącej edycji nie ma jeszcze uczestników do pokazania."
+msgstr "本届暂无可显示的参赛者。"
+
+msgid "Mapa"
+msgstr "地图"
+
+msgid "Mapa Polski z granicami województw i kółkami miejscowości; pole kółka odpowiada liczbie uczestników. Te same liczby są na liście obok."
+msgstr "带有省界和城镇圆圈的波兰地图；圆圈面积与参赛者人数成正比。相同的数字也列在旁边的列表中。"
+
+msgid "Liczba uczniów:"
+msgstr "学生人数："
+
+msgid "Wszystkie miejscowości"
+msgstr "全部城镇"
+
+msgid "np. Kraków albo małopolskie"
+msgstr "例如 Kraków 或 małopolskie"
+
+msgid "Pokazano {shown} z {all}"
+msgstr "显示 {shown} / {all}"
+
+msgid "(bez punktu na mapie)"
+msgstr "（地图上无标点）"
+
+msgid "pozostałe miejscowości"
+msgstr "其他城镇"
+
+msgid "Brak miejscowości pasujących do wyszukiwania."
+msgstr "没有符合搜索条件的城镇。"
+
+#, python-format
+msgid "Dane zbiorcze z platformy: %(total)s uczestników bieżącej edycji, bez kont usuniętych i zanonimizowanych. Miejscowość pochodzi z adresu szkoły w wykazie SIO (dzielnice dużych miast są połączone w jedno miasto)."
+msgstr "平台汇总数据：本届参赛者 %(total)s 人，不含已删除和已匿名化的账户。城镇取自 SIO 名录中的学校地址（大城市的各区合并为一个城市）。"
+
+#, python-format
+msgid "Ochrona danych: miejscowość, w której jest mniej niż %(threshold)s uczestników, nie jest pokazywana z nazwą ani na mapie – jej uczniowie są wliczeni do pozycji „pozostałe miejscowości” swojego województwa. Strona nie zawiera nazw szkół ani żadnych danych pojedynczych osób."
+msgstr "数据保护：参赛者少于 %(threshold)s 人的城镇不显示名称，也不在地图上标出——其学生计入所在省的“其他城镇”一项。本页不包含学校名称，也不包含任何个人数据。"
+
+#, python-format
+msgid "Szkołę spoza wykazu SIO podało %(count)s uczestników – są wliczeni do liczby uczestników, ale nie ma ich na mapie ani na liście miejscowości."
+msgstr "有 %(count)s 名参赛者填写的学校不在 SIO 名录中——他们计入参赛者总数，但不出现在地图和城镇列表中。"
+
+#, python-format
+msgid "Bez punktu na mapie (są na liście): %(count)s."
+msgstr "地图上无标点（列表中有）：%(count)s。"
+
+msgid "Położenie miejscowości: © autorzy OpenStreetMap (licencja ODbL). Granice województw: Państwowy Rejestr Granic, Główny Urząd Geodezji i Kartografii."
+msgstr "城镇位置：© OpenStreetMap 贡献者（ODbL 许可）。省界：国家边界登记册（PRG），波兰测绘总局（GUGiK）。"
+
+msgid "Statystyki uczestników"
+msgstr "参赛者统计"
+
+msgid "Z jakich miejscowości pochodzą uczestnicy bieżącej edycji – mapa i pełna lista, wyłącznie dane zbiorcze."
+msgstr "本届参赛者来自哪些城镇——地图和完整列表，仅含汇总数据。"
+
+msgid "Zobacz mapę"
+msgstr "查看地图"

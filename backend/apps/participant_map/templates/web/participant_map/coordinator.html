@@ -1,0 +1,78 @@
+{% extends "web/coordinator/base.html" %}
+{% load static %}
+{% comment %}
+  Ekran „Mapa uczestników” (MAP-01): włączenie publicznej strony (flaga ``participant_map``), próg
+  ochrony i przeliczenie agregatu na żądanie. Ekran stoi bez flagi – tu się ją włącza.
+
+  Liczby niżej to ten sam agregat, który widzi gość (pamięć podręczna konkursu), więc koordynator
+  ogląda dokładnie to, co jest albo będzie opublikowane – także zanim włączy stronę.
+{% endcomment %}
+{% block title %}Mapa uczestników – panel koordynatora{% endblock %}
+{% block panel_head %}
+  <link rel="stylesheet" href="{% static 'css/statistics.css' %}">
+{% endblock %}
+{% block panel_title %}Mapa uczestników{% endblock %}
+{% block panel_lead %}
+  <p class="lead">Publiczna strona w sekcji „Dokumenty”: z jakich miejscowości pochodzą uczestnicy
+    bieżącej edycji – mapa i pełna lista, wyłącznie dane zbiorcze.</p>
+  <p class="hint">Liczby odświeżają się same co {{ cache_minutes }} min. Przycisk „Odśwież mapę
+    uczestników” przelicza je od razu i czyści zapisane kopie strony.</p>
+{% endblock %}
+{% block panel_actions %}
+  {% if is_enabled %}
+    <a class="btn btn--secondary btn--small" href="{{ public_url }}">Otwórz stronę mapy</a>
+  {% endif %}
+{% endblock %}
+{% block panel_content %}
+
+<section class="section">
+  <div class="card">
+    <div class="card__head">
+      <h2 class="mt-0 card__title">Stan mapy</h2>
+      {% if is_enabled %}<span class="badge badge--ok">opublikowana</span>{% else %}<span class="badge badge--neutral">wyłączona</span>{% endif %}
+    </div>
+    <p class="card__meta">Ostatnie przeliczenie: <strong data-pm-stamp>{{ stamp }}</strong>{% if map.edition %} · edycja {{ map.edition }}{% endif %}</p>
+    <dl class="stat-facts">
+      <div><dt>Uczestnicy</dt><dd>{{ map.total }}</dd></div>
+      <div><dt>Miejscowości na liście</dt><dd>{{ map.towns|length }}</dd></div>
+      <div><dt>Miejscowości pod progiem</dt><dd>{{ map.hidden_towns }}<span class="hint">{{ map.hidden_people }} uczestników zbiorczo</span></dd></div>
+      <div><dt>Szkoła spoza wykazu SIO</dt><dd>{{ map.outside_directory }}</dd></div>
+      <div><dt>Bez punktu na mapie</dt><dd>{{ map.unmapped }}</dd></div>
+    </dl>
+    {% if unmapped_towns %}
+      <p class="hint">Miejscowości z listy bez punktu na mapie (punkt dopisuje operator w pliku
+        <code>apps/schools/fixtures/miejscowosci-wspolrzedne.json</code>):
+        {% for town in unmapped_towns %}{{ town.name }} ({{ town.voivodeship_label }}){% if not forloop.last %}, {% endif %}{% endfor %}.</p>
+    {% endif %}
+    <form method="post" action="{% url 'web:coordinator-participant-map-refresh' %}" class="actions">
+      {% csrf_token %}
+      <button type="submit" class="btn btn--primary">Odśwież mapę uczestników</button>
+    </form>
+  </div>
+</section>
+
+<section class="section">
+  <div class="card">
+    <h2 class="mt-0 card__title">Ustawienia</h2>
+    <form class="form" method="post" action="{% url 'web:coordinator-participant-map' %}">
+      {% csrf_token %}
+      {{ form.non_field_errors }}
+      {{ form.as_p }}
+      <p class="actions"><button type="submit" class="btn btn--secondary">Zapisz ustawienia</button></p>
+    </form>
+  </div>
+</section>
+
+<section class="section">
+  <div class="section__head"><h2>Ochrona danych</h2></div>
+  <ul>
+    <li>Miejscowość, w której jest mniej uczestników niż próg (dziś {{ map.min_count }}, najmniej
+      {{ min_allowed }}), nie pojawia się z nazwą ani z kółkiem – jej uczniowie trafiają do pozycji
+      „pozostałe miejscowości” swojego województwa.</li>
+    <li>Strona nie pokazuje nazw szkół, kodów uczestników ani niczego o pojedynczej osobie; konta
+      zanonimizowane nie są liczone.</li>
+    <li>Włączenie strony dokłada wiersz „mapa uczestników” do rejestru czynności przetwarzania.</li>
+    <li>Każde przeliczenie i każda zmiana ustawień zostaje w dzienniku zdarzeń (Audyt).</li>
+  </ul>
+</section>
+{% endblock %}

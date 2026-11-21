@@ -1,0 +1,100 @@
+# Arabic – katalog aplikacji ``apps.participant_map`` (zadanie MAP-01).
+# Zrodlem (msgid) jest polski. UWAGA: tlumaczenie MASZYNOWE (model jezykowy) – patrz
+# docs/OPERACJE.md (przeglad przez native speakera przed szeroka komunikacja).
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada Kwantowa\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-11-21 18:00+0100\n"
+"PO-Revision-Date: 2026-11-21 18:00+0100\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: Arabic\n"
+"Language: ar\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=6; plural=(n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : n%100>=3 && n%100<=10 ? 3 : n%100>=11 ? 4 : 5);\n"
+
+msgid "Mapa uczestników"
+msgstr "خريطة المشاركين"
+
+msgid "Z jakich miejscowości pochodzą uczestnicy bieżącej edycji olimpiady – mapa Polski i pełna lista miejscowości, wyłącznie dane zbiorcze."
+msgstr "من أي البلدات يأتي المشاركون في الدورة الحالية – خريطة بولندا والقائمة الكاملة للبلدات، بيانات مجمّعة فقط."
+
+#, python-format
+msgid "stan na %(when)s"
+msgstr "حتى %(when)s"
+
+msgid "Każde kółko to miejscowość, w której leżą szkoły uczestników; pole kółka odpowiada liczbie uczniów. Kliknij miejscowość na liście, żeby zobaczyć ją na mapie."
+msgstr "كل دائرة هي بلدة تقع فيها مدارس المشاركين؛ وتتناسب مساحة الدائرة مع عدد الطلاب. انقر على بلدة في القائمة لرؤيتها على الخريطة."
+
+msgid "Uczestnicy"
+msgstr "المشاركون"
+
+msgid "Miejscowości"
+msgstr "البلدات"
+
+msgid "Szkoły z wykazu SIO"
+msgstr "مدارس من سجل SIO"
+
+msgid "Udział 5 największych miejscowości"
+msgstr "حصة أكبر 5 بلدات"
+
+msgid "W bieżącej edycji nie ma jeszcze uczestników do pokazania."
+msgstr "لا يوجد بعد مشاركون لعرضهم في الدورة الحالية."
+
+msgid "Mapa"
+msgstr "الخريطة"
+
+msgid "Mapa Polski z granicami województw i kółkami miejscowości; pole kółka odpowiada liczbie uczestników. Te same liczby są na liście obok."
+msgstr "خريطة بولندا مع حدود المقاطعات ودوائر البلدات؛ تتناسب مساحة الدائرة مع عدد المشاركين. الأرقام نفسها موجودة في القائمة المجاورة."
+
+msgid "Liczba uczniów:"
+msgstr "عدد الطلاب:"
+
+msgid "Wszystkie miejscowości"
+msgstr "جميع البلدات"
+
+msgid "np. Kraków albo małopolskie"
+msgstr "مثلًا Kraków أو małopolskie"
+
+msgid "Pokazano {shown} z {all}"
+msgstr "عرض {shown} من {all}"
+
+msgid "(bez punktu na mapie)"
+msgstr "(بلا نقطة على الخريطة)"
+
+msgid "pozostałe miejscowości"
+msgstr "بلدات أخرى"
+
+msgid "Brak miejscowości pasujących do wyszukiwania."
+msgstr "لا توجد بلدات مطابقة للبحث."
+
+#, python-format
+msgid "Dane zbiorcze z platformy: %(total)s uczestników bieżącej edycji, bez kont usuniętych i zanonimizowanych. Miejscowość pochodzi z adresu szkoły w wykazie SIO (dzielnice dużych miast są połączone w jedno miasto)."
+msgstr "بيانات مجمّعة من المنصة: %(total)s مشاركًا في الدورة الحالية، دون الحسابات المحذوفة والمجهّلة. البلدة مأخوذة من عنوان المدرسة في سجل SIO (أحياء المدن الكبرى مدمجة في مدينة واحدة)."
+
+#, python-format
+msgid "Ochrona danych: miejscowość, w której jest mniej niż %(threshold)s uczestników, nie jest pokazywana z nazwą ani na mapie – jej uczniowie są wliczeni do pozycji „pozostałe miejscowości” swojego województwa. Strona nie zawiera nazw szkół ani żadnych danych pojedynczych osób."
+msgstr "حماية البيانات: البلدة التي يقل فيها عدد المشاركين عن %(threshold)s لا تُعرض باسمها ولا على الخريطة – يُحتسب طلابها ضمن بند «بلدات أخرى» في مقاطعتهم. لا تحتوي الصفحة على أسماء مدارس ولا على أي بيانات لأفراد."
+
+#, python-format
+msgid "Szkołę spoza wykazu SIO podało %(count)s uczestników – są wliczeni do liczby uczestników, ale nie ma ich na mapie ani na liście miejscowości."
+msgstr "ذكر %(count)s مشاركًا مدرسة من خارج سجل SIO – وهم محتسبون في عدد المشاركين لكنهم غير موجودين على الخريطة ولا في قائمة البلدات."
+
+#, python-format
+msgid "Bez punktu na mapie (są na liście): %(count)s."
+msgstr "بلا نقطة على الخريطة (موجودة في القائمة): %(count)s."
+
+msgid "Położenie miejscowości: © autorzy OpenStreetMap (licencja ODbL). Granice województw: Państwowy Rejestr Granic, Główny Urząd Geodezji i Kartografii."
+msgstr "مواقع البلدات: © المساهمون في OpenStreetMap (ترخيص ODbL). حدود المقاطعات: السجل الوطني للحدود (PRG)، المكتب الرئيسي للمساحة ورسم الخرائط (GUGiK)."
+
+msgid "Statystyki uczestników"
+msgstr "إحصاءات المشاركين"
+
+msgid "Z jakich miejscowości pochodzą uczestnicy bieżącej edycji – mapa i pełna lista, wyłącznie dane zbiorcze."
+msgstr "من أي البلدات يأتي المشاركون في الدورة الحالية – خريطة وقائمة كاملة، بيانات مجمّعة فقط."
+
+msgid "Zobacz mapę"
+msgstr "عرض الخريطة"

@@ -438,6 +438,16 @@ def test_chrome_lists_published_stage_rules_of_its_own_competition(competition, 
     ]
 
 
+def test_chrome_links_the_participant_map_only_with_the_flag(competition, other_competition):
+    """MAP-01: ``links.participant_map`` – ostatnia pozycja listy „Dokumenty” i karta spisu w djcms."""
+    assert get_json("chrome")["links"]["participant_map"] is None
+
+    competition.feature_flags = {**(competition.feature_flags or {}), "participant_map": True}
+    competition.save(update_fields=["feature_flags"])
+
+    assert get_json("chrome")["links"]["participant_map"] == f"{MAIN}/dokumenty/mapa-uczestnikow/"
+
+
 def test_timeline_strip_urls_go_through_api_href(competition):
     edition = CurrentEditionFactory(competition=competition, year_label="I edycja 2026/2027")
     stage = StageFactory(edition=edition)
