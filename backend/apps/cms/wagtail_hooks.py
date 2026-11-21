@@ -18,9 +18,13 @@ Wagtail sprawdza uprawnienie do **obiektu** tylko w części widoków, a do resz
 samym identyfikatorze w adresie — to jest dokładnie IDOR, przed którym ma chronić zawężenie.
 
 Pozostałe haki: wybór strony pokazuje wyłącznie poddrzewo redaktora i drogę do niego, okno
-wyboru komunikatu — komunikaty jego konkursów, API panelu (``/cms/api/main/images|documents/``) —
-pliki jego kolekcji, a raport „Użycie typów stron” znika z menu redaktora z ograniczeniami
-w instalacji z kilkoma witrynami (sam adres zamyka ``apps.cms.middleware``).
+wyboru komunikatu — komunikaty jego konkursów, a raport „Użycie typów stron” znika z menu
+redaktora z ograniczeniami w instalacji z kilkoma witrynami (sam adres zamyka
+``apps.cms.middleware``). Do Wagtaila 8.0 był tu jeszcze hak ``construct_admin_api`` zawężający
+API panelu (``/cms/api/main/images|documents/``) do kolekcji redaktora – Wagtail 8.1 usunął to API
+(punkty ``pages``/``images``/``documents`` i sam hak); jedynym API panelu jest
+``/cms/api/explorer/<id>/`` (tylko odczyt, strony z ``explorable_instances`` – zakres z uprawnień
+stron, jak w eksploratorze).
 
 **Zamrożenie edycji stron** (``apps.cms.freeze``, DJ-02 § 1.2 D9): baner nad każdym ekranem
 ``/cms/``, objaśnienie na ekranie edycji strony-danych i menu akcji ograniczone do informacji
@@ -42,8 +46,6 @@ from wagtail import hooks
 from wagtail.admin.menu import MenuItem
 from wagtail.admin.panels import FieldPanel, MultiFieldPanel
 from wagtail.admin.ui.sidebar import LinkMenuItem as LinkMenuItemComponent
-from wagtail.documents.api.admin.views import DocumentsAdminAPIViewSet
-from wagtail.images.api.admin.views import ImagesAdminAPIViewSet
 from wagtail.permission_policies import ModelPermissionPolicy
 from wagtail.permissions import register_permission_policy
 from wagtail.snippets.models import register_snippet
@@ -197,39 +199,6 @@ def hide_page_types_report(request, menu_items):
 
     if page_types_report_hidden(request.user):
         menu_items[:] = [item for item in menu_items if item.name != "page-types-usage"]
-
-
-class _ScopedMediaAPIMixin:
-    """API panelu (``/cms/api/main/images/``, ``/documents/``): wyłącznie kolekcje redaktora.
-
-    Wagtail oddaje tu każdemu z ``access_admin`` **wszystkie** obrazy i dokumenty spoza kolekcji
-    z ograniczeniem widoczności — z tytułami. Redaktor z ograniczeniami dostaje to samo, co
-    w bibliotece i w oknie wyboru: pliki kolekcji, do których ma uprawnienia.
-    """
-
-    def get_queryset(self):
-        queryset = super().get_queryset()
-        user_scope = scope.cms_scope(self.request.user)
-        if user_scope is None:
-            return queryset
-        return queryset.filter(collection_id__in=user_scope.collection_ids)
-
-
-ScopedImagesAdminAPIViewSet = type(
-    "ScopedImagesAdminAPIViewSet", (_ScopedMediaAPIMixin, ImagesAdminAPIViewSet), {}
-)
-ScopedDocumentsAdminAPIViewSet = type(
-    "ScopedDocumentsAdminAPIViewSet", (_ScopedMediaAPIMixin, DocumentsAdminAPIViewSet), {}
-)
-
-
-@hooks.register("construct_admin_api")
-def scope_admin_api(router):
-    """Podmiana punktów końcowych ``images`` i ``documents``. ``apps.cms`` stoi w ``INSTALLED_APPS``
-    **za** ``wagtail.images`` i ``wagtail.documents``, więc ten hak biegnie po ich hakach i jego
-    rejestracja jest ostatnim słowem (``WagtailAPIRouter.register_endpoint`` nadpisuje nazwę)."""
-    router.register_endpoint("images", ScopedImagesAdminAPIViewSet)
-    router.register_endpoint("documents", ScopedDocumentsAdminAPIViewSet)
 
 
 # --- zamrożenie edycji stron (DJ-02 § 1.2 D9) ---------------------------------------------------------

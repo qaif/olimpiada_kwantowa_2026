@@ -252,10 +252,22 @@ def test_snippet_chooser_lists_own_announcements_only(world, as_a):
     assert as_a.get(f"/cms/snippets/choose/cms/announcement/chosen/{world.ann_b.pk}/").status_code == 404
 
 
-def test_admin_api_lists_own_media_only(world, as_a):
-    for url in ("/cms/api/main/images/", "/cms/api/main/documents/"):
-        assert_scoped(as_a.get(url, {"fields": "title"}))
-    assert as_a.get(f"/cms/api/main/images/{world.image_b.pk}/").status_code == 404
+def test_admin_api_has_no_media_endpoints(world, as_a):
+    """``/cms/api/main/images|documents/`` (do Wagtaila 8.0 zawężane hakiem ``construct_admin_api`` do
+    kolekcji redaktora) Wagtail 8.1 usunął – gdyby wróciły, wróci i potrzeba zawężenia."""
+    for url in (
+        "/cms/api/main/images/",
+        "/cms/api/main/documents/",
+        f"/cms/api/main/images/{world.image_b.pk}/",
+    ):
+        assert as_a.get(url).status_code == 404, url
+
+
+def test_admin_api_explorer_lists_own_pages_only(world, as_a):
+    """API panelu Wagtaila 8.1 (``/cms/api/explorer/<id>/``): strony z ``explorable_instances``."""
+    assert_scoped(as_a.get(f"/cms/api/explorer/{world.page_a.get_parent().pk}/"))
+    assert as_a.get(f"/cms/api/explorer/{world.page_b.pk}/").status_code == 404
+    assert as_a.get(f"/cms/api/explorer/{world.page_b.get_parent().pk}/").status_code == 404
 
 
 # --- komunikaty (snippet) i ustawienia ------------------------------------------------------------
@@ -376,9 +388,10 @@ def test_unrestricted_accounts_see_both_competitions(world, client_for, kind):
     client = client_for(world.a)
     client.force_login(user)
 
-    for url in ("/cms/images/", "/cms/documents/", "/cms/images/chooser/", "/cms/api/main/images/"):
-        text = body(client.get(url, {"fields": "title"} if "api" in url else None))
+    for url in ("/cms/images/", "/cms/documents/", "/cms/images/chooser/"):
+        text = body(client.get(url))
         assert TITLE_A in text and TITLE_B in text, url
+    assert TITLE_B in body(client.get(f"/cms/api/explorer/{world.page_b.get_parent().pk}/"))
     assert client.get(f"/cms/pages/{world.page_b.pk}/edit/").status_code == 200
     search = body(client.get("/cms/pages/search/", {"q": "Tajemnica"}))
     assert TITLE_A in search and TITLE_B in search

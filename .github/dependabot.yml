@@ -37,11 +37,6 @@ updates:
       # Wpis znika razem z podbiciem Pyodide w notebook-lab (wtedy obie strony naraz).
       - dependency-name: numpy
         versions: [">=2.5"]
-      # redis-py: kombu 5.6 (transport Celery 5.6) deklaruje `redis<6.5`; 7.x/8.x obsługuje dopiero
-      # kombu 5.7 (5.10.2026 wciąż alfa). Celery nie ma u nas ekstry `[redis]`, więc resolver tej
-      # granicy nie pilnuje – pilnuje jej ten wpis. Znika razem z przejściem na Celery/kombu 5.7.
-      - dependency-name: redis
-        versions: [">=6.5"]
     groups:
       backend-python:
         applies-to: version-updates

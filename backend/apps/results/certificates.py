@@ -1021,8 +1021,12 @@ def _merge_background(overlay: bytes, template: CertificateTemplate | None) -> b
     from pypdf.errors import PyPdfError
 
     try:
-        page = PdfReader(BytesIO(data), strict=False).pages[0]
+        background = PdfReader(BytesIO(data), strict=False).pages[0]
         drawn = PdfReader(BytesIO(overlay), strict=False).pages[0]
+        # Najpierw strona w pisarzu, potem nakładka: pypdf 7 nie podmienia już treści strony,
+        # która należy wyłącznie do czytnika (``replace_contents`` → ``DeprecationError``).
+        writer = PdfWriter()
+        page = writer.add_page(background)
         page.merge_transformed_page(
             drawn,
             Transformation().scale(
@@ -1030,8 +1034,6 @@ def _merge_background(overlay: bytes, template: CertificateTemplate | None) -> b
                 float(page.mediabox.height) / PAGE_HEIGHT,
             ),
         )
-        writer = PdfWriter()
-        writer.add_page(page)
         merged = BytesIO()
         writer.write(merged)
         return merged.getvalue()

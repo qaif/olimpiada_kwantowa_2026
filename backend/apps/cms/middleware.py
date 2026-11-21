@@ -152,16 +152,14 @@ FROZEN_EDIT_VIEWS = frozenset({f"{_PAGES}edit", f"{_PAGES}revisions_revert"})
 BULK_ACTION_VIEW = "wagtail_bulk_action"
 BULK_PAGE_MODEL = ("wagtailcore", "page")
 
-#: API panelu Wagtaila – akcje na stronie (``POST /cms/api/main/pages/<pk>/action/<nazwa>/``:
-#: ``publish``, ``unpublish``, ``revert_to_page_revision``, ``move``, ``copy``, ``delete``,
-#: ``convert_alias``, ``create_alias``, ``copy_for_translation``). Część z nich sprawdza wyłącznie
-#: ``can_edit()``, które zamrożony tester zostawia (podgląd tylko do odczytu), a interfejs panelu
-#: z tego adresu nie korzysta – w czasie zamrożenia odmowa dla **każdej** akcji i każdej strony.
-API_ACTION_VIEW = "wagtailadmin_api:pages:action"
+# Akcji na stronach przez API panelu (``POST /cms/api/main/pages/<pk>/action/<nazwa>/``) nie ma
+# od Wagtaila 8.1 – jedynym API panelu jest eksplorator (``/cms/api/explorer/<id>/``, tylko
+# ``GET``), więc nie ma tu czego zamrażać. Test ``test_admin_api_has_no_page_actions`` pilnuje,
+# żeby powrót takiego punktu w nowszym Wagtailu nie przeszedł bez nowej pozycji na liście.
 
 SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 
-_WATCHED = FROZEN_TREE_VIEWS | FROZEN_CONTENT_VIEWS | FROZEN_EDIT_VIEWS | {BULK_ACTION_VIEW, API_ACTION_VIEW}
+_WATCHED = FROZEN_TREE_VIEWS | FROZEN_CONTENT_VIEWS | FROZEN_EDIT_VIEWS | {BULK_ACTION_VIEW}
 
 
 class CmsFreezeMiddleware:
@@ -195,8 +193,6 @@ class CmsFreezeMiddleware:
             if model == BULK_PAGE_MODEL:
                 return _denied(request, "Akcje zbiorcze na stronach są wyłączone.")
             return None
-        if name == API_ACTION_VIEW:
-            return _denied(request, "Akcje na stronach przez API panelu są wyłączone.", as_json=True)
         if name in FROZEN_TREE_VIEWS:
             return _denied(
                 request,
