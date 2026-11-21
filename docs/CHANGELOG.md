@@ -37,6 +37,24 @@ Pełny opis każdej funkcji: [`../README.md`](../README.md). Stan prac i dług t
 - RODO: rejestr czynności **1.29** – wiersz warunkowy „mapa uczestników” (publikacja zbiorczej
   statystyki z progiem ochrony).
 
+## [Unreleased] – Aktualizacja zależności
+
+- Backend (zamiast PR-ów Dependabota #172–#174, #176, #177): pypdf 6.21.4 → 7.1.1, wagtail 8.0 → 8.1,
+  sentry-sdk 2.73.0 → 2.74.0, celery 5.6.3 → 5.7.0 (kombu 5.7.0, billiard 4.3.2, amqp 5.4.2),
+  google-genai 2.29.0 → 3.6.1 (`httpx2` zamiast `httpx`), draftjs-exporter 7.3.1.
+- Wagtail 8.1 usunął wewnętrzne API panelu (`/cms/api/main/pages|images|documents/`, hak
+  `construct_admin_api`): z `apps.cms` znika zawężenie tego API do kolekcji redaktora i odmowa akcji
+  API w `CmsFreezeMiddleware`; testy pilnują, że punktów nie ma, a nowy eksplorator
+  (`/cms/api/explorer/<id>/`, tylko odczyt) pokazuje redaktorowi wyłącznie jego strony.
+- pypdf 7 nie nakłada już treści na stronę należącą wyłącznie do czytnika (`replace_contents` →
+  `DeprecationError`): tło PDF szablonu dyplomu (`apps.results.certificates`) i znak wodny tłumaczeń
+  (`apps.problem_translations.pdf`) najpierw dodają stronę do `PdfWriter`, potem scalają. Bez tego
+  dyplom z tłem PDF wychodziłby po cichu bez tła, a pobranie arkusza przez lidera kończyło się 500.
+- google-genai 3.x domyślnie woła API `v1`, gdzie nie ma modeli `-preview` – dostawca Gemini oceny AI
+  podaje `api_version="v1beta"` jawnie.
+- Celery od 5.7 (dolna granica) – kombu 5.7 dopuszcza redis-py `<9`, więc wpis `ignore` dla `redis`
+  w `.github/dependabot.yml` znika (granica `redis<6.5` zostaje, przejście na 7/8 osobno).
+
 ## [Unreleased] – Załączniki (pliki danych) do zadań (PUB-02)
 
 - Model `competitions.ProblemAttachment` (migracja `0038_problem_attachment`): plik w prywatnym
