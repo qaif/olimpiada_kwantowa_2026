@@ -247,14 +247,15 @@ wheels = [
 
 [[package]]
 name = "djangocms-simple-admin-style"
-version = "2.1.1"
+version = "6.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
+    { name = "django" },
     { name = "django-cms" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/d6/34/094753cff641457ec9140b86d6f230a8d4d45ebf6c913e3904d83165da1d/djangocms_simple_admin_style-2.1.1.tar.gz", hash = "sha256:941fe1593d1d9af72aaa5d117557089cb60c5588ca292d619a61437e0087ac44", size = 17984, upload-time = "2026-09-01T06:34:08.561Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/22/86/58d9e75954c4b07344f81d927e7c07708de47c8788dc7ccc228a52cfaecf/djangocms_simple_admin_style-6.1.0.tar.gz", hash = "sha256:fb28241b635e8c0aa1d46c04a0a962f0416b1902cdec2459858eb19592d806ec", size = 15431, upload-time = "2026-11-11T10:23:12.036Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/f9/76/36352d377226e7d63afc98c065be81e8419a08841f7b62995613aa755748/djangocms_simple_admin_style-2.1.1-py3-none-any.whl", hash = "sha256:d848d461e285d2e11b905c93248f8cc0a10b9043bba3abf760262234f260e6d7", size = 27894, upload-time = "2026-09-01T06:34:07.375Z" },
+    { url = "https://files.pythonhosted.org/packages/a9/e9/5e902abfab62cf9dd1ebcb5da1c5af80fc13e11e2e75d1bc08caee6c8c46/djangocms_simple_admin_style-6.1.0-py3-none-any.whl", hash = "sha256:da28532424bfea96ada657de48ded0fd1af67f7354d546b340b55afd3da695f1", size = 21686, upload-time = "2026-11-11T10:23:11.004Z" },
 ]
 
 [[package]]
@@ -592,7 +593,7 @@ requires-dist = [
     { name = "django-sekizai", specifier = "==4.1.0" },
     { name = "django-stubs", marker = "extra == 'dev'", specifier = ">=5.1" },
     { name = "django-treebeard", specifier = "==5.3.1" },
-    { name = "djangocms-simple-admin-style", specifier = "==2.1.1" },
+    { name = "djangocms-simple-admin-style", specifier = "==6.1.0" },
     { name = "djangocms-text", specifier = "==1.0.2" },
     { name = "djangocms-versioning", specifier = "==2.8.0" },
     { name = "easy-thumbnails", specifier = "==2.10.1" },
