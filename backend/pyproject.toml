@@ -47,6 +47,10 @@ dependencies = [
     # beat, DST), backendy wyników bazodanowe/Mongo/Cassandra zachowują pierwszy ``SUCCESS``
     # (wyniki trzymamy w Redisie).
     "celery>=5.7,<5.8",
+    # kombu 5.7 (transport redis) importuje `packaging`, ale go nie deklaruje – w CI przechodziło, bo
+    # `packaging` wnosi pytest, a obraz produkcyjny (bez zależności dev) nie miał go wcale: worker i beat
+    # padałyby przy starcie na ModuleNotFoundError (job „dostępność” PR #179, 21.11.2026).
+    "packaging>=24",
     # UWAGA – override w ``[tool.uv]`` na końcu pliku. ``django-celery-beat`` 2.9.0 (najnowsze
     # wydanie, sprawdzone na PyPI 18.09.2026) deklaruje ``Django<6.1`` i bez obejścia blokuje
     # rozwiązanie zależności. Deklaracja jest zbyt ostrożna, a nie prawdziwa: pakiet działa
