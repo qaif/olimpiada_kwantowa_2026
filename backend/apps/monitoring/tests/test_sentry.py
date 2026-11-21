@@ -123,4 +123,13 @@ def test_with_dsn_events_leave_without_personal_data():
     # uczestników) i bez ``argv``/``modules``.
     integrations = set(first["sdk"]["integrations"])
     assert {"django", "celery", "redis", "logging"} <= integrations
-    assert not integrations & {"anthropic", "openai", "google_genai", "argv", "modules", "boto3", "httpx"}
+    assert not integrations & {
+        "anthropic",
+        "openai",
+        "google_genai",
+        "argv",
+        "modules",
+        "boto3",
+        "httpx",
+        "httpx2",
+    }

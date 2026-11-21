@@ -87,8 +87,9 @@ def watermark(data: bytes, lines: list[str]) -> bytes:
         key = (float(box.width), float(box.height))
         if key not in overlays:
             overlays[key] = PdfReader(io.BytesIO(_overlay(*key, lines))).pages[0]
-        page.merge_page(overlays[key])
-        writer.add_page(page)
+        # Najpierw strona w pisarzu, potem nakładka: pypdf 7 nie podmienia już treści strony,
+        # która należy wyłącznie do czytnika (``replace_contents`` → ``DeprecationError``).
+        writer.add_page(page).merge_page(overlays[key])
     output = io.BytesIO()
     writer.write(output)
     return output.getvalue()

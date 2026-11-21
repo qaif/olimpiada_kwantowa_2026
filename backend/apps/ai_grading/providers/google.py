@@ -1,4 +1,4 @@
-"""Google (modele Gemini) – Gemini Developer API przez oficjalne SDK ``google-genai`` (linia 2.x).
+"""Google (modele Gemini) – Gemini Developer API przez oficjalne SDK ``google-genai`` (linie 2.x i 3.x).
 
 Kształt żądania sprawdzony 24.09.2026 w dokumentacji i w źródle SDK 2.25.0
 (https://github.com/googleapis/python-genai, ``google/genai/types.py``, ``errors.py``):
@@ -11,6 +11,9 @@ Kształt żądania sprawdzony 24.09.2026 w dokumentacji i w źródle SDK 2.25.0
 - https://ai.google.dev/gemini-api/docs/gemini-3 – rozumowanie przez ``thinking_level`` (``high``);
   starszy ``thinking_budget`` jest przestarzały, a podanie obu kończy się 400. ``thinking_level``
   wysyłamy wyłącznie modelom ``gemini-3*`` – starsza linia 2.5 zna tylko ``thinking_budget``,
+- wersja API ``v1beta`` **jawnie**: SDK 3.0 zmieniło domyślną wersję Gemini Developer API z
+  ``v1beta`` na ``v1``, a modele ``-preview`` (w katalogu ``gemini-3.1-pro-preview``) istnieją
+  wyłącznie w ``v1beta`` – bez tej opcji wybór takiego modelu kończyłby się 404,
 - ``HttpOptions.timeout`` jest w **milisekundach**, a SDK bez ``retry_options`` nie ponawia nic –
   ponowienia w obrębie wywołania włączamy jawnie, tak jak ``max_retries`` u pozostałych,
 - https://ai.google.dev/gemini-api/docs/image-understanding – dane wysyłane w żądaniu (inline)
@@ -132,6 +135,7 @@ class GoogleProvider(Provider):
         from google.genai import types
 
         options = types.HttpOptions(
+            api_version="v1beta",
             timeout=int(timeout * 1000),
             retry_options=types.HttpRetryOptions(
                 attempts=max(1, max_retries + 1), http_status_codes=RETRY_STATUS_CODES

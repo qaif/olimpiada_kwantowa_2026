@@ -746,6 +746,8 @@ def test_real_google_client_sends_the_key_in_a_header_with_a_timeout_in_millisec
     assert options.headers["x-goog-api-key"] == PROVIDER_KEYS["google"]
     assert options.timeout == 60000
     assert options.retry_options.attempts == 3
+    # SDK 3.0 przełączyło domyślną wersję na ``v1`` – modele ``-preview`` są tylko w ``v1beta``.
+    assert options.api_version == "v1beta"
 
 
 def test_api_key_wrapper_never_shows_the_key_in_a_request_repr():

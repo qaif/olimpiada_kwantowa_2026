@@ -14,7 +14,7 @@ import json
 import pytest
 from django.core.management import call_command
 from django.db import IntegrityError, transaction
-from django.urls import set_script_prefix
+from django.urls import NoReverseMatch, reverse, set_script_prefix
 from wagtail.fields import StreamField
 from wagtail.models import Page, PagePermissionTester
 from wagtail.test.utils.form_data import nested_form_data, querydict_from_html, streamfield
@@ -199,42 +199,25 @@ def test_missing_page_is_left_to_wagtail(admin_client, frozen):
     assert admin_client.post("/cms/pages/999999/unpublish/").status_code == 404
 
 
-def _api_action(page, action: str) -> str:
-    return f"/cms/api/main/pages/{page.pk}/action/{action}/"
-
-
-def _api_denied(response) -> bool:
-    return (
-        response.status_code == 403
-        and response["Content-Type"].startswith("application/json")
-        and json.loads(response.content)["error_code"] == "editing_frozen"
-    )
-
-
-@pytest.mark.parametrize("as_coordinator", [False, True])
-def test_admin_api_page_actions_are_refused(client, operator, as_coordinator, home, page, other_page):
-    """API panelu (``/cms/api/main/pages/<pk>/action/<akcja>/``) – każda akcja, także te, które
-    same sprawdzają wyłącznie ``can_edit()`` (przywrócenie rewizji, zamiana aliasu)."""
-    revision = page.save_revision(user=operator)
-    alias = page.create_alias(parent=other_page, update_slug="alias-zamrozenie")
-    freeze.set_frozen(True)
-    user = CoordinatorFactory() if as_coordinator else operator
-    assert client.login(email=user.email, password=DEFAULT_PASSWORD)
-    revisions_before = page.revisions.count()
-
-    for target, action, body in (
-        (page, "revert_to_page_revision", {"revision_id": revision.pk}),
-        (alias, "convert_alias", {}),
-        (page, "publish", {}),
-        (page, "unpublish", {}),
-        (page, "copy_for_translation", {"locale": "en"}),
+def test_admin_api_has_no_page_actions(admin_client, frozen, page):
+    """Do Wagtaila 8.0 API panelu miało akcje na stronach (``POST /cms/api/main/pages/<pk>/action/…``:
+    publikacja, przywrócenie rewizji, zamiana aliasu…) i ``CmsFreezeMiddleware`` odmawiał każdej.
+    Wagtail 8.1 je usunął – jedynym API panelu jest eksplorator, wyłącznie do odczytu. Gdyby
+    nowszy Wagtail przywrócił akcje, ten test padnie, zanim ominą zamrożenie."""
+    with pytest.raises(NoReverseMatch):
+        reverse("wagtailadmin_api:pages:action", args=[page.pk, "publish"])
+    for action in (
+        "publish",
+        "unpublish",
+        "revert_to_page_revision",
+        "convert_alias",
+        "copy_for_translation",
     ):
-        response = client.post(_api_action(target, action), json.dumps(body), content_type="application/json")
-        assert _api_denied(response), (action, response.status_code, response.content[:300])
-
-    assert page.revisions.count() == revisions_before
-    alias.refresh_from_db()
-    assert alias.alias_of_id == page.pk
+        url = f"/cms/api/main/pages/{page.pk}/action/{action}/"
+        assert admin_client.post(url, "{}", content_type="application/json").status_code == 404, action
+    explorer = f"/cms/api/explorer/{page.pk}/"
+    assert admin_client.get(explorer).status_code == 200
+    assert admin_client.post(explorer, "{}", content_type="application/json").status_code == 405
     page.refresh_from_db()
     assert page.live
 
@@ -314,7 +297,6 @@ def test_data_pages_cannot_be_unpublished(request, admin_client, operator, froze
         ("post", f"/cms/bulk/wagtailcore/page/unpublish/?id={data_page.pk}"),
     ):
         assert _denied(getattr(admin_client, method)(url)), (method, url)
-    assert _api_denied(admin_client.post(_api_action(data_page, "unpublish")))
     data_page.refresh_from_db()
     assert data_page.live
     assert not data_page.permissions_for_user(operator).can_unpublish()

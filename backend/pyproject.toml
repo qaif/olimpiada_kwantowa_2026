@@ -31,17 +31,22 @@ dependencies = [
     # nie mają ani koła, ani źródeł (``psycopg-binary`` wychodzi wyłącznie jako koła), więc na
     # 3.14 w ogóle się nie instalują.
     "psycopg[binary,pool]>=3.2.10,<3.4",
-    # Linia 6.4 (DEP-01, 5.10.2026). Górna granica to nie „następna wersja mniejsza z nawyku”, tylko
-    # deklaracja kombu 5.6 (transport Celery 5.6): ``redis<6.5``. Celery stoi u nas bez ekstry
-    # ``[redis]``, więc resolver tej granicy sam nie dopilnuje – pilnuje jej ta linia i wpis ``ignore``
-    # w .github/dependabot.yml. Redis-py 7/8 dopiero z kombu 5.7. Zmiany 6.0 nas nie dotyczą:
+    # Linia 6.4 (DEP-01, 5.10.2026). Do 21.11.2026 górną granicę wymuszała deklaracja kombu 5.6
+    # (transport Celery 5.6): ``redis<6.5``. Od Celery/kombu 5.7 (``celery>=5.7`` niżej) kombu
+    # dopuszcza ``redis>=6.4,<9``, więc granica jest już tylko nasza: przejście na redis-py 7/8 to
+    # osobne podbicie wersji głównej (Dependabot je zaproponuje – wpis ``ignore`` w
+    # .github/dependabot.yml zniknął razem z kombu 5.6), sprawdzane z django-redis. Zmiany 6.0 nas nie dotyczą:
     # ``ssl_check_hostname`` (Redis bez TLS, sieć ``cache``), domyślne ponowienia klienta (django-redis
     # i kombu podają własną pulę połączeń, więc obowiązuje ``retry`` puli – bez ponowień, jak w 5.x),
     # RedisGraph/RedisGears i dialekt wyszukiwania (nieużywane).
     "redis>=6.4,<6.5",
     # 7.0: pierwsza linia z ``Django>=5.2`` w metadanych; 5.4 nie instaluje się obok Django 6.1.
     "django-redis>=7.0,<7.1",
-    "celery>=5.6,<5.7",
+    # 5.7 (21.11.2026): kombu 5.7 – dolna granica pilnuje, że ``redis`` wyżej nie trafi na kombu 5.6
+    # (``redis<6.5``). Zmiany 5.7 bez wpływu na nas: poprawki beat (wpis z błędem nie zatrzymuje
+    # beat, DST), backendy wyników bazodanowe/Mongo/Cassandra zachowują pierwszy ``SUCCESS``
+    # (wyniki trzymamy w Redisie).
+    "celery>=5.7,<5.8",
     # UWAGA – override w ``[tool.uv]`` na końcu pliku. ``django-celery-beat`` 2.9.0 (najnowsze
     # wydanie, sprawdzone na PyPI 18.09.2026) deklaruje ``Django<6.1`` i bez obejścia blokuje
     # rozwiązanie zależności. Deklaracja jest zbyt ostrożna, a nie prawdziwa: pakiet działa
@@ -71,8 +76,11 @@ dependencies = [
     "whitenoise>=6.7,<7.0",
     # CMS in-process (PROJEKT.md 1.1). 8.0 to pierwsza linia zgodna z Django 6.1 (metadane:
     # ``Django>=5.2``, klasyfikatory 5.2/6.0/6.1); poprzednia 6.3 była linią LTS zgodną
-    # z Django 5.1 i z Django 6 się nie instaluje.
-    "wagtail>=8.0,<8.1",
+    # z Django 5.1 i z Django 6 się nie instaluje. 8.1 (21.11.2026) usunęła wewnętrzne API panelu
+    # (``/cms/api/main/…`` i hak ``construct_admin_api``) – stąd dolna granica: ``apps.cms`` nie ma
+    # już zawężenia tego API ani jego pozycji w ``CmsFreezeMiddleware`` (komentarze tam). Bez
+    # nowych migracji Wagtaila.
+    "wagtail>=8.1,<8.2",
     # Logowanie przez Google/Facebook. Używamy **wyłącznie** części socialaccount – lokalne
     # widoki allauth (hasłowe logowanie i rejestracja) nie są montowane, patrz apps/web/social_urls.py.
     # Ekstra ``socialaccount`` dociąga ``requests``/``requests-oauthlib`` (OAuth2 + PKCE).
@@ -123,8 +131,12 @@ dependencies = [
     # idzie dopiero po czystym skanie antywirusowym. W zwykłych zależnościach, a nie w ekstrze
     # dev, bo liczbę stron pokazuje panel uczestnika, czyli produkcja.
     # Od 6.x: linia 5.x nie dostaje poprawek zapętleń i wyczerpania pamięci na spreparowanych
-    # plikach, a ten odczyt dostaje dokumenty od uczestników.
-    "pypdf>=6,<7",
+    # plikach, a ten odczyt dostaje dokumenty od uczestników. 7.x (21.11.2026): kolejne limity
+    # pamięci i pracy na spreparowanych plikach; zmiany łamiące to porzucony Python 3.9
+    # i ``cryptography<43`` oraz usunięte przestarzałe API, którego nie używamy. Losowy od 7.0
+    # identyfikator pliku (``/ID``) powstaje tylko przy szyfrowaniu albo ``clone_from`` – nasze
+    # ``PdfWriter().add_page`` (tło dyplomu, arkusz tłumaczenia) nadal składa bajt w bajt tak samo.
+    "pypdf>=6,<8",
     # Pieczęć elektroniczna dokumentów w formacie PAdES (``apps.results.signing``). W zwykłych
     # zależnościach, bo podpisuje **produkcja** – dokument powstaje przy każdym pobraniu i to
     # wtedy trafia na niego pieczęć. Sama funkcja jest jednak wyłączona, dopóki nie ma klucza
@@ -154,10 +166,12 @@ dependencies = [
     # (Meta Model API jest zgodne z SDK OpenAI; dawne ``llama-api-client`` rozmawia z wyłączonym
     # 6.07.2026 Llama API, więc go nie dokładamy). Linie sprawdzone 24.09.2026: openai 3.19.2
     # (Responses API, ``responses.stream``), google-genai 2.25.0 (``response_json_schema``,
-    # ``thinking_level``); README ``google-genai`` każe zostać poniżej 3.0 – zmiana zachowania
-    # automatycznego wołania funkcji.
+    # ``thinking_level``). Linia 3.x (21.11.2026, sprawdzone na 3.6.1): domyślna wersja API ``v1``
+    # zamiast ``v1beta`` (dostawca podaje ``v1beta`` jawnie – modele ``-preview``), ``httpx2``
+    # zamiast ``httpx`` i systemowy magazyn certyfikatów zamiast ``certifi``; automatycznego
+    # wołania funkcji nie używamy.
     "openai>=3.19,<4",
-    "google-genai>=2.25,<3",
+    "google-genai>=2.25,<4",
     # Śledzenie błędów (OPS-02, docs/OPERACJE.md § 44) – klient protokołu Sentry, wysyłający zdarzenia
     # do **własnego** GlitchTipa (profil compose ``monitoring``); zależność zatwierdzona przez
     # użytkownika 4.10.2026. W zwykłych zależnościach, bo zdarzenia wysyła produkcja; import leniwy
@@ -166,8 +180,9 @@ dependencies = [
     # (``apps.monitoring.scrubbing``) opiera się na kształcie zdarzenia i opcjach ``init``
     # (``include_local_variables``, ``max_request_body_size``, ``before_send_transaction``), więc
     # przeskok wersji ma być świadomy i z przebiegiem ``apps/monitoring/tests``. Linia 3.x (dziś
-    # alfa) zmienia API zakresów – osobne zadanie.
-    "sentry-sdk>=2.71,<2.74",
+    # alfa) zmienia API zakresów – osobne zadanie. 2.74 (21.11.2026): bez zmian w integracjach
+    # z listy zamkniętej (Django, Celery, Redis, logging) ani w opcjach filtra; ``apps/monitoring`` zielone.
+    "sentry-sdk>=2.71,<2.75",
 ]
 
 [project.optional-dependencies]
