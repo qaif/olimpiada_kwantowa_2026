@@ -33,7 +33,7 @@ dependencies = [
     "django-filer==3.6.0",
     "easy-thumbnails==2.10.1",
     "django-polymorphic==4.11.7",
-    "djangocms-simple-admin-style==2.1.1",
+    "djangocms-simple-admin-style==6.1.0",
     # Reszta – te same zakresy co w ``backend/pyproject.toml`` (uzasadnienia tam).
     "django-environ>=0.14,<0.15",
     "psycopg[binary]>=3.2.10,<3.4",
