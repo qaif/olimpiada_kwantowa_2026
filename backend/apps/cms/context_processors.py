@@ -21,7 +21,8 @@ regułą ogólną wysypałby do nagłówka wszystkie aktualności, a archiwum �
 Dzieci czytamy jednym zapytaniem dla całego menu, więc dołożenie kolejnego dokumentu nie dokłada
 zapytania do każdej strony serwisu. Do tej listy dochodzą – zaraz za Regulaminem – „Zasady
 Organizacji Zawodów” etapów z opublikowaną wersją (ZOZ-02, ``stage_rules_entries``): to dokumenty
-etapów, a nie strony drzewa.
+etapów, a nie strony drzewa. Na samym końcu listy – „Mapa uczestników” konkursu z włączoną flagą
+``participant_map`` (MAP-01, ``participant_map_entry``).
 
 Jedna pozycja nie pochodzi z drzewa Wagtaila: „Dla szkół/nauczycieli” (prośba organizatora z 22.09.2026,
 patrz ``_supervisor_menu_item``) stoi zawsze **ostatnia**, za drzewem albo za listą zapasową, i tylko
@@ -255,6 +256,10 @@ def _expandable_children(pages: list, request) -> tuple[dict[int, list[dict]], l
     if rules:
         for kids in found.values():
             _insert_after_rules_anchor(kids, rules)
+    participant_map = _participant_map_child(request)
+    if participant_map is not None:
+        for kids in found.values():
+            kids.append(dict(participant_map))
     return found, promoted
 
 
@@ -301,6 +306,30 @@ def _stage_rules_children(request) -> list[dict]:
         logger.warning("Nie udało się odczytać ZOZ etapów – menu bez nich.", exc_info=True)
         return []
     return [{**entry, "active": request.path.startswith(entry["url"]), "slug": ""} for entry in entries]
+
+
+def participant_map_entry(competition) -> dict | None:
+    """Pozycja „Mapa uczestników” (MAP-01): ``{"title", "url"}`` albo ``None`` przy wyłączonej fladze.
+
+    Mapa jest stroną aplikacji (``apps.participant_map``), a nie stroną drzewa, więc dokładamy ją do
+    listy „Dokumenty” **na końcu** – za dokumentami redakcji i za ZOZ etapów. Flaga konkursu siedzi
+    w wierszu, który żądanie już ma (``request.competition``), więc pozycja nie kosztuje zapytania.
+    Wspólne dla menu Wagtaila, spisu ``/dokumenty/`` i ramy djcms (``djcms_api`` – ``chrome``).
+    """
+    from django.urls import reverse
+
+    from apps.participant_map.services import enabled
+
+    if not enabled(competition):
+        return None
+    return {"title": gettext("Mapa uczestników"), "url": reverse("web:participant-map")}
+
+
+def _participant_map_child(request) -> dict | None:
+    entry = participant_map_entry(getattr(request, "competition", None))
+    if entry is None:
+        return None
+    return {**entry, "active": request.path == entry["url"], "slug": ""}
 
 
 def _insert_after_rules_anchor(kids: list[dict], rules: list[dict]) -> None:

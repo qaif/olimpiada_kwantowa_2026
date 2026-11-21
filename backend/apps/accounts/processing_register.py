@@ -145,8 +145,11 @@ from apps.competitions.models import DEFAULT_RETENTION_MONTHS
 #: 1.28 (21.10.2026, zadanie UX-PANEL-04) – panel koordynatora: przypięte pozycje menu (ustawienie konta
 #: personelu: ścieżka ekranu panelu, kolejność, data – bez danych uczestników) w wierszu „serwis”; „ostatnio
 #: używane” zostają wyłącznie w przeglądarce. Nowa kategoria danych przy koncie, więc zmiana jest materialna.
-REGISTER_VERSION = "1.28"
-REGISTER_DATE = date(2026, 10, 21)
+#: 1.29 (21.11.2026, zadanie MAP-01) – mapa uczestników: wiersz warunkowy (flaga ``participant_map``,
+#: ``apps.participant_map.register``) – szkoła z profilu użyta w nowym celu, publikacji zbiorczej
+#: statystyki według miejscowości z progiem ochrony; nowy krąg odbiorców (publiczność serwisu).
+REGISTER_VERSION = "1.29"
+REGISTER_DATE = date(2026, 11, 21)
 
 #: Zdanie o okresie przechowywania danych uczestnika. Liczba pochodzi z tego samego miejsca, co
 #: domyślna wartość ``Edition.data_retention_months`` – gdyby organizator zmienił ją dla rocznika,
@@ -1367,6 +1370,10 @@ def activities_for(competition=None) -> tuple[ProcessingActivity, ...]:
         from apps.teacher_panel.register import CLASS_DETAILS_ACTIVITY
 
         activities = (*activities, CLASS_DETAILS_ACTIVITY)
+    if competition is not None and competition.has_feature("participant_map"):
+        from apps.participant_map.register import PARTICIPANT_MAP_ACTIVITY
+
+        activities = (*activities, PARTICIPANT_MAP_ACTIVITY)
     if competition is not None and competition.has_feature("stage_time_windows"):
         activities = (*activities, TIME_WINDOWS_ACTIVITY)
     if competition is not None and len(competition.ui_languages) > 1:

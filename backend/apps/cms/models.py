@@ -1116,7 +1116,12 @@ class DocumentIndexPage(CMSPage):
             .order_by("path")
             .prefetch_related("attachments__document")
         )
-        context["stage_rules"] = stage_rules_cards(competition_for_page(self, request))
+        competition = competition_for_page(self, request)
+        context["stage_rules"] = stage_rules_cards(competition)
+        # Mapa uczestników (MAP-01) – karta na końcu spisu, gdy konkurs ma włączoną flagę.
+        from apps.cms.context_processors import participant_map_entry
+
+        context["participant_map"] = participant_map_entry(competition)
         return context
 
 

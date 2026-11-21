@@ -100,6 +100,9 @@ EXPECTED_MENU_WITHOUT_FLAGS: tuple[tuple[str, tuple[str, ...]], ...] = (
             "Zaświadczenia z warsztatów",
             # Lejek uczestnika – zadanie STATS-02 (lista organizatora z 18.10.2026), bez flagi.
             "Lejek uczestnika",
+            # Mapa uczestników – zadanie MAP-01 (prośba organizatora z 21.11.2026: odświeżanie mapy
+            # i jej włączanie przez koordynatora). Bez flagi: tu się flagę ``participant_map`` włącza.
+            "Mapa uczestników",
             "Zaświadczenia opiekunów",
             "Retencja danych",
             "Rejestr czynności",
@@ -205,6 +208,8 @@ FLAG_ITEMS: dict[str, tuple[frozenset[str], frozenset[str]]] = {
     "proctoring": (frozenset({"Nadzór zdalny"}), frozenset({"Nadzór zdalny"})),
     # --- edytor LaTeX (TEX-01) – bez pozycji w menu: przełącznik etapu jest na ekranie „Terminy etapu” -
     "latex_editor": (frozenset(), frozenset()),
+    # --- mapa uczestników (MAP-01) – pozycja „Mapa uczestników” stoi bez flagi (na niej się ją włącza) -
+    "participant_map": (frozenset(), frozenset()),
 }
 
 #: Piętnaście flag **etapu 2** – zdanie z ``docs/UNIWERSALNY-ETAP-2.md`` § 0.6 („piętnaście flag to
@@ -337,6 +342,7 @@ def test_document_templates_flag_adds_exactly_one_item_in_reports(competition):
         "Obecność na warsztatach",
         "Zaświadczenia z warsztatów",
         "Lejek uczestnika",
+        "Mapa uczestników",
         "Zaświadczenia opiekunów",
         "Retencja danych",
         "Rejestr czynności",

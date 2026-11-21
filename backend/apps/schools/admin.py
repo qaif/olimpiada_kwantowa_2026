@@ -10,7 +10,17 @@ przebiegu seeda, dlatego prawa drogą dla szkół spoza rejestru jest wolny teks
 from django.contrib import admin
 
 from .custom import CustomInstitution
-from .models import School
+from .models import School, TownLocation
+
+
+@admin.register(TownLocation)
+class TownLocationAdmin(admin.ModelAdmin):
+    """Punkty mapy uczestników (MAP-01) – podgląd; trwałą poprawkę wpisuje się do fixture'u."""
+
+    list_display = ("city_parent", "voivodeship", "latitude", "longitude")
+    list_filter = ("voivodeship",)
+    search_fields = ("city_parent",)
+    ordering = ("voivodeship", "city_parent")
 
 
 @admin.register(School)

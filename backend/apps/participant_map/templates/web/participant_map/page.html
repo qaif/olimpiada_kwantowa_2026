@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% load static i18n %}
+{% comment %}
+  Mapa uczestników (MAP-01). Układ zaakceptowany przez organizatora: kafle podsumowania, mapa Polski
+  z kółkami miejscowości obok pełnej listy, przypis o źródłach i ochronie danych.
+
+  Strona działa **bez JavaScriptu**: mapa jest SVG wyrenderowanym na serwerze (kółka z ``<title>``
+  – podpowiedź przeglądarki), lista jest zwykłą listą, a pozycja listy z punktem na mapie to
+  odnośnik do swojego kółka (``#mu-N``) podświetlanego przez ``:target``. Skrypt
+  (``participant_map/participant-map.js``, plik statyczny z nonce'em – bez skryptu w dokumencie)
+  dokłada wyszukiwarkę bez polskich znaków i podświetlenie kółka bez przewijania strony.
+
+  Liczby współrzędnych przychodzą jako napisy z kropką (``apps.participant_map.geometry.fmt``) –
+  lokalizacja polska zamieniłaby ją w przecinek, który w SVG rozdziela współrzędne.
+{% endcomment %}
+{% block title %}{% translate "Mapa uczestników" %} – {{ settings.cms.SiteSettings.site_name }}{% endblock %}
+{% block description %}{% translate "Z jakich miejscowości pochodzą uczestnicy bieżącej edycji olimpiady – mapa Polski i pełna lista miejscowości, wyłącznie dane zbiorcze." %}{% endblock %}
+{% block head %}
+  <link rel="stylesheet" href="{% static 'css/statistics.css' %}">
+  <link rel="stylesheet" href="{% static 'participant_map/participant-map.css' %}">
+{% endblock %}
+{% block content %}
+<div class="page-head">
+  <span class="eyebrow">{% translate "Dokumenty" %}{% if map.edition %} · {{ map.edition }}{% endif %} · {% blocktranslate with when=stamp %}stan na {{ when }}{% endblocktranslate %}</span>
+  <h1>{% translate "Mapa uczestników" %}</h1>
+  <p class="lead">{% translate "Każde kółko to miejscowość, w której leżą szkoły uczestników; pole kółka odpowiada liczbie uczniów. Kliknij miejscowość na liście, żeby zobaczyć ją na mapie." %}</p>
+</div>
+
+<dl class="stat-facts pm-facts">
+  <div><dt>{% translate "Uczestnicy" %}</dt><dd>{{ map.total }}</dd></div>
+  <div><dt>{% translate "Miejscowości" %}</dt><dd>{{ map.towns_total }}</dd></div>
+  <div><dt>{% translate "Szkoły z wykazu SIO" %}</dt><dd>{{ map.schools }}</dd></div>
+  <div><dt>{% translate "Udział 5 największych miejscowości" %}</dt><dd>{% if map.top_share is not None %}{{ map.top_share }}%{% else %}—{% endif %}</dd></div>
+</dl>
+
+{% if not map.total %}
+  <div class="card"><p class="empty">{% translate "W bieżącej edycji nie ma jeszcze uczestników do pokazania." %}</p></div>
+{% else %}
+<div class="pm-layout" data-participant-map>
+  <section class="card pm-card" aria-labelledby="pm-map-title">
+    <h2 class="pm-card__title" id="pm-map-title">{% translate "Mapa" %}</h2>
+    <svg class="pm-map" viewBox="{{ view_box }}" role="img" aria-labelledby="pm-map-desc" focusable="false">
+      <desc id="pm-map-desc">{% translate "Mapa Polski z granicami województw i kółkami miejscowości; pole kółka odpowiada liczbie uczestników. Te same liczby są na liście obok." %}</desc>
+      <g class="pm-voivodeships">{% for path in paths %}<path class="pm-voivodeship" d="{{ path.d }}"/>{% endfor %}</g>
+      <g class="pm-dots">{% for town in map.dots %}<circle class="pm-dot" id="{{ town.id }}" data-town="{{ town.id }}" cx="{{ town.point.cx }}" cy="{{ town.point.cy }}" r="{{ town.point.r }}"><title>{{ town.name }} ({{ town.voivodeship_label }}): {{ town.count }}</title></circle>{% endfor %}</g>
+      <g class="pm-labels" aria-hidden="true">{% for label in map.labels %}<text class="pm-label" x="{{ label.x }}" y="{{ label.y }}">{{ label.text }}</text>{% endfor %}</g>
+    </svg>
+    <p class="pm-selected" data-pm-selected aria-live="polite"></p>
+    {% if map.legend %}
+      <div class="pm-legend" aria-hidden="true">
+        <span>{% translate "Liczba uczniów:" %}</span>
+        {% for item in map.legend %}
+          <span class="pm-legend__item"><svg viewBox="0 0 {{ item.width }} 34" class="pm-legend__swatch" focusable="false"><circle class="pm-dot pm-dot--legend" cx="{{ item.cx }}" cy="17" r="{{ item.r }}"/></svg>{{ item.value }}</span>
+        {% endfor %}
+      </div>
+    {% endif %}
+  </section>
+
+  <section class="card pm-card" aria-labelledby="pm-list-title">
+    <h2 class="pm-card__title" id="pm-list-title">{% translate "Wszystkie miejscowości" %}</h2>
+    <div class="pm-filter" data-pm-filter hidden>
+      <label for="pm-search">{% translate "Szukaj" %}</label>
+      <input id="pm-search" type="search" autocomplete="off" placeholder="{% translate 'np. Kraków albo małopolskie' %}" data-pm-search>
+      <span class="pm-filter__count" data-pm-count aria-live="polite"
+            data-template="{% translate 'Pokazano {shown} z {all}' %}"></span>
+    </div>
+    <ol class="pm-list" data-pm-list>
+      {% for town in map.towns %}
+        <li class="pm-row" data-search="{{ town.search }}" data-town="{{ town.id }}"
+            data-caption="{{ town.name }} ({{ town.voivodeship_label }}): {{ town.count }}">
+          <span class="pm-row__rank">{{ town.rank }}.</span>
+          <span class="pm-row__name">
+            {% if town.point %}<a href="#{{ town.id }}" class="pm-row__link">{{ town.name }}</a>{% else %}<span>{{ town.name }}</span>
+              <span class="visually-hidden">{% translate "(bez punktu na mapie)" %}</span>{% endif %}
+            <small>{{ town.voivodeship_label }}</small>
+          </span>
+          <span class="stat-bar pm-row__bar" aria-hidden="true"><span class="stat-bar__fill stat-bar__fill--{{ town.bar }}"></span></span>
+          <span class="pm-row__count">{{ town.count }}</span>
+        </li>
+      {% endfor %}
+      {% for other in map.others %}
+        <li class="pm-row pm-row--rest" data-search="{{ other.search }}">
+          <span class="pm-row__rank"></span>
+          <span class="pm-row__name"><span>{% translate "pozostałe miejscowości" %}</span>
+            <small>{{ other.voivodeship_label }}</small></span>
+          <span class="pm-row__bar"></span>
+          <span class="pm-row__count">{{ other.count }}</span>
+        </li>
+      {% endfor %}
+    </ol>
+    <p class="pm-empty" data-pm-empty hidden>{% translate "Brak miejscowości pasujących do wyszukiwania." %}</p>
+  </section>
+</div>
+{% endif %}
+
+<div class="pm-notes">
+  <p class="hint">{% blocktranslate trimmed with total=map.total %}
+    Dane zbiorcze z platformy: {{ total }} uczestników bieżącej edycji, bez kont usuniętych
+    i zanonimizowanych. Miejscowość pochodzi z adresu szkoły w wykazie SIO (dzielnice dużych miast są
+    połączone w jedno miasto).
+  {% endblocktranslate %}</p>
+  <p class="hint">{% blocktranslate trimmed with threshold=map.min_count %}
+    Ochrona danych: miejscowość, w której jest mniej niż {{ threshold }} uczestników, nie jest
+    pokazywana z nazwą ani na mapie – jej uczniowie są wliczeni do pozycji „pozostałe miejscowości”
+    swojego województwa. Strona nie zawiera nazw szkół ani żadnych danych pojedynczych osób.
+  {% endblocktranslate %}</p>
+  {% if map.outside_directory %}
+    <p class="hint">{% blocktranslate trimmed with count=map.outside_directory %}
+      Szkołę spoza wykazu SIO podało {{ count }} uczestników – są wliczeni do liczby uczestników, ale nie
+      ma ich na mapie ani na liście miejscowości.
+    {% endblocktranslate %}</p>
+  {% endif %}
+  {% if map.unmapped %}
+    <p class="hint">{% blocktranslate trimmed with count=map.unmapped %}
+      Bez punktu na mapie (są na liście): {{ count }}.
+    {% endblocktranslate %}</p>
+  {% endif %}
+  <p class="hint">{% translate "Położenie miejscowości: © autorzy OpenStreetMap (licencja ODbL). Granice województw: Państwowy Rejestr Granic, Główny Urząd Geodezji i Kartografii." %}</p>
+</div>
+{% endblock %}
+{% block scripts %}
+  <script defer nonce="{{ request.csp_nonce }}" src="{% static 'participant_map/participant-map.js' %}"></script>
+{% endblock %}

@@ -58,7 +58,7 @@ też działa). Fraza krótsza niż dwa znaki nie szuka niczego.
 | **Uczestnicy i konta** | Uczestnicy, Wszystkie konta, Opiekunowie szkolni, Aktywacje, *Status ucznia* (tylko z włączonymi zaświadczeniami, § 10a) |
 | **Komitet** | Członkowie, Zatwierdzenia, Zaproszenia, Województwa |
 | **Komunikacja** | Komunikaty, Zgłoszenia, Ogłoszenia |
-| **Raporty** | Eksport danych, Audyt, Symulacja kwalifikacji, Dyplomy, Retencja danych, Rejestr czynności; *Materiały z warsztatów* (tylko przy włączonej fladze `workshop_materials`, § 4.11); *Wpisowe* i *Płatności* (tylko przy włączonej fladze `fees`, § 10h) |
+| **Raporty** | Eksport danych, Audyt, Symulacja kwalifikacji, Dyplomy, Retencja danych, Rejestr czynności; *Materiały z warsztatów* (tylko przy włączonej fladze `workshop_materials`, § 4.11); *Wpisowe* i *Płatności* (tylko przy włączonej fladze `fees`, § 10h); Mapa uczestników (§ 7.3c) |
 | **Ustawienia** | Rejestracja uczestników, Wydarzenia linii czasu, Skala punktacji, Slider sponsorów, Plakaty do pobrania |
 
 Przy czterech pozycjach (Moderacja, Aktywacje, Zatwierdzenia, Zgłoszenia) stoją **liczniki spraw
@@ -1936,6 +1936,29 @@ Odnośnik pojawia się sam przy etapie w **Harmonogramie**, na karcie etapu w pa
 menu jest tylko dla etapu z **opublikowaną** wersją: projekt jej nie daje, wycofanie ostatniej wersji
 ją zdejmuje, a zmiana nazwy etapu zmienia jej napis od razu (ZOZ-02). Odnośniki w treści innych dokumentów (Regulamin, RODO) dodaje redakcja. Wersję z pliku
 może wgrać też operator komendą `import_stage_rules` (OPERACJE § 56).
+
+### 7.3c Mapa uczestników — `/coordinator/participant-map/` (MAP-01)
+
+Publiczna strona **`/dokumenty/mapa-uczestnikow/`**: z jakich miejscowości są uczestnicy bieżącej
+edycji – kafle (uczestnicy, miejscowości, szkoły, udział 5 największych), mapa Polski z kółkami
+miejscowości (pole kółka ∝ liczbie uczniów) i pełna lista z wyszukiwarką. Ekran ustawień: **Raporty →
+Mapa uczestników**.
+
+- **Włączenie**: pole „Pokazuj mapę uczestników w sekcji »Dokumenty«” → **Zapisz ustawienia**. Strona
+  dostaje pozycję na końcu rozwijanego menu „Dokumenty” i kartę w spisie `/dokumenty/` (także na
+  django CMS). Wyłączona – adres odpowiada 404, menu i spis są bez zmian.
+- **Próg ochrony** (domyślnie 3, najmniej 3, najwyżej 50): miejscowość z mniejszą liczbą uczestników
+  nie pokazuje się z nazwą ani na mapie – jej uczniowie trafiają do „pozostałych miejscowości” swojego
+  województwa. Strona nie pokazuje nazw szkół ani danych osób; uczestnicy to w większości małoletni.
+- **Odśwież mapę uczestników**: liczby odświeżają się same co godzinę; przycisk przelicza je od razu
+  i czyści zapisane kopie strony – komunikat „Mapa odświeżona – stan na …”. Data ostatniego
+  przeliczenia stoi na ekranie i na stronie („stan na …”).
+- Ekran pokazuje te same liczby, co strona (także zanim ją włączysz), oraz miejscowości z listy, które
+  nie mają punktu na mapie – punkt dopisuje operator (OPERACJE § 58.1).
+- Liczeni są uczestnicy bieżącej edycji bez kont usuniętych; miejscowość pochodzi ze szkoły wybranej
+  z wykazu SIO (szkoła wpisana ręcznie liczy się tylko do liczby łącznej).
+- Włączenie dokłada wiersz „mapa uczestników” do **Rejestru czynności**; każde przeliczenie i zmiana
+  ustawień trafia do dziennika zdarzeń (`participant_map.refreshed`, `participant_map.settings_changed`).
 
 ### 7.4 Zgoda opiekuna — jak serwis ustala pełnoletność
 

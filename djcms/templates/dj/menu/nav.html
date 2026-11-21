@@ -7,7 +7,8 @@
   i z flagami ``attr.dj_*`` z ``MenuExtension``. Dzieci rysujemy wyłącznie przy „liście rozwijanej”
   (``dj_expand``) – w Wagtailu tylko spis dokumentów, a nie np. aktualności z dziesiątkami podstron.
   Za pozycją ``dj_rules_anchor`` (Regulamin) stają „Zasady Organizacji Zawodów” etapów z ``chrome``
-  (ZOZ-02) – strony aplikacji głównej, więc nigdy nie są tu stroną bieżącą.
+  (ZOZ-02) – strony aplikacji głównej, więc nigdy nie są tu stroną bieżącą. Na końcu listy – „Mapa
+  uczestników” (MAP-01, ``chrome.links.participant_map``), gdy konkurs ma ją włączoną.
 {% endcomment %}
 {% for child in children %}
   {% if child.attr.dj_expand and child.children %}
@@ -21,6 +22,9 @@
             <li><a class="nav-menu__link" href="{{ rules.url }}">{{ rules.title }}</a></li>
           {% endfor %}{% endif %}
         {% endfor %}
+        {% if dj_chrome.participant_map_url %}
+          <li><a class="nav-menu__link" href="{{ dj_chrome.participant_map_url }}">Mapa uczestników</a></li>
+        {% endif %}
       </ul>
     </details>
   {% elif child.attr.is_home %}

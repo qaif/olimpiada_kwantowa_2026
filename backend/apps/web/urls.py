@@ -16,6 +16,7 @@ from apps.message_rules.urls import urlpatterns as message_rule_urlpatterns  # M
 # Notatniki kwantowe (QC-01) – wzorce w module aplikacji, rozwinięte na końcu listy.
 from apps.notebooks.urls import urlpatterns as notebook_urlpatterns
 from apps.notifications.urls import urlpatterns as notification_urlpatterns  # UX-PANEL-01
+from apps.participant_map.urls import urlpatterns as participant_map_urlpatterns  # MAP-01
 from apps.participant_panel.urls import urlpatterns as participant_panel_urlpatterns  # UX-PANEL-01
 from apps.password_change.urls import urlpatterns as password_change_urlpatterns  # AUTH-01b
 from apps.payments.urls import urlpatterns as payment_urlpatterns
@@ -1354,4 +1355,6 @@ urlpatterns = [
         coordinator_attachments.ProblemAttachmentDeleteView.as_view(),
         name="coordinator-problem-attachment-delete",
     ),
+    # --- mapa uczestników: /dokumenty/mapa-uczestnikow/ i ekran koordynatora (MAP-01) -------------
+    *participant_map_urlpatterns,
 ]

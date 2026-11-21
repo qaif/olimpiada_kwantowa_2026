@@ -103,6 +103,7 @@ musi mieć wiersz z poprawną wartością domyślną, a każda flaga z tabeli �
 | Blokada domen bez MX/A w formularzach adresu | `EMAIL_DOMAIN_DNS_CHECK` | `.env` | wł. | § 52.1 | — |
 | Bramka „Uzupełnij zgody” dla uczestników | `CONSENT_GATE_ENABLED` | `.env` | wł. | § 51 | — (nowe w CONS-01) |
 | Edytor LaTeX webTEX (pisanie i składanie rozwiązań) | `latex_editor` | flaga konkursu | wył. | § 55 | — |
+| Mapa uczestników w sekcji „Dokumenty” | `participant_map` | flaga konkursu | wył. | § 58 | kwantowa: włącza koordynator albo `participant_map kwantowa --enable` (§ 58) |
 | Host i klucz edytora LaTeX | `WEBTEX_HOST`, `WEBTEX_SHARED_KEY` | `.env` | puste (wył.) | § 55.1 | — |
 | Udostępnianie linków / asystent AI w edytorze LaTeX | ustawienia etapu (`/coordinator/stages/<id>/latex/`) | pole etapu | wył. / wył. | § 55.3 | — |
 | Historia wersji w edytorze LaTeX: przechowywanie, limit na projekt | `WEBTEX_HISTORY_KEEP_DAYS`, `WEBTEX_HISTORY_MAX_MB` | `.env` | 365 dni, 100 MB | § 55.5 | — |
@@ -7822,3 +7823,46 @@ docker compose exec -T web python manage.py add_problem_attachment --competition
 - `--stage` przyjmuje identyfikator etapu albo nazwę/rodzaj w bieżącej edycji; `--description`
   ustawia opis. Identyfikator etapu: `/coordinator/stages/<id>/problems/` w panelu.
 - Kontrola przed publikacją: jako koordynator `curl` adresu załącznika daje 200, anonimowo 404.
+
+## 58. Mapa uczestników (MAP-01, `docs/tasks/MAP-01.md`)
+
+Publiczna strona `/dokumenty/mapa-uczestnikow/` (flaga konkursu `participant_map`, domyślnie
+wyłączona): z jakich miejscowości są uczestnicy bieżącej edycji – same agregaty, miejscowość z mniej
+niż 3 uczestnikami (próg konkursu) zbiorczo jako „pozostałe miejscowości” województwa. Nowe tabele:
+`schools.TownLocation` (migracja `schools.0007_town_location`) i `participant_map.MapSettings`
+(`participant_map.0001_initial`) – bez okna serwisowego.
+
+### 58.1. Punkty miejscowości
+
+Wdrożenie samo wgrywa punkty, zaraz po słowniku szkół (`scripts/deploy.sh`):
+
+```bash
+docker compose exec -T web python manage.py seed_town_locations
+```
+
+- Plik: `backend/apps/schools/fixtures/miejscowosci-wspolrzedne.json` (OSM Nominatim, © OpenStreetMap
+  contributors, ODbL – źródło i licencja w pliku i w `fixtures/README.md`). Tabela jest lustrem pliku:
+  nowy punkt dochodzi, zmieniony się poprawia, usunięty z pliku znika. Wgranie zmiany gasi
+  zapamiętane agregaty map wszystkich konkursów.
+- Miejscowość bez punktu jest na liście, ale nie na mapie; nazwy takich miejscowości pokazuje ekran
+  koordynatora „Mapa uczestników”. Poprawka: dopisać wiersz `["Gmina", "slug-województwa", szer., dł.]`
+  do pliku (punkt musi leżeć w województwie – pilnuje test `test_bundled_fixture_points_lie_in_their_voivodeships`)
+  i wydać wersję; po odświeżeniu wykazu SIO (`seed_schools` z nowym plikiem) – dogeokodować nowe gminy
+  (MAP-01 § 3).
+- Plik odrzucony (nieznane województwo, współrzędne poza Polską, zdublowana para) przerywa komendę
+  przed zapisem – wdrożenie zatrzymuje się na tym kroku.
+
+### 58.2. Włączenie i odświeżanie
+
+```bash
+docker compose exec -T web python manage.py participant_map kwantowa            # stan i liczby
+docker compose exec -T web python manage.py participant_map kwantowa --enable   # włącza i przelicza
+docker compose exec -T web python manage.py participant_map kwantowa --refresh  # przelicza teraz
+docker compose exec -T web python manage.py participant_map kwantowa --disable
+```
+
+To samo robi koordynator w panelu (Raporty → Mapa uczestników): przełącznik, próg ochrony (3–50)
+i przycisk „Odśwież mapę uczestników” (limit `participant_map` 30/h na konto, wpisy audytu
+`participant_map.refreshed` i `participant_map.settings_changed`). Bez przycisku agregat odświeża się
+sam po `PARTICIPANT_MAP_CACHE_SECONDS` (domyślnie 3600 s). Włączenie dokłada wiersz
+„mapa-uczestnikow” do rejestru czynności przetwarzania konkursu (wersja 1.29).

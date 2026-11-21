@@ -129,6 +129,12 @@ QUERY_BUDGETS: dict[str, int] = {
     # i etapy. Mierzone w ``apps/committee_panel/tests/test_panel.py`` po rozgrzewce (21.10.2026: 20),
     # razem z asercją, że koszt nie rośnie z liczbą przydziałów i etapów. Sufit = pomiar.
     "committee/start": 20,
+    # --- mapa uczestników (MAP-01) --------------------------------------------------------------------
+    # Strona publiczna na zimno: rama serwisu (menu, stopka, slider) + agregat mapy – pięć zapytań
+    # niezależnie od liczby uczestników i miejscowości (edycja, próg, sumy, ``GROUP BY`` po gminie,
+    # punkty). Na ciepło agregat nie kosztuje nic. Mierzone w ``apps/participant_map/tests/test_map.py``
+    # (21.11.2026: 24). Sufit = pomiar.
+    "/dokumenty/mapa-uczestnikow/": 24,
 }
 
 

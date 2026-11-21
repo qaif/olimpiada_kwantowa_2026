@@ -1,0 +1,228 @@
+/* =================================================================================================
+   Mapa uczestników (/dokumenty/mapa-uczestnikow/, MAP-01) – mapa SVG z serwera obok listy.
+
+   Kolory wyłącznie z tokenów ``app.css`` (``--surface-inset``, ``--accent``, ``--ink``…), więc tryb
+   ciemny, motywy konkursów i tryb wysokiego kontrastu działają bez jednej dodatkowej reguły.
+   Kafle i słupki – ``statistics.css`` (``stat-facts``, ``stat-bar``); tu tylko układ i mapa.
+   ============================================================================================== */
+
+.pm-facts {
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+}
+
+/* Mapa po lewej, lista po prawej; na węższym ekranie jedno pod drugim. */
+.pm-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  gap: var(--sp-4);
+  align-items: start;
+  margin: var(--sp-4) 0;
+}
+
+@media (max-width: 900px) {
+  .pm-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.pm-card {
+  min-width: 0;
+}
+
+.pm-card__title {
+  margin: 0 0 var(--sp-3);
+  font-size: 1.05rem;
+}
+
+/* --- mapa ------------------------------------------------------------------------------------- */
+
+.pm-map {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.pm-voivodeship {
+  fill: var(--surface-inset);
+  stroke: var(--surface);
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+}
+
+.pm-dot {
+  fill: var(--accent);
+  fill-opacity: 0.72;
+  stroke: var(--surface);
+  stroke-width: 1;
+  transition: opacity 0.15s;
+}
+
+/* Podświetlenie: ``:target`` działa bez skryptu (odnośnik z listy), ``.is-on`` – ze skryptem. */
+.pm-dot:target,
+.pm-dot.is-on,
+.pm-dot:hover {
+  fill-opacity: 1;
+  stroke: var(--ink);
+  stroke-width: 2.2;
+}
+
+.pm-map.is-dimmed .pm-dot:not(.is-on) {
+  opacity: 0.25;
+}
+
+.pm-label {
+  font: 600 11px var(--font-sans, system-ui, sans-serif);
+  fill: var(--ink);
+  paint-order: stroke;
+  stroke: var(--surface);
+  stroke-width: 3px;
+  pointer-events: none;
+}
+
+.pm-selected {
+  min-height: 1.5em;
+  margin: var(--sp-2) 0 0;
+  font-weight: 600;
+}
+
+.pm-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-4);
+  align-items: center;
+  margin-top: var(--sp-2);
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
+
+.pm-legend__item {
+  display: inline-flex;
+  gap: var(--sp-1);
+  align-items: center;
+}
+
+.pm-legend__swatch {
+  width: auto;
+  height: 34px;
+}
+
+.pm-dot--legend {
+  transition: none;
+}
+
+/* --- lista ------------------------------------------------------------------------------------ */
+
+.pm-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  align-items: center;
+  margin-bottom: var(--sp-3);
+}
+
+.pm-filter[hidden] {
+  display: none;
+}
+
+.pm-filter input {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.pm-filter__count {
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.pm-list {
+  max-height: 40rem;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+@media (max-width: 900px) {
+  .pm-list {
+    max-height: 28rem;
+  }
+}
+
+.pm-row {
+  display: grid;
+  grid-template-columns: 2.4em minmax(0, 1fr) 5.5em 2.8em;
+  gap: var(--sp-2);
+  align-items: center;
+  padding: var(--sp-2) var(--sp-1);
+  border-bottom: 1px solid var(--line);
+}
+
+.pm-row[hidden] {
+  display: none;
+}
+
+.pm-row.is-on {
+  background: var(--accent-soft);
+}
+
+.pm-row__rank {
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.pm-row__name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.pm-row__name small {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
+.pm-row__bar.stat-bar {
+  width: 100%;
+  margin: 0;
+}
+
+.pm-row__count {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.pm-row--rest .pm-row__name > span {
+  font-style: italic;
+}
+
+.pm-empty {
+  margin: var(--sp-3) 0 0;
+  color: var(--ink-soft);
+}
+
+.pm-notes {
+  max-width: 90ch;
+}
+
+@media (max-width: 520px) {
+  .pm-row {
+    grid-template-columns: 2em minmax(0, 1fr) 3.5em 2.6em;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pm-dot {
+    transition: none;
+  }
+}
+
+@media print {
+  .pm-list {
+    max-height: none;
+    overflow: visible;
+  }
+}

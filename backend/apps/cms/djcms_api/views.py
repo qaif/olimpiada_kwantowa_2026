@@ -249,7 +249,7 @@ def _chrome(request, competition):
     """
     from apps.accounts.supervisors import registration_enabled_for_competition
     from apps.cms.announcements import cached_announcements
-    from apps.cms.context_processors import stage_rules_entries
+    from apps.cms.context_processors import participant_map_entry, stage_rules_entries
     from apps.cms.models import SiteSettings
     from apps.cms.sponsor_slider import cached_payload
     from apps.competitions.services import current_edition
@@ -259,6 +259,7 @@ def _chrome(request, competition):
     settings_row = SiteSettings.for_site(site)
     supervisor_enabled = registration_enabled_for_competition(competition)
     slider = cached_payload(competition)
+    participant_map = participant_map_entry(competition)
     site_dto = _site_dto(settings_row)
     site_dto["ga_measurement_id"] = settings_row.ga_measurement_id or ""
     return {
@@ -276,6 +277,9 @@ def _chrome(request, competition):
             "support": s.api_href(reverse("web:support-new")),
             "posters": s.api_href(reverse("web:posters")) if has_public_materials(competition) else None,
             "main_home": s.main_url("/"),
+            # Mapa uczestników (MAP-01) – ostatnia pozycja listy „Dokumenty” (``dj/menu/nav.html``)
+            # i karta w spisie dokumentów; ``None``, gdy konkurs nie ma włączonej flagi.
+            "participant_map": s.api_href(participant_map["url"]) if participant_map else None,
         },
         # Zasady Organizacji Zawodów etapów (ZOZ-02) – pozycje listy „Dokumenty” zaraz za Regulaminem
         # (``dj/menu/nav.html``). Strony ZOZ są stronami aplikacji, więc adresy są bezwzględne.

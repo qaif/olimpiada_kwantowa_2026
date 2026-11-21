@@ -1,0 +1,100 @@
+# English – katalog aplikacji ``apps.participant_map`` (zadanie MAP-01).
+# Zrodlem (msgid) jest polski. UWAGA: tlumaczenie MASZYNOWE (model jezykowy) – patrz
+# docs/OPERACJE.md (przeglad przez native speakera przed szeroka komunikacja).
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada Kwantowa\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-11-21 18:00+0100\n"
+"PO-Revision-Date: 2026-11-21 18:00+0100\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: English\n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Mapa uczestników"
+msgstr "Participant map"
+
+msgid "Z jakich miejscowości pochodzą uczestnicy bieżącej edycji olimpiady – mapa Polski i pełna lista miejscowości, wyłącznie dane zbiorcze."
+msgstr "Where the participants of the current edition come from – a map of Poland and the full list of towns, aggregate data only."
+
+#, python-format
+msgid "stan na %(when)s"
+msgstr "as of %(when)s"
+
+msgid "Każde kółko to miejscowość, w której leżą szkoły uczestników; pole kółka odpowiada liczbie uczniów. Kliknij miejscowość na liście, żeby zobaczyć ją na mapie."
+msgstr "Each circle is a town where participants’ schools are located; the area of the circle corresponds to the number of students. Click a town in the list to see it on the map."
+
+msgid "Uczestnicy"
+msgstr "Participants"
+
+msgid "Miejscowości"
+msgstr "Towns"
+
+msgid "Szkoły z wykazu SIO"
+msgstr "Schools from the SIO register"
+
+msgid "Udział 5 największych miejscowości"
+msgstr "Share of the 5 largest towns"
+
+msgid "W bieżącej edycji nie ma jeszcze uczestników do pokazania."
+msgstr "There are no participants to show in the current edition yet."
+
+msgid "Mapa"
+msgstr "Map"
+
+msgid "Mapa Polski z granicami województw i kółkami miejscowości; pole kółka odpowiada liczbie uczestników. Te same liczby są na liście obok."
+msgstr "Map of Poland with voivodeship borders and town circles; the area of a circle corresponds to the number of participants. The same numbers are in the list alongside."
+
+msgid "Liczba uczniów:"
+msgstr "Number of students:"
+
+msgid "Wszystkie miejscowości"
+msgstr "All towns"
+
+msgid "np. Kraków albo małopolskie"
+msgstr "e.g. Kraków or małopolskie"
+
+msgid "Pokazano {shown} z {all}"
+msgstr "Showing {shown} of {all}"
+
+msgid "(bez punktu na mapie)"
+msgstr "(no point on the map)"
+
+msgid "pozostałe miejscowości"
+msgstr "other towns"
+
+msgid "Brak miejscowości pasujących do wyszukiwania."
+msgstr "No towns match your search."
+
+#, python-format
+msgid "Dane zbiorcze z platformy: %(total)s uczestników bieżącej edycji, bez kont usuniętych i zanonimizowanych. Miejscowość pochodzi z adresu szkoły w wykazie SIO (dzielnice dużych miast są połączone w jedno miasto)."
+msgstr "Aggregate data from the platform: %(total)s participants of the current edition, excluding deleted and anonymised accounts. The town comes from the school’s address in the SIO register (districts of large cities are merged into one city)."
+
+#, python-format
+msgid "Ochrona danych: miejscowość, w której jest mniej niż %(threshold)s uczestników, nie jest pokazywana z nazwą ani na mapie – jej uczniowie są wliczeni do pozycji „pozostałe miejscowości” swojego województwa. Strona nie zawiera nazw szkół ani żadnych danych pojedynczych osób."
+msgstr "Data protection: a town with fewer than %(threshold)s participants is not shown by name or on the map – its students are counted in the “other towns” entry of their voivodeship. The page contains no school names and no data about individual people."
+
+#, python-format
+msgid "Szkołę spoza wykazu SIO podało %(count)s uczestników – są wliczeni do liczby uczestników, ale nie ma ich na mapie ani na liście miejscowości."
+msgstr "%(count)s participants gave a school outside the SIO register – they are included in the number of participants but not on the map or in the list of towns."
+
+#, python-format
+msgid "Bez punktu na mapie (są na liście): %(count)s."
+msgstr "Without a point on the map (listed): %(count)s."
+
+msgid "Położenie miejscowości: © autorzy OpenStreetMap (licencja ODbL). Granice województw: Państwowy Rejestr Granic, Główny Urząd Geodezji i Kartografii."
+msgstr "Town locations: © OpenStreetMap contributors (ODbL licence). Voivodeship borders: National Register of Boundaries (PRG), Head Office of Geodesy and Cartography (GUGiK)."
+
+msgid "Statystyki uczestników"
+msgstr "Participant statistics"
+
+msgid "Z jakich miejscowości pochodzą uczestnicy bieżącej edycji – mapa i pełna lista, wyłącznie dane zbiorcze."
+msgstr "Where the participants of the current edition come from – a map and the full list, aggregate data only."
+
+msgid "Zobacz mapę"
+msgstr "View the map"

@@ -221,6 +221,34 @@ def test_stage_rules_go_last_when_the_section_has_no_regulations(client, make_pa
     assert [title for _url, title in links] == ["Polityka RODO", "Zasady Organizacji Zawodów – Etap I"]
 
 
+@pytest.mark.django_db
+def test_participant_map_goes_last_in_the_documents_list(client, tree, make_page, main_api, chrome_payload):
+    """MAP-01: „Mapa uczestników” z ``chrome.links.participant_map`` – na końcu listy, za ZOZ."""
+    make_page("Polityka RODO", "rodo", parent=tree["dokumenty"])
+    payload = chrome_payload(stage_rules=STAGE_RULES[:1])
+    payload["links"]["participant_map"] = "https://olimpiada.example/dokumenty/mapa-uczestnikow/"
+    main_api.set("chrome", payload)
+
+    links = _documents_links(_nav(client.get("/wyniki/").content.decode()))
+
+    assert links[-1] == ("https://olimpiada.example/dokumenty/mapa-uczestnikow/", "Mapa uczestników")
+    assert [title for _url, title in links][:2] == ["Regulamin", "Zasady Organizacji Zawodów – Etap I"]
+
+
+@pytest.mark.django_db
+def test_participant_map_absent_without_the_link(client, tree, main_api, chrome_payload):
+    main_api.set("chrome", chrome_payload())
+    assert "Mapa uczestników" not in _nav(client.get("/wyniki/").content.decode())
+
+
+@pytest.mark.django_db
+def test_participant_map_with_an_unsafe_url_is_dropped(client, tree, main_api, chrome_payload):
+    payload = chrome_payload()
+    payload["links"]["participant_map"] = "javascript:alert(1)"
+    main_api.set("chrome", payload)
+    assert "Mapa uczestników" not in _nav(client.get("/wyniki/").content.decode())
+
+
 # --- modyfikator bez żądania HTTP --------------------------------------------------------------------
 
 

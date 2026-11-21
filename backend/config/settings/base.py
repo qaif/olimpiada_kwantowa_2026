@@ -206,6 +206,7 @@ INSTALLED_APPS = [
     "apps.coordinator_stats",  # lejek uczestnika i raporty wysyłek komunikatów (STATS-02, 18.10.2026)
     "apps.consent_gate",  # bramka i ekran „Uzupełnij zgody” po zalogowaniu (CONS-01), bez modeli
     "apps.calendar_feed",  # publiczny kalendarz ICS: warsztaty i terminy (CAL-01, 18.10.2026), bez modeli
+    "apps.participant_map",  # mapa uczestników w sekcji „Dokumenty” (MAP-01, flaga ``participant_map``)
     # Edytor LaTeX webTEX przy zadaniu (TEX-01, flaga ``latex_editor``): token SSO, złożenie PDF-u
     # przez ``create_submission``, przełącznik udostępniania per etap. **Przed** ``apps.web``,
     # który montuje jej adresy i wstawia jej panel do karty zadania.
@@ -1625,6 +1626,11 @@ REST_FRAMEWORK = {
         # (``apps.web.throttle.PER_USER_SCOPES``). Każdy zapis unieważnia cache stron konkursu, a podgląd
         # kolorów to też POST – sto dwadzieścia na godzinę mieści długie dopasowywanie palety.
         "theme_settings": "120/hour",
+        # Mapa uczestników (MAP-01, ``/coordinator/participant-map/…``): przeliczenie agregatu
+        # i zapis ustawień, per konto (``PerAccountThrottleMixin``). Każde kliknięcie to kilka zapytań
+        # agregujących po wszystkich uczestnikach edycji i unieważnienie stron gościa – trzydzieści
+        # na godzinę mieści każde realne użycie, a nie pozwala zamienić przycisku w obciążenie bazy.
+        "participant_map": "30/hour",
     },
     "EXCEPTION_HANDLER": "apps.core.api.exception_handler",
 }

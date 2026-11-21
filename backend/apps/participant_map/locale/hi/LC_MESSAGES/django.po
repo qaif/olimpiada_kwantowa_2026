@@ -1,0 +1,100 @@
+# Hindi – katalog aplikacji ``apps.participant_map`` (zadanie MAP-01).
+# Zrodlem (msgid) jest polski. UWAGA: tlumaczenie MASZYNOWE (model jezykowy) – patrz
+# docs/OPERACJE.md (przeglad przez native speakera przed szeroka komunikacja).
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada Kwantowa\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-11-21 18:00+0100\n"
+"PO-Revision-Date: 2026-11-21 18:00+0100\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: Hindi\n"
+"Language: hi\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Mapa uczestników"
+msgstr "प्रतिभागी मानचित्र"
+
+msgid "Z jakich miejscowości pochodzą uczestnicy bieżącej edycji olimpiady – mapa Polski i pełna lista miejscowości, wyłącznie dane zbiorcze."
+msgstr "वर्तमान संस्करण के प्रतिभागी किन स्थानों से हैं – पोलैंड का मानचित्र और स्थानों की पूरी सूची, केवल समेकित आंकड़े।"
+
+#, python-format
+msgid "stan na %(when)s"
+msgstr "%(when)s तक की स्थिति"
+
+msgid "Każde kółko to miejscowość, w której leżą szkoły uczestników; pole kółka odpowiada liczbie uczniów. Kliknij miejscowość na liście, żeby zobaczyć ją na mapie."
+msgstr "हर वृत्त वह स्थान है जहाँ प्रतिभागियों के विद्यालय हैं; वृत्त का क्षेत्रफल विद्यार्थियों की संख्या के अनुरूप है। मानचित्र पर देखने के लिए सूची में स्थान पर क्लिक करें।"
+
+msgid "Uczestnicy"
+msgstr "प्रतिभागी"
+
+msgid "Miejscowości"
+msgstr "स्थान"
+
+msgid "Szkoły z wykazu SIO"
+msgstr "SIO सूची के विद्यालय"
+
+msgid "Udział 5 największych miejscowości"
+msgstr "5 सबसे बड़े स्थानों का हिस्सा"
+
+msgid "W bieżącej edycji nie ma jeszcze uczestników do pokazania."
+msgstr "वर्तमान संस्करण में अभी दिखाने के लिए कोई प्रतिभागी नहीं है।"
+
+msgid "Mapa"
+msgstr "मानचित्र"
+
+msgid "Mapa Polski z granicami województw i kółkami miejscowości; pole kółka odpowiada liczbie uczestników. Te same liczby są na liście obok."
+msgstr "प्रांतों की सीमाओं और स्थानों के वृत्तों वाला पोलैंड का मानचित्र; वृत्त का क्षेत्रफल प्रतिभागियों की संख्या के अनुरूप है। यही संख्याएँ साथ की सूची में भी हैं।"
+
+msgid "Liczba uczniów:"
+msgstr "विद्यार्थियों की संख्या:"
+
+msgid "Wszystkie miejscowości"
+msgstr "सभी स्थान"
+
+msgid "np. Kraków albo małopolskie"
+msgstr "जैसे Kraków या małopolskie"
+
+msgid "Pokazano {shown} z {all}"
+msgstr "{all} में से {shown} दिखाए गए"
+
+msgid "(bez punktu na mapie)"
+msgstr "(मानचित्र पर कोई बिंदु नहीं)"
+
+msgid "pozostałe miejscowości"
+msgstr "अन्य स्थान"
+
+msgid "Brak miejscowości pasujących do wyszukiwania."
+msgstr "खोज से मेल खाता कोई स्थान नहीं।"
+
+#, python-format
+msgid "Dane zbiorcze z platformy: %(total)s uczestników bieżącej edycji, bez kont usuniętych i zanonimizowanych. Miejscowość pochodzi z adresu szkoły w wykazie SIO (dzielnice dużych miast są połączone w jedno miasto)."
+msgstr "प्लेटफ़ॉर्म के समेकित आंकड़े: वर्तमान संस्करण के %(total)s प्रतिभागी, हटाए गए और अनामीकृत खातों को छोड़कर। स्थान SIO सूची में विद्यालय के पते से लिया गया है (बड़े शहरों के ज़िले एक शहर में मिला दिए गए हैं)।"
+
+#, python-format
+msgid "Ochrona danych: miejscowość, w której jest mniej niż %(threshold)s uczestników, nie jest pokazywana z nazwą ani na mapie – jej uczniowie są wliczeni do pozycji „pozostałe miejscowości” swojego województwa. Strona nie zawiera nazw szkół ani żadnych danych pojedynczych osób."
+msgstr "डेटा सुरक्षा: जिस स्थान में %(threshold)s से कम प्रतिभागी हैं, उसे नाम से या मानचित्र पर नहीं दिखाया जाता – उसके विद्यार्थी अपने प्रांत की “अन्य स्थान” प्रविष्टि में गिने जाते हैं। इस पृष्ठ पर विद्यालयों के नाम या किसी व्यक्ति का कोई डेटा नहीं है।"
+
+#, python-format
+msgid "Szkołę spoza wykazu SIO podało %(count)s uczestników – są wliczeni do liczby uczestników, ale nie ma ich na mapie ani na liście miejscowości."
+msgstr "%(count)s प्रतिभागियों ने SIO सूची से बाहर का विद्यालय बताया – वे प्रतिभागियों की संख्या में शामिल हैं, पर मानचित्र या स्थानों की सूची में नहीं।"
+
+#, python-format
+msgid "Bez punktu na mapie (są na liście): %(count)s."
+msgstr "मानचित्र पर बिंदु के बिना (सूची में हैं): %(count)s।"
+
+msgid "Położenie miejscowości: © autorzy OpenStreetMap (licencja ODbL). Granice województw: Państwowy Rejestr Granic, Główny Urząd Geodezji i Kartografii."
+msgstr "स्थानों की स्थिति: © OpenStreetMap योगदानकर्ता (ODbL लाइसेंस)। प्रांतों की सीमाएँ: राष्ट्रीय सीमा रजिस्टर (PRG), भूगणित और मानचित्रण मुख्य कार्यालय (GUGiK)।"
+
+msgid "Statystyki uczestników"
+msgstr "प्रतिभागी आँकड़े"
+
+msgid "Z jakich miejscowości pochodzą uczestnicy bieżącej edycji – mapa i pełna lista, wyłącznie dane zbiorcze."
+msgstr "वर्तमान संस्करण के प्रतिभागी किन स्थानों से हैं – मानचित्र और पूरी सूची, केवल समेकित आंकड़े।"
+
+msgid "Zobacz mapę"
+msgstr "मानचित्र देखें"

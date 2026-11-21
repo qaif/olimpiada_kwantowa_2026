@@ -1,0 +1,100 @@
+# Indonesian – katalog aplikacji ``apps.participant_map`` (zadanie MAP-01).
+# Zrodlem (msgid) jest polski. UWAGA: tlumaczenie MASZYNOWE (model jezykowy) – patrz
+# docs/OPERACJE.md (przeglad przez native speakera przed szeroka komunikacja).
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Olimpiada Kwantowa\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-11-21 18:00+0100\n"
+"PO-Revision-Date: 2026-11-21 18:00+0100\n"
+"Last-Translator: Olimpiada Kwantowa\n"
+"Language-Team: Indonesian\n"
+"Language: id\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "Mapa uczestników"
+msgstr "Peta peserta"
+
+msgid "Z jakich miejscowości pochodzą uczestnicy bieżącej edycji olimpiady – mapa Polski i pełna lista miejscowości, wyłącznie dane zbiorcze."
+msgstr "Dari kota mana saja peserta edisi saat ini berasal – peta Polandia dan daftar lengkap kota, hanya data agregat."
+
+#, python-format
+msgid "stan na %(when)s"
+msgstr "per %(when)s"
+
+msgid "Każde kółko to miejscowość, w której leżą szkoły uczestników; pole kółka odpowiada liczbie uczniów. Kliknij miejscowość na liście, żeby zobaczyć ją na mapie."
+msgstr "Setiap lingkaran adalah kota tempat sekolah peserta berada; luas lingkaran sesuai dengan jumlah siswa. Klik kota di daftar untuk melihatnya di peta."
+
+msgid "Uczestnicy"
+msgstr "Peserta"
+
+msgid "Miejscowości"
+msgstr "Kota"
+
+msgid "Szkoły z wykazu SIO"
+msgstr "Sekolah dari daftar SIO"
+
+msgid "Udział 5 największych miejscowości"
+msgstr "Porsi 5 kota terbesar"
+
+msgid "W bieżącej edycji nie ma jeszcze uczestników do pokazania."
+msgstr "Belum ada peserta yang dapat ditampilkan pada edisi saat ini."
+
+msgid "Mapa"
+msgstr "Peta"
+
+msgid "Mapa Polski z granicami województw i kółkami miejscowości; pole kółka odpowiada liczbie uczestników. Te same liczby są na liście obok."
+msgstr "Peta Polandia dengan batas provinsi dan lingkaran kota; luas lingkaran sesuai dengan jumlah peserta. Angka yang sama ada di daftar di sebelahnya."
+
+msgid "Liczba uczniów:"
+msgstr "Jumlah siswa:"
+
+msgid "Wszystkie miejscowości"
+msgstr "Semua kota"
+
+msgid "np. Kraków albo małopolskie"
+msgstr "mis. Kraków atau małopolskie"
+
+msgid "Pokazano {shown} z {all}"
+msgstr "Menampilkan {shown} dari {all}"
+
+msgid "(bez punktu na mapie)"
+msgstr "(tanpa titik di peta)"
+
+msgid "pozostałe miejscowości"
+msgstr "kota lainnya"
+
+msgid "Brak miejscowości pasujących do wyszukiwania."
+msgstr "Tidak ada kota yang cocok dengan pencarian."
+
+#, python-format
+msgid "Dane zbiorcze z platformy: %(total)s uczestników bieżącej edycji, bez kont usuniętych i zanonimizowanych. Miejscowość pochodzi z adresu szkoły w wykazie SIO (dzielnice dużych miast są połączone w jedno miasto)."
+msgstr "Data agregat dari platform: %(total)s peserta edisi saat ini, tanpa akun yang dihapus dan dianonimkan. Kota berasal dari alamat sekolah dalam daftar SIO (distrik kota besar digabung menjadi satu kota)."
+
+#, python-format
+msgid "Ochrona danych: miejscowość, w której jest mniej niż %(threshold)s uczestników, nie jest pokazywana z nazwą ani na mapie – jej uczniowie są wliczeni do pozycji „pozostałe miejscowości” swojego województwa. Strona nie zawiera nazw szkół ani żadnych danych pojedynczych osób."
+msgstr "Perlindungan data: kota dengan kurang dari %(threshold)s peserta tidak ditampilkan namanya maupun di peta – siswanya dihitung dalam entri “kota lainnya” di provinsinya. Halaman ini tidak memuat nama sekolah maupun data perorangan."
+
+#, python-format
+msgid "Szkołę spoza wykazu SIO podało %(count)s uczestników – są wliczeni do liczby uczestników, ale nie ma ich na mapie ani na liście miejscowości."
+msgstr "%(count)s peserta mencantumkan sekolah di luar daftar SIO – mereka dihitung dalam jumlah peserta, tetapi tidak ada di peta maupun di daftar kota."
+
+#, python-format
+msgid "Bez punktu na mapie (są na liście): %(count)s."
+msgstr "Tanpa titik di peta (ada di daftar): %(count)s."
+
+msgid "Położenie miejscowości: © autorzy OpenStreetMap (licencja ODbL). Granice województw: Państwowy Rejestr Granic, Główny Urząd Geodezji i Kartografii."
+msgstr "Lokasi kota: © kontributor OpenStreetMap (lisensi ODbL). Batas provinsi: Daftar Batas Nasional (PRG), Kantor Pusat Geodesi dan Kartografi (GUGiK)."
+
+msgid "Statystyki uczestników"
+msgstr "Statistik peserta"
+
+msgid "Z jakich miejscowości pochodzą uczestnicy bieżącej edycji – mapa i pełna lista, wyłącznie dane zbiorcze."
+msgstr "Dari kota mana saja peserta edisi saat ini berasal – peta dan daftar lengkap, hanya data agregat."
+
+msgid "Zobacz mapę"
+msgstr "Lihat peta"

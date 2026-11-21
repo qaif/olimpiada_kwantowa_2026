@@ -170,6 +170,40 @@ class School(models.Model):
         super().save(*args, **kwargs)
 
 
+class TownLocation(models.Model):
+    """Punkt na mapie dla gminy z wykazu szkół – para (``city_parent``, ``voivodeship``) → współrzędne.
+
+    Dane referencyjne mapy uczestników (MAP-01, ``apps.participant_map``): wgrywa je komenda
+    ``seed_town_locations`` z fixture'u ``fixtures/miejscowosci-wspolrzedne.json`` (geokodowanie
+    OpenStreetMap Nominatim, © OpenStreetMap contributors, licencja ODbL – źródło i opis w README
+    fixture'ów). Klucz jest **parą**, a nie samą nazwą: „Adamów” leży w lubelskim i w mazowieckim,
+    a „Nowa Wieś” w kilku województwach naraz.
+
+    Osobna tabela, a nie dwie kolumny przy ``School``: punkt opisuje **gminę**, nie szkołę, więc przy
+    ośmiu tysiącach szkół w tysiącu dwustu miejscowościach powtarzałby się w każdym wierszu, a mapa
+    i tak grupuje po gminie. Bez kluczy obcych – szkoła i punkt łączą się po napisach, które obie
+    strony liczą tą samą regułą (``apps.schools.normalise.parent_city``).
+    """
+
+    city_parent = models.CharField("gmina (miejscowość nadrzędna)", max_length=120)
+    voivodeship = models.CharField("województwo", max_length=100, choices=Voivodeship.choices)
+    latitude = models.FloatField("szerokość geograficzna")
+    longitude = models.FloatField("długość geograficzna")
+
+    class Meta:
+        verbose_name = "położenie miejscowości"
+        verbose_name_plural = "położenia miejscowości"
+        ordering = ("voivodeship", "city_parent")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("city_parent", "voivodeship"), name="schools_town_location_unique"
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.city_parent} ({self.voivodeship}): {self.latitude:.4f}, {self.longitude:.4f}"
+
+
 # Słownik własny organizatora (``CustomInstitution``, § 1.3.3) mieszka w osobnym module razem ze
 # swoim importem CSV i wyszukiwarką – tam czyta się je jako jedną sprawę, a ten plik zostaje
 # opisem **wykazu publicznego**. Import stoi na końcu, a nie na górze, bo ``apps.schools.custom``

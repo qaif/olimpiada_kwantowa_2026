@@ -339,6 +339,14 @@ FEATURE_DEFAULTS: dict[str, bool] = {
     # **nie ma** (404), a karta zadania jest co do bajtu dzisiejsza. Domyślnie wyłączona, bo wymaga
     # kroku operatora, którego wdrożenie samo nie zrobi: usługi ``webtex`` i ``WEBTEX_SHARED_KEY``.
     "latex_editor": False,
+    # --- mapa uczestników (MAP-01, prośba organizatora z 21.11.2026) ------------------------------
+    # Publiczna strona ``/dokumenty/mapa-uczestnikow/`` (``apps.participant_map``): z jakich
+    # miejscowości są uczestnicy bieżącej edycji – same agregaty, miejscowości poniżej progu ochrony
+    # zbiorczo. Wyłączona znaczy, że adresu **nie ma** (404), a menu „Dokumenty” i spis dokumentów
+    # są co do bajtu dzisiejsze. Domyślnie wyłączona, bo mapa Polski ma sens tylko w olimpiadzie
+    # krajowej (nie w IQO), a publikacja statystyki o małoletnich jest decyzją organizatora –
+    # włącza ją koordynator na ekranie „Mapa uczestników” albo operator komendą ``participant_map``.
+    "participant_map": False,
 }
 
 

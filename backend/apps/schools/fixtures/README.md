@@ -83,3 +83,26 @@ Skrypt buduje dziś wykaz szkół **ponadpodstawowych**; regułę doboru szkół
 `read_schools(path, institution_type="PRIMARY")`. Przełącznik wiersza poleceń dla tej reguły
 dokłada zadanie, które przynosi sam plik `szkoly-podstawowe-sio-2025.json` — bez pliku byłaby to
 opcja bez zastosowania.
+
+# Punkty miejscowości mapy uczestników (`miejscowosci-wspolrzedne.json`, MAP-01)
+
+Współrzędne (WGS 84) **każdej** pary (gmina `city_parent`, województwo) z wykazu szkół – 1230 par
+z wykazu 2025/2026. Wgrywa je `manage.py seed_town_locations` przy każdym wdrożeniu (zaraz po
+`seed_schools`); czyta je mapa uczestników (`apps.participant_map`).
+
+- **Źródło**: OpenStreetMap, geokoder Nominatim (21.11.2026) – zapytanie strukturalne `city=<gmina>`,
+  `state=województwo <nazwa>`, `countrycodes=pl`, ogólny User-Agent, najwyżej 1 zapytanie na sekundę.
+  Nazwy niejednoznaczne w jednym województwie (kilku kandydatów odległych o ponad 10 km) rozstrzygnięte
+  po kodzie pocztowym szkół (kandydat najbliższy punktowi kodu, do 25 km).
+- **Kontrola**: każdy punkt leży w granicach swojego województwa (PRG, `apps/participant_map/data/`);
+  kandydat spoza województwa jest odrzucany. Pilnuje tego test
+  `apps/participant_map/tests/test_map.py::test_bundled_fixture_points_lie_in_their_voivodeships`.
+- **Licencja**: © OpenStreetMap contributors, **Open Database License (ODbL) 1.0** – dane można
+  używać i rozpowszechniać z podaniem źródła; plik niesie pola `source`, `attribution` i `license`,
+  a strona mapy – przypis „© autorzy OpenStreetMap (licencja ODbL)”. Plik jest bazą pochodną
+  w rozumieniu ODbL i jest udostępniony w tym repozytorium na tej samej licencji.
+- **Postać**: `{"source", "attribution", "license", "generated", "towns": [[gmina, slug województwa,
+  szerokość, długość], …]}` – jeden wiersz na miejscowość. Poprawka punktu = zmiana wiersza i wydanie;
+  komenda przerywa wgranie przy nieznanym województwie, współrzędnych poza Polską albo zdublowanej parze.
+- Po wgraniu nowego wykazu SIO trzeba dogeokodować gminy, których nie ma w pliku (ta sama metoda) –
+  do tego czasu ich uczniowie są na liście miejscowości, ale bez kółka na mapie.

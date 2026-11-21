@@ -361,6 +361,8 @@ def _chrome_payload(**overrides) -> dict:
             "support": "https://olimpiada.example/support/new/",
             "posters": "https://olimpiada.example/plakaty/",
             "main_home": "https://olimpiada.example/",
+            # Mapa uczestników (MAP-01) – ``None`` = konkurs bez flagi ``participant_map``.
+            "participant_map": None,
         },
         # Zasady Organizacji Zawodów etapów (ZOZ-02) – pozycje listy „Dokumenty” za Regulaminem.
         "stage_rules": [],

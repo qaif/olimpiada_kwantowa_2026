@@ -226,6 +226,32 @@ def test_document_index_cards(client, make_page, superuser):
 
 
 @pytest.mark.django_db
+def test_document_index_has_the_participant_map_card_only_with_the_link(
+    client, make_page, superuser, main_api, chrome_payload
+):
+    """MAP-01: karta „Mapa uczestników” na końcu spisu – gdy aplikacja główna podaje adres mapy."""
+    index = make_page("Dokumenty", "dokumenty", template="dj/pages/document_index.html")
+    _page, content, _ph = f.draft(make_page, "Regulamin", "regulamin", "dj/pages/document.html", parent=index)
+    f.publish(content, superuser)
+    main_api.set("chrome", chrome_payload())
+    assert "Mapa uczestników" not in _get(client, "/dokumenty/")
+    from django.core.cache import cache
+
+    cache.clear()  # odpowiedź ``chrome`` leży w pamięci podręcznej klienta API
+
+    payload = chrome_payload()
+    payload["links"]["participant_map"] = "https://olimpiada.example/dokumenty/mapa-uczestnikow/"
+    main_api.set("chrome", payload)
+    html = _get(client, "/dokumenty/")
+
+    assert (
+        '<h3 class="doc-card__title"><a href="https://olimpiada.example/dokumenty/mapa-uczestnikow/">'
+        "Mapa uczestników</a></h3>" in html
+    )
+    assert html.index("Mapa uczestników") > html.index("/dokumenty/regulamin/")
+
+
+@pytest.mark.django_db
 def test_document_page(client, make_page, superuser, main_api, chrome_payload):
     main_api.set("chrome", chrome_payload())
     _page, content, ph = f.draft(make_page, "Regulamin", "regulamin", "dj/pages/document.html")
