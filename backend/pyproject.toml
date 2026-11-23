@@ -64,7 +64,7 @@ dependencies = [
     # z ``read_only: true`` kończy się to błędem w logu przy każdym starcie – więc polecenie w
     # docker-compose.yml i Dockerfile wyłącza je flagą ``--no-control-socket``, której 23.x nie zna
     # (gunicorn z taką flagą nie wystartowałby). Granica i flaga muszą się zmieniać razem.
-    "gunicorn>=26.2,<27",
+    "gunicorn>=26.2,<28",
     # Bez ``uvicorn`` (do 10.10.2026 stał tu ``uvicorn[standard]``): serwis chodzi wyłącznie na WSGI
     # (gunicorn gthread – komentarz przy ``web`` w docker-compose.yml), a nic w kodzie go nie
     # importuje. Nieużywany serwer ASGI z ``uvloop``/``httptools``/``websockets`` w obrazie
