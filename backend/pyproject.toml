@@ -39,7 +39,7 @@ dependencies = [
     # ``ssl_check_hostname`` (Redis bez TLS, sieć ``cache``), domyślne ponowienia klienta (django-redis
     # i kombu podają własną pulę połączeń, więc obowiązuje ``retry`` puli – bez ponowień, jak w 5.x),
     # RedisGraph/RedisGears i dialekt wyszukiwania (nieużywane).
-    "redis>=6.4,<6.5",
+    "redis>=6.4,<8.2",
     # 7.0: pierwsza linia z ``Django>=5.2`` w metadanych; 5.4 nie instaluje się obok Django 6.1.
     "django-redis>=7.0,<7.1",
     # 5.7 (21.11.2026): kombu 5.7 – dolna granica pilnuje, że ``redis`` wyżej nie trafi na kombu 5.6
